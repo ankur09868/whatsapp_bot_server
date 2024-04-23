@@ -15,7 +15,7 @@ const GRAPH_API_TOKEN = "EAAVZBobCt7AcBO8trGDsP8t4bTe2mRA7sNdZCQ346G9ZANwsi4CVdK
 
 const GPT_API_KEY = "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";
 
-const PORT = 3000;
+const PORT = 8080;
 
 const conversationData = new Map();
 var AI_Replies=true;

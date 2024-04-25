@@ -1,7 +1,7 @@
 import express from "express";
 import axios from "axios";
 import { createServer } from "http";
-import { Server } from "socket.io";
+//import { Server } from "socket.io";
 import sendWhatsappMessage from './send_whatsapp_msg.js';
 import get_result_from_query from "./get_result_from_query.js";
 import addConversation from "./addConversation.js";
@@ -57,14 +57,14 @@ const io = new Server(server, {
   }
 });
 
-io.on('connection', (socket) => {
+/*io.on('connection', (socket) => {
   
   console.log('A user connected');
 
   socket.on('disconnect', () => {
     console.log('User Disconnected');
   });
-});
+});*/
 
 
 

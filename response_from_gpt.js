@@ -2,7 +2,7 @@ import axios from "axios";
 
 async function response_from_gpt(body, state){
   const url = "https://api.openai.com/v1/chat/completions";
-  const api_key = "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";
+  const api_key = process.env.REACT_APP_OPENAI_KEY;
   const config ={
     headers: {
       "Content-Type" : "application/json",

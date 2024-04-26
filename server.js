@@ -150,10 +150,10 @@ app.post("/webhook", async (req, res) => {
   // log incoming messages
    //console.log("Incoming webhook message:", JSON.stringify(req.body, null, 2));
     
- if(message) {
+/* if(message) {
    io.emit('new-message', {message: message?.text?.body || message?.interactive?.body} );
    console.log("test");
- }
+ }*/
   
   if (message?.type === "interactive") {
     

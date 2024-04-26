@@ -25,7 +25,7 @@ let zipName;
 let prompt;
 let lastMessage_id;
 var count=0;
-
+const GRAPH_API_TOKEN=process.env.GRAPH_API_TOKEN;
 const app = express();
 const httpServer = createServer(app);
 

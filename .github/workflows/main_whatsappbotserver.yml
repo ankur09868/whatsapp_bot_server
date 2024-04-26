@@ -61,10 +61,6 @@ jobs:
           tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_887ED2BE25B94FC5AB1EA4C0CDBD6929 }}
           subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_6EABEFBAE44F4D949D944E7CD3E0868A }}
 
-      - name: Set up environment secrets
-        run: |
-          echo "REACT_APP_OPENAI_KEY=${{ secrets.OPENAI_API_KEY }}" >> $GITHUB_ENV
-          echo "GRAPH_API_TOKEN=${{ secrets.GRAPH_API_TOKEN }}" >> $GITHUB_ENV
         
         
       - name: 'Deploy to Azure Web App'

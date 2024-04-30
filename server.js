@@ -8,24 +8,30 @@ import addConversation from "./addConversation.js";
 import response_from_gpt from "./response_from_gpt.js";
 import handleFileUpload from "./handleFileUpload.js";
 import {getdata} from './fromFirestore.js';
+//import flow from './flow';
+import e from "express";
 
 const WEBHOOK_VERIFY_TOKEN = "COOL";
-
-
-
+const GRAPH_API_TOKEN= 'EAAVZBobCt7AcBO8trGDsP8t4bTe2mRA7sNdZCQ346G9ZANwsi4CVdKM5MwYwaPlirOHAcpDQ63LoHxPfx81tN9h2SUIHc1LUeEByCzS8eQGH2J7wwe9tqAxZAdwr4SxkXGku2l7imqWY16qemnlOBrjYH3dMjN4gamsTikIROudOL3ScvBzwkuShhth0rR9P';
 const PORT = 8080;
 
+
 const conversationData = new Map();
+
+const inputMap=new Map(); 
+
 var AI_Replies=true;
+var AIMode=false;
 
 export { addConversation, conversationData };
 
-
+var currNode=0;
 let zipName;
 let prompt;
 let lastMessage_id;
 var count=0;
-const GRAPH_API_TOKEN=process.env.GRAPH_API_TOKEN;
+let business_phone_number_id=241683569037594;
+var contact;
 const app = express();
 const httpServer = createServer(app);
 
@@ -36,8 +42,15 @@ const server = app.listen(PORT, () => {
 
 app.use(express.json());
 
+const allowedOrigins =['http://localhost:8080', 'http://localhost::5173/', 'https://69af-14-142-75-54.ngrok-free.app ']
+
 app.use((req, res, next) =>{
-  res.header('Access-Control-Allow-Origin', 'http://localhost:3000');
+  //req.header('Access-Control-Allow-Origin', 'https://localhost:5173')
+  const origin = req.headers.origin;
+  if(allowedOrigins.includes(origin)){
+    res.setHeader('Access-Control-Allow-Origin', origin);
+  }
+  //res.header('Access-Control-Allow-Origin', 'http://localhost:8080');
   res.header(
     'Access-Control-Allow-Headers',
       'Origin, X-Requested-With, Content-Type, Accept'
@@ -48,24 +61,19 @@ app.use((req, res, next) =>{
   );
   next();
 });
-/*const io = new Server(server, {
-  cors: {
-    origin: "http://localhost:3000",
-    methods: ["GET", "POST"]
-  }
-});*/
-
-/*io.on('connection', (socket) => {
-  
-  console.log('A user connected');
-
-  socket.on('disconnect', () => {
-    console.log('User Disconnected');
-  });
-});*/
 
 
 
+var adjList;
+var flow;
+app.post("/flowdata", async (req, res) => {
+  adjList=req.body.adjacencyList;
+  flow=req.body.nodes;
+  console.log("rec data: ", req.body);
+
+
+  res.status(200).json({ success: true, message: "flowdata sent successfully" });
+})
 
 
 async function sendImageMessage( message,business_phone_number_id, userSelection, zipName, prompt, imageUrl) {
@@ -87,6 +95,194 @@ async function sendImageMessage( message,business_phone_number_id, userSelection
       }
     }
   });
+}
+
+
+async function sendButtonMessage(buttons, message){
+  let button_rows=[];
+  for(let i=0; i<buttons.length; i++){
+    const buttonNode=buttons[i];
+    button_rows.push({
+      type: 'reply',
+      reply :{
+        id: flow[buttonNode].id, 
+        title: flow[buttonNode].body
+      }
+    })
+    console.log("button_row:" ,button_rows)
+  }
+  await axios({
+    method: "POST",
+    url: `https://graph.facebook.com/v18.0/${business_phone_number_id}/messages`,
+    headers: {
+      Authorization: `Bearer ${GRAPH_API_TOKEN}`,
+    },
+    data: {
+      messaging_product: "whatsapp",
+      recipient_type: "individual",
+      to: contact.wa_id,
+      type: "interactive",
+      interactive: {
+        type: "button",
+        body:{
+          text: message
+        },
+        action:{
+          buttons: button_rows
+        }
+      }
+    }
+  })
+}
+
+async function sendListMessage(list, message){
+  const actionSections = [];
+  const rows = [];
+
+  for (let i = 0; i < list.length; i++) {
+    listNode=list[i]
+    rows.push({
+      id: `list-${i + 1}`,
+      title: flow[listNode].body,
+    });
+  }
+
+  actionSections.push({
+    title: "Section Title",
+    rows: rows,
+  });
+
+  await axios({
+    method: "POST",
+    url: `https://graph.facebook.com/v18.0/${business_phone_number_id}/messages`,
+    headers: {
+      Authorization: `Bearer ${GRAPH_API_TOKEN}`,
+    },
+    data : {
+      messaging_product: "whatsapp",
+      recipient_type: "individual",
+      to: contact.wa_id,
+      type: "interactive",
+      interactive: {
+        type: "list",
+        body: {
+          text: "Welcome to NurenAI, We offer AI Mentors you can engage with. Have a try!",
+        },
+        action: {
+          button: "Select a mentor",
+          sections: actionSections,
+        },
+      },
+    }
+  })
+}
+
+async function sendInputMessage(message){
+  await axios({
+    method: "POST",
+    url: `https://graph.facebook.com/v18.0/${business_phone_number_id}/messages`,
+    headers: {
+      Authorization: `Bearer ${GRAPH_API_TOKEN}`
+    },
+    data: {
+      messaging_product: "whatsapp",
+      recipient_type: "individual",
+      to: contact.wa_id,
+      type: "text",
+      text: {
+        body: message
+      }
+    }
+  });
+}
+
+async function sendStringMessage(message){
+  
+  await axios({
+    method: "POST",
+    url: `https://graph.facebook.com/v18.0/${business_phone_number_id}/messages`,
+    headers: {
+      Authorization: `Bearer ${GRAPH_API_TOKEN}`
+    },
+    data: {
+      messaging_product: "whatsapp",
+      recipient_type: "individual",
+      to: contact.wa_id,
+      type: "text",
+      text: {
+        body: message
+      }
+    }
+  });
+}
+
+async function sendImagesMessage(message, url){
+  await axios({
+    method: "POST",
+    url: `https://graph.facebook.com/v18.0/${business_phone_number_id}/messages`,
+    headers: {
+      Authorization: `Bearer ${GRAPH_API_TOKEN}`
+    },
+    data: {
+      messaging_product: "whatsapp",
+      recipient_type: "individual",
+      to: message.from,
+      type: "image",
+      image: {
+        link: url,
+        caption: message
+      }
+    }
+  });
+}
+
+async function sendAIMessage(message){
+
+}
+
+var nextNode;
+
+async function sendNodeMessage(node){ //0
+if(node==0 || nextNode.length !=0){
+    nextNode=adjList[node];
+  const node_message=flow[node].body;
+  await addConversation(contact.wa_id, node_message, ".", contact?.profile?.name)
+
+  console.log("messagee " , node_message)
+  if(flow[node].type === "button"){
+    const buttons=nextNode;
+    sendButtonMessage(buttons, node_message);
+  }
+  else if(flow[node].type === "list"){
+    const list=nextNode;
+    sendListMessage(list, node_message);
+  }
+
+  else if(flow[node].type === "Input"){
+    sendStringMessage(node_message);
+
+  }
+  else if(flow[node].type === "string"){
+    await sendStringMessage(node_message);
+    currNode = nextNode[0]; console.log("currrrrrrrrrrrr ", flow[node])
+    sendNodeMessage(currNode);
+  }
+  else if(flow[node].type === "image"){
+    sendImagesMessage(node_message, flow[node].body?.url);
+  }
+  else if(flow[node].type === "AI"){
+    sendStringMessage(node_message);
+    AIMode=true;
+    
+  }
+  
+  console.log("messagee2 " ,node_message)
+}
+  else {
+    currNode=0;
+    nextNode=adjList[currNode];
+  }
+  
 }
 
 app.get("/get-map", async (req, res) =>{
@@ -142,28 +338,60 @@ app.patch("/toggleAiReplies", async(req,res) =>{
   }
 });
 
-
+var flag =false;
 app.post("/webhook", async (req, res) => {
-  const business_phone_number_id =req.body.entry?.[0].changes?.[0].value?.metadata?.phone_number_id;
-  const contact = req.body.entry?.[0]?.changes[0]?.value?.contacts?.[0];
+  business_phone_number_id =req.body.entry?.[0].changes?.[0].value?.metadata?.phone_number_id;
+  contact = req.body.entry?.[0]?.changes[0]?.value?.contacts?.[0];
   const message = req.body.entry?.[0]?.changes[0]?.value?.messages?.[0];
   // log incoming messages
-   //console.log("Incoming webhook message:", JSON.stringify(req.body, null, 2));
+  //console.log(contact);
+  //console.log("Incoming webhook message:", JSON.stringify(req.body, null, 2));
     
 /* if(message) {
    io.emit('new-message', {message: message?.text?.body || message?.interactive?.body} );
    console.log("test");
  }*/
-  
-  if (message?.type === "interactive") {
+
+ if(!AIMode){
+  if(message?.type==="interactive"){
+    let userSelectionID = message?.interactive?.button_reply?.id;
+    let userSelection = message?.interactive?.button_reply?.title; 
+    await addConversation(contact.wa_id, ".", userSelection, contact?.profile?.name)
+  // add buttons' reply as well
+    console.log("userSelection:", userSelection)
+    nextNode.forEach(i => {
+      if(flow[i].id == userSelectionID){
+        currNode = i;
+        nextNode = adjList[currNode];
+        currNode = nextNode[0];
+        sendNodeMessage(currNode);
+        return;
+      }
+    })
+    }
+  if(message?.type === "text"){
+    await addConversation(contact.wa_id, ".", message?.text?.body, contact?.profile?.name);
     
-      let userSelection = message?.interactive?.list_reply?.title;
+    if(currNode!=0)
+    {
+      inputMap.set(currNode, message?.text?.body);
+      currNode=nextNode[0];
+    }
+    sendNodeMessage(currNode);
+ }
+}
+  
+
+else {
+  if (message?.type === "interactive") {
+      
+        let userSelection = message?.interactive?.list_reply?.title;
       // Handle the Quick Reply selection
       //console.log(`User selected Quick Reply: ${userSelection}`);
 
       if(contact!=undefined){
       addConversation(contact.wa_id, ".", userSelection, contact?.profile?.name);
-      console.log(conversationData);
+      //console.log(conversationData);
       //console.log(conversationData);conv_id: 55fcd3f3e4a99b6721aa3020389e6814, context_id: HBgMOTE5NTQ4MjY1OTA0FQIAERgSRDU3QjBCNzJCNTdGMThFRTVCAA==
       }
 
@@ -195,17 +423,15 @@ app.post("/webhook", async (req, res) => {
             break;
       }
       addConversation(contact.wa_id, `${userSelection} image`, ".", contact?.profile?.name);
-      console.log(conversationData);
-      
+      // console.log(conversationData);
+      }
+    if (message?.type === "text") {
 
-    }
-
-  if (message?.type === "text") {
-  
     if(contact!=undefined){
 
+      console.log("Entered ai mode: ", contact.wa_id);
       addConversation(contact.wa_id, ".", message?.text?.body, contact?.profile?.name);
-      console.log(conversationData);
+      //console.log(conversationData);
       //console.log(conversationData);conv_id: 55fcd3f3e4a99b6721aa3020389e6814, context_id: HBgMOTE5NTQ4MjY1OTA0FQIAERgSRDU3QjBCNzJCNTdGMThFRTVCAA==
     }
 
@@ -320,7 +546,7 @@ app.post("/webhook", async (req, res) => {
       }
 
 
-      console.log(conversationData);
+      //console.log(conversationData);
 
 
       // mark incoming message as read
@@ -338,7 +564,7 @@ app.post("/webhook", async (req, res) => {
       });
     }
     }
-    
+    }
   if(message?.type=="image" || message?.type == "document" || message?.type == "video"){
       const mediaID=message?.image?.id || message?.document?.id || message?.video?.id;
       let mediaURL;

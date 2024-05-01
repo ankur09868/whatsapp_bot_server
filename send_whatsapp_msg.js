@@ -26,7 +26,7 @@ async function sendWhatsappMessage(phoneNumber, message) {
     },
   };
   addConversation(phoneNumber, message, ".", undefined);
-  console.log(conversationData);
+  //console.log(conversationData);
 
   axios.post(url, data, config).then((response) => {
        console.log("Response:", response.data);

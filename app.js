@@ -1,14 +1,8 @@
 import express from "express";
 import axios from "axios";
 import { createServer } from "http";
-//import get_result_from_query from "./get_result_from_query.js";
-//import handleFileUpload from "./handleFileUpload.js";
-
-import 'firebase/compat/firestore';
-
-
 import firebase from 'firebase/compat/app';
-
+import 'firebase/compat/firestore';
 import 'firebase/compat/auth';
 
 const firebaseConfig = {
@@ -53,8 +47,8 @@ async function setdata(key, bot_replies, user_replies, name){
 
 
 const WEBHOOK_VERIFY_TOKEN = "COOL";
-const GRAPH_API_TOKEN = 'YOUR_GRAPH_API_TOKEN';
-const PORT = 5173;
+const GRAPH_API_TOKEN = "EAAVZBobCt7AcBO63vGk4bL6OBfrZCNZC39XlB43ZCrSqZCKwUlt3WEpvlOEeS5vvsYrSaiD6Wi1ikVmGntaHQstF77vJZCDbyaByy5vl6ZCiluB9nmwGW3SvkaW5OM702jIqKRRLybWReJhpAV4sZA8l96EZCokVNXTgcZAYj0iMcu82X2VxNkm77up1YPkUPi6K0kBJsE5Xi5r7srXKloMiAZD";
+const PORT = process.env.PORT || 3000; 
 const business_phone_number_id = 241683569037594;
 
 let conversationData = new Map();
@@ -70,12 +64,9 @@ let adjList;
 let flow;
 
 const app = express();
-const httpServer = createServer(app);
 
-const server = createServer(app);
-server.listen(PORT, () => {
-  console.log(`Server is listening on port ${PORT}`);
-});
+
+
 app.use(express.json());
 
 const allowedOrigins = ['*'];
@@ -364,3 +355,7 @@ async function addConversation(key, botReply, userReply, userName) {
   if (userReply !== '.') conversations[1].push(userReply);
   conversationData.set(key, conversations);
 }
+const server = createServer(app);
+server.listen(PORT, () => {
+  console.log(`Server is listening on port ${PORT}`);
+});

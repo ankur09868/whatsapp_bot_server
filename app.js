@@ -3,7 +3,54 @@ import axios from "axios";
 import { createServer } from "http";
 import get_result_from_query from "./get_result_from_query.js";
 import handleFileUpload from "./handleFileUpload.js";
-import { getdata, setdata } from "./fromFirestore.js";
+
+import 'firebase/compat/firestore';
+
+
+import firebase from 'firebase/compat/app';
+
+import 'firebase/compat/auth';
+
+const firebaseConfig = {
+  apiKey: 'AIzaSyBPsLD_NgSwchMrpG2U81UsH_USQGSiNZU',
+  authDomain: 'nurenai.firebaseapp.com',
+  projectId: 'nurenai',
+};
+
+firebase.initializeApp(firebaseConfig);
+
+const db = firebase.firestore();
+
+// Example function to retrieve data from Firestore
+async function getdata(dataMap) {
+  try {
+    const docRef = db.collection('whatsapp');
+    const docSnapshot = await docRef.get();
+    docSnapshot.forEach(doc => {
+      const data=doc.data();
+      const user_replies=data.user_replies;
+      const bot_replies=data.bot_replies;
+      const name=data.name;
+      dataMap.set(doc.id, [user_replies, bot_replies, name]);
+    })
+    //console.log(dataMap);
+  } catch (error) {
+    console.error('Error getting document:', error);
+    throw error;
+  }
+}
+
+async function setdata(key, bot_replies, user_replies, name){
+    const kroData = {
+        bot_replies: bot_replies,
+        user_replies :user_replies,
+        name : name
+    }
+
+    return db.collection('whatsapp').doc(key).set(kroData).then(() => 
+    console.log("new data set into firebase."));
+}
+
 
 const WEBHOOK_VERIFY_TOKEN = "COOL";
 const GRAPH_API_TOKEN = 'YOUR_GRAPH_API_TOKEN';

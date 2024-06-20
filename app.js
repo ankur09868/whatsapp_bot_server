@@ -2,7 +2,7 @@ import express from "express";
 import axios from "axios";
 import { createServer } from "http";
 import get_result_from_query from "./get_result_from_query.js";
-import handleFileUpload from "./handleFileUpload.js";
+//import handleFileUpload from "./handleFileUpload.js";
 
 import 'firebase/compat/firestore';
 
@@ -354,9 +354,9 @@ app.get("/webhook", (req, res) => {
   }
 });
 
-app.post("/upload", async (req, res) => {
+/*app.post("/upload", async (req, res) => {
   handleFileUpload(req, res);
-});
+});*/
 
 async function addConversation(key, botReply, userReply, userName) {
   const conversations = conversationData.get(key) || [[], [], userName];

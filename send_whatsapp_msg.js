@@ -1,6 +1,6 @@
 
 import axios from "axios";
-import {addConversation, conversationData} from "./server.js";
+import {addConversation, conversationData} from "./app.js";
 const WEBHOOK_VERIFY_TOKEN = "COOL";
 
 const GRAPH_API_TOKEN = process.env.GRAPH_API_TOKEN;

@@ -23,7 +23,7 @@ const inputMap=new Map();
 var AI_Replies=true;
 var AIMode=false;
 
-export { addConversation, conversationData };
+
 
 var currNode=4;
 let zipName;

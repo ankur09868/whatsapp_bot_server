@@ -72,10 +72,10 @@ let flow;
 const app = express();
 const httpServer = createServer(app);
 
-const server = app.listen(PORT, () => {
-  console.log(`Server is listening on port: ${PORT}`);
+const server = createServer(app);
+server.listen(PORT, () => {
+  console.log(`Server is listening on port ${PORT}`);
 });
-
 app.use(express.json());
 
 const allowedOrigins = ['*'];

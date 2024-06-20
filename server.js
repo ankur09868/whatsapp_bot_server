@@ -5,7 +5,7 @@ import { createServer } from "http";
 import sendWhatsappMessage from './send_whatsapp_msg.js';
 import get_result_from_query from "./get_result_from_query.js";
 import addConversation from "./addConversation.js";
-import response_from_gpt from "./response_from_gpt.js";
+
 import handleFileUpload from "./handleFileUpload.js";
 import {getdata} from './fromFirestore.js';
 //import flow from './flow';

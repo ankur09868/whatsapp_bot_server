@@ -25,7 +25,7 @@ var AIMode=false;
 
 export { addConversation, conversationData };
 
-var currNode=0;
+var currNode=4;
 let zipName;
 let prompt;
 let lastMessage_id;
@@ -42,7 +42,7 @@ const server = app.listen(PORT, () => {
 
 app.use(express.json());
 
-const allowedOrigins =['http://localhost:8080', 'http://localhost::5173/', 'https://69af-14-142-75-54.ngrok-free.app ']
+const allowedOrigins =['http://localhost:8080', 'http://localhost::5173/']
 
 app.use((req, res, next) =>{
   //req.header('Access-Control-Allow-Origin', 'https://localhost:5173')
@@ -236,16 +236,13 @@ async function sendImagesMessage(message, url){
   });
 }
 
-async function sendAIMessage(message){
-
-}
-
 var nextNode;
 
 async function sendNodeMessage(node){ //0
-if(node==0 || nextNode.length !=0){
+if(node==4 || nextNode.length !=0){
     nextNode=adjList[node];
   const node_message=flow[node].body;
+  console.log("NODE : " ,node)
   await addConversation(contact.wa_id, node_message, ".", contact?.profile?.name)
 
   console.log("messagee " , node_message)
@@ -279,7 +276,7 @@ if(node==0 || nextNode.length !=0){
   console.log("messagee2 " ,node_message)
 }
   else {
-    currNode=0;
+    currNode=4;
     nextNode=adjList[currNode];
   }
   
@@ -372,7 +369,7 @@ app.post("/webhook", async (req, res) => {
   if(message?.type === "text"){
     await addConversation(contact.wa_id, ".", message?.text?.body, contact?.profile?.name);
     
-    if(currNode!=0)
+    if(currNode!=4)
     {
       inputMap.set(currNode, message?.text?.body);
       currNode=nextNode[0];

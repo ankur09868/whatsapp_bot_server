@@ -42,7 +42,7 @@ const server = app.listen(PORT, () => {
 
 app.use(express.json());
 
-const allowedOrigins =['http://localhost:8080', 'http://localhost::5173/']
+const allowedOrigins =['*']
 
 app.use((req, res, next) =>{
   //req.header('Access-Control-Allow-Origin', 'https://localhost:5173')

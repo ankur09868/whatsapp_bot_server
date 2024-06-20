@@ -1,7 +1,7 @@
 import express from "express";
 import axios from "axios";
 import { createServer } from "http";
-import get_result_from_query from "./get_result_from_query.js";
+//import get_result_from_query from "./get_result_from_query.js";
 //import handleFileUpload from "./handleFileUpload.js";
 
 import 'firebase/compat/firestore';
@@ -98,7 +98,7 @@ app.post("/flowdata", async (req, res) => {
 });
 
 async function sendImageMessage(message, business_phone_number_id, userSelection, zipName, prompt, imageUrl) {
-  const result = await get_result_from_query(userSelection, zipName, prompt);
+  const result = "yes";
   await axios.post(`https://graph.facebook.com/v18.0/${business_phone_number_id}/messages`, {
     messaging_product: "whatsapp",
     recipient_type: "individual",

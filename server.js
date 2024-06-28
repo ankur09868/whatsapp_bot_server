@@ -43,7 +43,7 @@ httpServer.listen(PORT, () => {
 
 app.use(express.json());
 
-const allowedOrigins =['http://localhost:8080', 'http://localhost::5173/', 'https://69af-14-142-75-54.ngrok-free.app ']
+const allowedOrigins =['*','http://localhost:8080', 'http://localhost::5173/', 'https://69af-14-142-75-54.ngrok-free.app ','https://whatsappbotserver.azurewebsites.net']
 
 app.use((req, res, next) =>{
   //req.header('Access-Control-Allow-Origin', 'https://localhost:5173')
@@ -353,10 +353,10 @@ app.post("/webhook", async (req, res) => {
   //console.log(contact);
   //console.log("Incoming webhook message:", JSON.stringify(req.body, null, 2));
     
-/* if(message) {
+ if(message) {
    io.emit('new-message', {message: message?.text?.body || message?.interactive?.body} );
    console.log("test");
- }*/
+ }
 
  if(!AIMode){
   if(message?.type==="interactive"){

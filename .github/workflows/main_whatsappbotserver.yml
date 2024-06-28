@@ -42,9 +42,7 @@ jobs:
     environment:
       name: 'Production'
       url: ${{ steps.deploy-to-webapp.outputs.webapp-url }}
-    permissions:
-      id-token: write #This is required for requesting the JWT
-
+    
     steps:
       - name: Download artifact from build job
         uses: actions/download-artifact@v3
@@ -54,19 +52,6 @@ jobs:
       - name: Unzip artifact for deployment
         run: unzip release.zip
       
-      - name: Login to Azure
-        uses: azure/login@v1
-        with:
-          client-id: ${{ secrets.AZUREAPPSERVICE_CLIENTID_551CB8D61DD34D82B4AA7119BB1C043F }}
-          tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_887ED2BE25B94FC5AB1EA4C0CDBD6929 }}
-          subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_6EABEFBAE44F4D949D944E7CD3E0868A }}
-
-      - name: Set up environment secrets
-        run: |
-          echo "REACT_APP_OPENAI_KEY=${{ secrets.OPENAI_API_KEY }}" >> $GITHUB_ENV
-          echo "GRAPH_API_TOKEN=${{ secrets.GRAPH_API_TOKEN }}" >> $GITHUB_ENV
-        
-        
       - name: 'Deploy to Azure Web App'
         id: deploy-to-webapp
         uses: azure/webapps-deploy@v2
@@ -74,4 +59,4 @@ jobs:
           app-name: 'whatsappbotserver'
           slot-name: 'Production'
           package: .
-          
+          publish-profile: ${{ secrets.AZUREAPPSERVICE_PUBLISHPROFILE_1665124A57BF4850811789475440E7CC }}

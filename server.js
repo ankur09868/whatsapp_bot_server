@@ -344,7 +344,7 @@ app.post("/webhook", async (req, res) => {
   business_phone_number_id =req.body.entry?.[0].changes?.[0].value?.metadata?.phone_number_id;
   contact = req.body.entry?.[0]?.changes[0]?.value?.contacts?.[0];
   const message = req.body.entry?.[0]?.changes[0]?.value?.messages?.[0];
-  await addConversation(contact.wa_id, ".", userSelection, contact?.profile?.name)
+ 
   httpServer.listen(PORT, () => {
     console.log(`Server is listening on port: ${PORT}`);
   });

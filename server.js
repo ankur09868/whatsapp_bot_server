@@ -35,7 +35,10 @@ let business_phone_number_id=241683569037594;
 var contact;
 const app = express();
 const httpServer = createServer(app);
-const io = new Server(httpServer);
+const io = new Server(httpServer, {
+  debug: true,
+});
+
 httpServer.listen(PORT, () => {
   console.log(`Server is listening on port: ${PORT}`);
 });
@@ -341,6 +344,7 @@ app.patch("/toggleAiReplies", async(req,res) =>{
 
 var flag =false;
 app.post("/webhook", async (req, res) => {
+ try{ 
   business_phone_number_id =req.body.entry?.[0].changes?.[0].value?.metadata?.phone_number_id;
   contact = req.body.entry?.[0]?.changes[0]?.value?.contacts?.[0];
   const message = req.body.entry?.[0]?.changes[0]?.value?.messages?.[0];
@@ -614,6 +618,11 @@ else {
     }
 
   res.sendStatus(200);
+ }
+  catch (error) {
+    console.error("Error in webhook handler:", error);
+    res.sendStatus(500);
+  }
   })
 
 app.get("/webhook", (req, res) => {

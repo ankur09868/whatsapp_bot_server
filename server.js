@@ -1,68 +1,60 @@
 import express from "express";
 import axios from "axios";
 import { createServer } from "http";
-//import { Server } from "socket.io";
 import sendWhatsappMessage from './send_whatsapp_msg.js';
 import get_result_from_query from "./get_result_from_query.js";
 import addConversation from "./addConversation.js";
 import response_from_gpt from "./response_from_gpt.js";
 import handleFileUpload from "./handleFileUpload.js";
-import {getdata} from './fromFirestore.js';
-//import flow from './flow';
-import { Server } from "socket.io"; 
-import e from "express";
+import { getdata } from './fromFirestore.js';
+import { Server } from "socket.io";
+import cors from 'cors';
 
 const WEBHOOK_VERIFY_TOKEN = "COOL";
-const GRAPH_API_TOKEN= 'EAAVZBobCt7AcBO8trGDsP8t4bTe2mRA7sNdZCQ346G9ZANwsi4CVdKM5MwYwaPlirOHAcpDQ63LoHxPfx81tN9h2SUIHc1LUeEByCzS8eQGH2J7wwe9tqAxZAdwr4SxkXGku2l7imqWY16qemnlOBrjYH3dMjN4gamsTikIROudOL3ScvBzwkuShhth0rR9P';
+const GRAPH_API_TOKEN = 'EAAVZBobCt7AcBO8trGDsP8t4bTe2mRA7sNdZCQ346G9ZANwsi4CVdKM5MwYwaPlirOHAcpDQ63LoHxPfx81tN9h2SUIHc1LUeEByCzS8eQGH2J7wwe9tqAxZAdwr4SxkXGku2l7imqWY16qemnlOBrjYH3dMjN4gamsTikIROudOL3ScvBzwkuShhth0rR9P';
 const PORT = 8080;
 
-
 const conversationData = new Map();
+const inputMap = new Map(); 
 
-const inputMap=new Map(); 
-
-var AI_Replies=true;
-var AIMode=false;
+var AI_Replies = true;
+var AIMode = false;
 
 export { addConversation, conversationData };
 
-var currNode=0;
+var currNode = 0;
 let zipName;
 let prompt;
 let lastMessage_id;
-var count=0;
-let business_phone_number_id=241683569037594;
+var count = 0;
+let business_phone_number_id = 241683569037594;
 var contact;
 const app = express();
 const httpServer = createServer(app);
+app.use(cors());
+
 const io = new Server(httpServer, {
-  debug: true,
+  cors: {
+    origin: ['http://localhost:5174', 'http://localhost:8080', 'https://69af-14-142-75-54.ngrok-free.app', 'https://whatsappbotserver.azurewebsites.net'],
+    methods: ['GET', 'POST']
+  }
 });
 
 httpServer.listen(PORT, () => {
   console.log(`Server is listening on port: ${PORT}`);
 });
 
-
 app.use(express.json());
 
-const allowedOrigins =['*','http://localhost:8080', 'http://localhost::5173/', 'https://69af-14-142-75-54.ngrok-free.app ','https://whatsappbotserver.azurewebsites.net']
+const allowedOrigins = ['http://localhost:8080', 'http://localhost:5174', 'https://69af-14-142-75-54.ngrok-free.app', 'https://whatsappbotserver.azurewebsites.net'];
 
-app.use((req, res, next) =>{
-  //req.header('Access-Control-Allow-Origin', 'https://localhost:5173')
+app.use((req, res, next) => {
   const origin = req.headers.origin;
-  if(allowedOrigins.includes(origin)){
+  if (allowedOrigins.includes(origin)) {
     res.setHeader('Access-Control-Allow-Origin', origin);
   }
-  //res.header('Access-Control-Allow-Origin', 'http://localhost:8080');
-  res.header(
-    'Access-Control-Allow-Headers',
-      'Origin, X-Requested-With, Content-Type, Accept'
-  );
-  res.header(
-    'Access-Control-Allow-Methods',
-    'GET, POST, PUT, DELETE, OPTIONS, PATCH'
-  );
+  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS, PATCH');
   next();
 });
 
@@ -251,7 +243,10 @@ if(node==0 || nextNode.length !=0){
     nextNode=adjList[node];
   const node_message=flow[node].body;
   await addConversation(contact.wa_id, node_message, ".", contact?.profile?.name)
-
+  if(node_message) {
+    io.emit('node-message', {message: node_message} );
+    console.log("test");
+  }
   console.log("messagee " , node_message)
   if(flow[node].type === "button"){
     const buttons=nextNode;
@@ -349,9 +344,7 @@ app.post("/webhook", async (req, res) => {
   contact = req.body.entry?.[0]?.changes[0]?.value?.contacts?.[0];
   const message = req.body.entry?.[0]?.changes[0]?.value?.messages?.[0];
  
-  httpServer.listen(PORT, () => {
-    console.log(`Server is listening on port: ${PORT}`);
-  });
+ 
 
   // log incoming messages
   //console.log(contact);

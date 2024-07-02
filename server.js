@@ -244,7 +244,9 @@ if(node==0 || nextNode.length !=0){
   const node_message=flow[node].body;
   await addConversation(contact.wa_id, node_message, ".", contact?.profile?.name)
   if(node_message) {
-    io.emit('node-message', {message: node_message} );
+    io.emit('node-message', {message: node_message,
+      phone_number_id: business_phone_number_id}
+     );
     console.log("test");
   }
   console.log("messagee " , node_message)
@@ -349,11 +351,13 @@ app.post("/webhook", async (req, res) => {
   // log incoming messages
   //console.log(contact);
   //console.log("Incoming webhook message:", JSON.stringify(req.body, null, 2));
-    
- if(message) {
-   io.emit('new-message', {message: message?.text?.body || message?.interactive?.body} );
-   console.log("test");
- }
+  if (message) {
+    io.emit('new-message', {
+      message: message?.text?.body || message?.interactive?.body,
+      phone_number_id: business_phone_number_id
+    });
+    console.log("test");
+  }
 
  if(!AIMode){
   if(message?.type==="interactive"){

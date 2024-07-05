@@ -354,7 +354,8 @@ app.post("/webhook", async (req, res) => {
   if (message) {
     io.emit('new-message', {
       message: message?.text?.body || message?.interactive?.body,
-      phone_number_id: business_phone_number_id
+      phone_number_id: business_phone_number_id,
+      contactPhone: contact
     });
     console.log("test");
   }

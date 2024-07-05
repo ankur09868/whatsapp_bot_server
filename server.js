@@ -358,6 +358,7 @@ app.post("/webhook", async (req, res) => {
       contactPhone: contact
     });
     console.log("test");
+    return;
   }
 
  if(!AIMode){
@@ -393,7 +394,7 @@ app.post("/webhook", async (req, res) => {
 else {
   {/* if (message?.type === "interactive") {
       
-        let userSelection = message?.interactive?.list_reply?.title;
+        let userSelection = message?.interactive?.list_reply?.tonitle;
       // Handle the Quick Reply selection
       //console.log(`User selected Quick Reply: ${userSelection}`);
 

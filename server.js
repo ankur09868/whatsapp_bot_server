@@ -2,11 +2,6 @@ import express from "express";
 import axios from "axios";
 import { createServer } from "http";
 import sendWhatsappMessage from './send_whatsapp_msg.js';
-import get_result_from_query from "./get_result_from_query.js";
-import addConversation from "./addConversation.js";
-import response_from_gpt from "./response_from_gpt.js";
-import handleFileUpload from "./handleFileUpload.js";
-import { getdata } from './fromFirestore.js';
 import { Server } from "socket.io";
 import cors from 'cors';
 
@@ -20,7 +15,6 @@ const inputMap = new Map();
 var AI_Replies = true;
 var AIMode = false;
 
-export { addConversation, conversationData };
 
 var currNode = 0;
 let zipName;
@@ -73,7 +67,7 @@ app.post("/flowdata", async (req, res) => {
 
 
 async function sendImageMessage( message,business_phone_number_id, userSelection, zipName, prompt, imageUrl) {
-  const result = await get_result_from_query(userSelection, zipName, prompt);
+  // const result = await get_result_from_query(userSelection, zipName, prompt);
   await axios({
     method: "POST",
     url: `https://graph.facebook.com/v18.0/${business_phone_number_id}/messages`,
@@ -95,58 +89,43 @@ async function sendImageMessage( message,business_phone_number_id, userSelection
 
 
 async function sendButtonMessage(buttons, message){
-  let button_rows=[];
-  for(let i=0; i<buttons.length; i++){
-    const buttonNode=buttons[i];
-    button_rows.push({
+  try {
+    let button_rows = buttons.map(buttonNode => ({
       type: 'reply',
-      reply :{
-        id: flow[buttonNode].id, 
+      reply: {
+        id: flow[buttonNode].id,
         title: flow[buttonNode].body
       }
-    })
-    console.log("button_row:" ,button_rows)
-  }
-  await axios({
-    method: "POST",
-    url: `https://graph.facebook.com/v18.0/${business_phone_number_id}/messages`,
-    headers: {
-      Authorization: `Bearer ${GRAPH_API_TOKEN}`,
-    },
-    data: {
+    }));
+
+    const response = await axios.post(`https://graph.facebook.com/v18.0/${business_phone_number_id}/messages`, {
       messaging_product: "whatsapp",
       recipient_type: "individual",
       to: contact.wa_id,
       type: "interactive",
       interactive: {
         type: "button",
-        body:{
-          text: message
-        },
-        action:{
-          buttons: button_rows
-        }
+        body: { text: message },
+        action: { buttons: button_rows }
       }
-    }
-  })
-}
-
-async function sendListMessage(list, message){
-  const actionSections = [];
-  const rows = [];
-
-  for (let i = 0; i < list.length; i++) {
-    listNode=list[i]
-    rows.push({
-      id: `list-${i + 1}`,
-      title: flow[listNode].body,
+    }, {
+      headers: { Authorization: `Bearer ${GRAPH_API_TOKEN}` }
     });
-  }
 
-  actionSections.push({
-    title: "Section Title",
-    rows: rows,
-  });
+    console.log('Button message sent successfully:', response.data);
+    return { success: true, data: response.data };
+  } catch (error) {
+    console.error('Failed to send button message:', error.response ? error.response.data : error.message);
+    return { success: false, error: error.response ? error.response.data : error.message };
+  }
+}
+async function sendListMessage(list, message){
+  const rows = list.map((listNode, index) => ({
+    id: flow[listNode].id,
+    title: flow[listNode].body
+  }));
+
+  const actionSections = [{ title: "Section Title", rows }];
 
   await axios({
     method: "POST",
@@ -162,10 +141,10 @@ async function sendListMessage(list, message){
       interactive: {
         type: "list",
         body: {
-          text: "Welcome to NurenAI, We offer AI Mentors you can engage with. Have a try!",
+          text: message,
         },
         action: {
-          button: "Select a mentor",
+          button: "Choose Option",
           sections: actionSections,
         },
       },
@@ -242,7 +221,6 @@ async function sendNodeMessage(node){ //0
 if(node==0 || nextNode.length !=0){
     nextNode=adjList[node];
   const node_message=flow[node].body;
-  await addConversation(contact.wa_id, node_message, ".", contact?.profile?.name)
   if(node_message) {
     io.emit('node-message', {message: node_message,
       phone_number_id: business_phone_number_id}
@@ -250,11 +228,11 @@ if(node==0 || nextNode.length !=0){
     console.log("test");
   }
   console.log("messagee " , node_message)
-  if(flow[node].type === "button"){
+  if(flow[node].type === "Button"){
     const buttons=nextNode;
     sendButtonMessage(buttons, node_message);
   }
-  else if(flow[node].type === "list"){
+  else if(flow[node].type === "List"){
     const list=nextNode;
     sendListMessage(list, node_message);
   }
@@ -289,7 +267,7 @@ if(node==0 || nextNode.length !=0){
 app.get("/get-map", async (req, res) =>{
   try{
     const key=req.query.phone;
-    await getdata(conversationData);
+    // await getdata(conversationData);
 
     let list = conversationData.get(key);
       res.json({
@@ -318,14 +296,24 @@ app.get("/get-contacts", async (req, res) =>{
 
 app.post("/send-message", async (req, res) => {
   try {
-    const { phoneNumber , message } = req.body;
+    const { phoneNumbers, message } = req.body;
+    const tenantId = req.headers['x-tenant-id'];
+    // if(tenantId){
+    //   const { access_token, business_phone_number_id } = getTenantDetails(tenantId)
+    // }
+    // else{
+    //   res.status(400).send('Tenant ID missing')
+    // }
+    for (const phoneNumber of phoneNumbers) {
+      const formattedPhoneNumber = `91${phoneNumber}`;
+      await sendWhatsappMessage(formattedPhoneNumber, message);
+    }
     
-    await sendWhatsappMessage(phoneNumber, message);
   
     res.status(200).json({ success: true, message: "Whatsapp message sent successfully" });
   } catch (error) {
-     console.error("Error sending Whatsapp message:", error.message);
-     res.status(500).json({ success: false, error: "Failed to send Whatsapp message" });
+    console.error("Error sending Whatsapp message:", error.message);
+    res.status(500).json({ success: false, error: "Failed to send Whatsapp message" });
   }
 });
 
@@ -341,44 +329,47 @@ app.patch("/toggleAiReplies", async(req,res) =>{
 
 var flag =false;
 app.post("/webhook", async (req, res) => {
- try{ 
+try{ 
   business_phone_number_id =req.body.entry?.[0].changes?.[0].value?.metadata?.phone_number_id;
   contact = req.body.entry?.[0]?.changes[0]?.value?.contacts?.[0];
   const message = req.body.entry?.[0]?.changes[0]?.value?.messages?.[0];
- 
- 
 
-  // log incoming messages
-  //console.log(contact);
-  //console.log("Incoming webhook message:", JSON.stringify(req.body, null, 2));
   if (message) {
     io.emit('new-message', {
       message: message?.text?.body || message?.interactive?.body,
       phone_number_id: business_phone_number_id,
       contactPhone: contact
     });
-    console.log("test");
+  console.log("test");
   }
 
- if(AIMode){
+ if(!AIMode){
   if(message?.type==="interactive"){
     let userSelectionID = message?.interactive?.button_reply?.id;
     let userSelection = message?.interactive?.button_reply?.title; 
-    await addConversation(contact.wa_id, ".", userSelection, "crm")
   // add buttons' reply as well
     console.log("userSelection:", userSelection)
-    nextNode.forEach(i => {
-      if(flow[i].id == userSelectionID){
-        currNode = i;
-        nextNode = adjList[currNode];
-        currNode = nextNode[0];
-        sendNodeMessage(currNode);
-        return;
-      }
-    })
+    try {
+      nextNode.forEach(i => {
+        console.log("I: ", flow[i].id)
+        if (flow[i].id == userSelectionID) {
+          currNode = i;
+          console.log("currNde: " ,currNode)
+          nextNode = adjList[currNode];
+          console.log("nextnode: ", nextNode)
+          currNode = nextNode[0];
+          console.log("currnode", currNode)
+          sendNodeMessage(currNode);
+          return;
+        }
+      });
+    } catch (error) {
+      console.log('An error occurred while processing the next node:', error.message);
+      // Handle the error as needed, such as returning an error response or performing fallback logic.
     }
+  }
   if(message?.type === "text"){
-    await addConversation(contact.wa_id, ".", message?.text?.body, contact?.profile?.name);
+
     
     if(currNode!=0)
     {
@@ -391,189 +382,38 @@ app.post("/webhook", async (req, res) => {
   
 
 else {
-  {/* if (message?.type === "interactive") {
-      
-        let userSelection = message?.interactive?.list_reply?.title;
-      // Handle the Quick Reply selection
-      //console.log(`User selected Quick Reply: ${userSelection}`);
+  if (message?.type === "interactive") {
+    let userSelection = message?.interactive?.list_reply?.title;
 
-      if(contact!=undefined){
-      addConversation(contact.wa_id, ".", userSelection, contact?.profile?.name);
-      //console.log(conversationData);
-      //console.log(conversationData);conv_id: 55fcd3f3e4a99b6721aa3020389e6814, context_id: HBgMOTE5NTQ4MjY1OTA0FQIAERgSRDU3QjBCNzJCNTdGMThFRTVCAA==
-      }
-
-      switch (userSelection) {
-          case "Steve Jobs":
-            await sendImageMessage( message,business_phone_number_id,userSelection, '1c16de68-d364-4dd2-bd47-7ad58bce3a60.zip', 'Reply in 10 words to an entrepreneur', 'https://cdn.glitch.global/6679f336-a886-492a-986b-13725a22211f/stevejobs.jpg?v=1712641030840', 'Steve Jobs image');
-            zipName='1c16de68-d364-4dd2-bd47-7ad58bce3a60.zip'
-            prompt='Reply in 10 words to an entrepreneur'
-            break;
-          case "Krishna":
-            await sendImageMessage( message,business_phone_number_id,userSelection, '11055e45-85e8-49c7-ab5c-f160d1733d88.zip', 'Reply in 10 words to your disciple', 'https://cdn.glitch.global/6679f336-a886-492a-986b-13725a22211f/krishna.jpg?v=1712641000989', 'Krishna image');
-            zipName = "11055e45-85e8-49c7-ab5c-f160d1733d88.zip"
-            prompt = "Reply in 10 words to your disciple"
-            break;
-          case "Nietzsche":
-            await sendImageMessage( message,business_phone_number_id,userSelection, '03101274-9092-472a-8c0c-89295c0c2c0c.zip', 'You are Zarathustra.Reply in 10 words to your student', 'https://cdn.glitch.global/6679f336-a886-492a-986b-13725a22211f/Nietzsche187a.jpg?v=1712640987663', 'Nietzsche image');
-            zipName = '03101274-9092-472a-8c0c-89295c0c2c0c.zip'
-            prompt = 'You are Zarathustra.Reply in 10 words to your student'
-            break;
-          case "Newton":
-            await sendImageMessage( message,business_phone_number_id,userSelection, '5af3a21b-6a1b-4caa-95fb-9a3387130960.zip', 'Reply in 10 words to a science student', 'https://cdn.glitch.global/6679f336-a886-492a-986b-13725a22211f/newton.jpg?v=1712640978036', 'Newton image');
-            zipName = '5af3a21b-6a1b-4caa-95fb-9a3387130960.zip'
-            prompt = 'Reply in 10 words to a science student'
-            break;
-          case "Napolean":
-            await sendImageMessage( message,business_phone_number_id,userSelection, '26623868-69c1-49cf-be37-4344eea7a688.zip', 'Reply in 10 words like you were a mentor', 'https://cdn.glitch.global/6679f336-a886-492a-986b-13725a22211f/napolean.jpeg?v=1712641019273', 'Napolean image');
-            zipName = '26623868-69c1-49cf-be37-4344eea7a688.zip'
-            prompt = 'Reply in 10 words like you were a mentor'
-            break;
-      }
-      addConversation(contact.wa_id, `${userSelection} image`, ".", contact?.profile?.name);
-      // console.log(conversationData);
-      }
-     
-    if (message?.type === "text") {
-
-    if(contact!=undefined){
-
-      console.log("Entered ai mode: ", contact.wa_id);
-      addConversation(contact.wa_id, ".", message?.text?.body, contact?.profile?.name);
-      //console.log(conversationData);
-      //console.log(conversationData);conv_id: 55fcd3f3e4a99b6721aa3020389e6814, context_id: HBgMOTE5NTQ4MjY1OTA0FQIAERgSRDU3QjBCNzJCNTdGMThFRTVCAA==
+    switch (userSelection) {
+      case "Steve Jobs":
+        await sendImageMessage(message, business_phone_number_id, userSelection, '1c16de68-d364-4dd2-bd47-7ad58bce3a60.zip', 'Reply in 10 words to an entrepreneur', 'https://cdn.glitch.global/6679f495-37ef-4b2c-977b-d95db7c797f0/Steve%20Jobs.jpg?v=1689619406365');
+        break;
+      case "Bob Marley":
+        await sendImageMessage(message, business_phone_number_id, userSelection, 'c1f8c20e-b41a-4d3a-92d7-2302c0649f32.zip', 'Reply in 10 words to a musician', 'https://cdn.glitch.global/6679f495-37ef-4b2c-977b-d95db7c797f0/Bob%20Marley.jpg?v=1689619402060');
+        break;
+      case "Lionel Messi":
+        await sendImageMessage(message, business_phone_number_id, userSelection, '4de17496-0465-44eb-816f-563e3c5bece6.zip', 'Reply in 10 words to a footballer', 'https://cdn.glitch.global/6679f495-37ef-4b2c-977b-d95db7c797f0/Lionel%20Messi.jpg?v=1689619405125');
+        break;
     }
 
-      
-      if(AI_Replies){
-      const body=message?.text?.body;
+    AIMode = false;
+  }
+  if (message?.type === "text") {
+    if (flow[currNode]?.type === "image") {
+      zipName = flow[currNode]?.zipName;
+      prompt = message?.text?.body;
+      let keys = Array.from(inputMap.keys());
 
-      if((await response_from_gpt(body, "arrival"))=="Yes" || (await response_from_gpt(body, "change"))=="Yes"){
-        await axios({
-        method: "POST",
-        url: `https://graph.facebook.com/v18.0/${business_phone_number_id}/messages`,
-        headers: {
-          Authorization: `Bearer ${GRAPH_API_TOKEN}`,
-        },
-        data: {
-          messaging_product: "whatsapp",
-          recipient_type: "individual",
-          to: message.from,
-          type: "interactive",
-          interactive: {
-            type: "list",
-            header: {
-              type: "text",
-              text: `Greetings! ${contact.profile.name}`,
-            },
-            body: {
-              text: "Welcome to NurenAI, We offer AI Mentors you can engage with. Have a try!",
-            },
-            action: {
-              button: "Select a mentor",
-              sections: [
-                {
-                  title: "Section Title",
-                  rows: [
-                    {
-                      id: "row-1",
-                      title: "Steve Jobs",
-                    },
-                    {
-                      id: "row-2",
-                      title: "Krishna",
-                    },
-                    {
-                      id: "row-3",
-                      title: "Nietzsche",
-                    },
-                    {
-                      id: "row-4",
-                      title: "Newton",
-                    },
-                    {
-                      id: "row-5",
-                      title: "Napolean",
-                    },
-                  ],
-                },
-              ],
-            },
-          },
-        },
-      });
-      addConversation(contact.wa_id, "Welcome Message", ".", contact?.profile?.name);
-        
-        
-        // console.log(conversationData);
+      if (keys.length > 0) {
+        sendNodeMessage(keys[0]);
       }
-      else if(await response_from_gpt(body, "departure")=="Yes"){
-        await axios({
-        method: "POST",
-        url: `https://graph.facebook.com/v18.0/${business_phone_number_id}/messages`,
-        headers:{
-          Authorization: `Bearer ${GRAPH_API_TOKEN}`
-        },
-
-        data:{
-          messaging_product:"whatsapp",
-          recipient_type:"individual",
-          to:message.from,
-          type:"text",
-          text:{
-            body: "Goodbye!"
-          }
-        }
-      })
-        addConversation(contact.wa_id, "Goodbye!", ".", contact?.profile?.name);
-        
-      }
-      else{
-        console.log("zip: ",body);
-        const result=await get_result_from_query(body, zipName, prompt);
-
-          await axios({
-        method: "POST",
-        url: `https://graph.facebook.com/v18.0/${business_phone_number_id}/messages`,
-        headers:{
-          Authorization: `Bearer ${GRAPH_API_TOKEN}`
-        },
-
-        data:{
-          messaging_product:"whatsapp",
-          recipient_type:"individual",
-          to:message.from,
-          type:"text",
-          text:{
-            body: result,
-          }
-        }
-
-
-      })
-        addConversation(contact.wa_id, result, ".", contact?.profile?.name);
-      }
-
-
-      //console.log(conversationData);
-
-
-      // mark incoming message as read
-      await axios({
-        method: "POST",
-        url: `https://graph.facebook.com/v18.0/${business_phone_number_id}/messages`,
-        headers: {
-          Authorization: `Bearer ${GRAPH_API_TOKEN}`,
-        },
-        data: {
-          messaging_product: "whatsapp",
-          status: "read",
-          message_id: message.id,
-        },
-      });
+    } else {
+      sendNodeMessage(currNode);
     }
-    }
-    */} }
+  }
+} 
+
   if(message?.type=="image" || message?.type == "document" || message?.type == "video"){
       const mediaID=message?.image?.id || message?.document?.id || message?.video?.id;
       let mediaURL;
@@ -649,3 +489,4 @@ io.on('connection', (socket) => {
     console.log('user disconnected');
   });
 });
+

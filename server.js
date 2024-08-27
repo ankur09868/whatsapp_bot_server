@@ -318,17 +318,26 @@ app.get("/get-contacts", async (req, res) =>{
 
 app.post("/send-message", async (req, res) => {
   try {
-    const { phoneNumber , message } = req.body;
+    const { phoneNumbers, message } = req.body;
+    const tenantId = req.headers['x-tenant-id'];
+    // if(tenantId){
+    //   const { access_token, business_phone_number_id } = getTenantDetails(tenantId)
+    // }
+    // else{
+    //   res.status(400).send('Tenant ID missing')
+    // }
+    for (const phoneNumber of phoneNumbers) {
+      const formattedPhoneNumber = `91${phoneNumber}`;
+      await sendWhatsappMessage(formattedPhoneNumber, message);
+    }
     
-    await sendWhatsappMessage(phoneNumber, message);
   
     res.status(200).json({ success: true, message: "Whatsapp message sent successfully" });
   } catch (error) {
-     console.error("Error sending Whatsapp message:", error.message);
-     res.status(500).json({ success: false, error: "Failed to send Whatsapp message" });
+    console.error("Error sending Whatsapp message:", error.message);
+    res.status(500).json({ success: false, error: "Failed to send Whatsapp message" });
   }
 });
-
 app.patch("/toggleAiReplies", async(req,res) =>{
   try {
     AI_Replies = !AI_Replies;
@@ -341,104 +350,121 @@ app.patch("/toggleAiReplies", async(req,res) =>{
 
 var flag =false;
 app.post("/webhook", async (req, res) => {
- try{ 
-  business_phone_number_id =req.body.entry?.[0].changes?.[0].value?.metadata?.phone_number_id;
-  contact = req.body.entry?.[0]?.changes[0]?.value?.contacts?.[0];
-  const message = req.body.entry?.[0]?.changes[0]?.value?.messages?.[0];
- 
- 
+  try {
+    // Extracting values from the request body
+    const business_phone_number_id = req.body.entry?.[0].changes?.[0].value?.metadata?.phone_number_id;
+    const contact = req.body.entry?.[0]?.changes[0]?.value?.contacts?.[0];
+    const message = req.body.entry?.[0]?.changes[0]?.value?.messages?.[0];
 
-  // log incoming messages
-  //console.log(contact);
-  //console.log("Incoming webhook message:", JSON.stringify(req.body, null, 2));
-  if (message) {
-    io.emit('new-message', {
-      message: message?.text?.body || message?.interactive?.body,
-      phone_number_id: business_phone_number_id,
-      contactPhone: contact
-    });
-    console.log("test");
-  }
+    // Emit new message event
+    if (message) {
+      io.emit('new-message', {
+        message: message?.text?.body || message?.interactive?.body,
+        phone_number_id: business_phone_number_id,
+        contactPhone: contact
+      });
+      console.log("Message emitted");
+    }
 
- if(AIMode){
-  if(message?.type==="interactive"){
-    let userSelectionID = message?.interactive?.button_reply?.id;
-    let userSelection = message?.interactive?.button_reply?.title; 
-    await addConversation(contact.wa_id, ".", userSelection, "crm")
-  // add buttons' reply as well
-    console.log("userSelection:", userSelection)
-    nextNode.forEach(i => {
-      if(flow[i].id == userSelectionID){
-        currNode = i;
-        nextNode = adjList[currNode];
-        currNode = nextNode[0];
-        sendNodeMessage(currNode);
-        return;
+    // Handle AIMode-related logic
+    if (!AIMode) {
+      if (message?.type === "interactive") {
+        let userSelectionID = message?.interactive?.button_reply?.id;
+        let userSelection = message?.interactive?.button_reply?.title;
+
+        // Check if flow and adjList are defined
+        if (Array.isArray(nextNode)) {
+          console.log("userSelection:", userSelection);
+          try {
+            if (Array.isArray(flow) && Array.isArray(adjList)) {
+              nextNode.forEach(i => {
+                if (flow[i]?.id === userSelectionID) {
+                  currNode = i;
+                  console.log("currNode:", currNode);
+                  nextNode = adjList[currNode] || [];
+                  console.log("nextNode:", nextNode);
+                  if (nextNode.length > 0) {
+                    currNode = nextNode[0];
+                    console.log("new currNode:", currNode);
+                    sendNodeMessage(currNode);
+                  } else {
+                    console.error("nextNode is empty for currNode:", currNode);
+                  }
+                  return;
+                }
+              });
+            } else {
+              console.warn("flow or adjList is not properly defined");
+            }
+          } catch (error) {
+            console.error('An error occurred while processing the next node:', error.message);
+          }
+        } else {
+          console.warn("nextNode is not defined or not an array");
+        }
       }
-    })
-    }
-  if(message?.type === "text"){
-    await addConversation(contact.wa_id, ".", message?.text?.body, contact?.profile?.name);
-    
-    if(currNode!=0)
-    {
-      inputMap.set(currNode, message?.text?.body);
-      currNode=nextNode[0];
-    }
-    sendNodeMessage(currNode);
- }
-}
-  
 
+      if (message?.type === "text") {
+        if (currNode !== 0) {
+          inputMap.set(currNode, message?.text?.body);
+          if (Array.isArray(nextNode) && nextNode.length > 0) {
+            currNode = nextNode[0];
+            sendNodeMessage(currNode);
+          } else {
+            console.warn("nextNode is not defined or empty");
+          }
+        }
+      }
+    }
 
-  if(message?.type=="image" || message?.type == "document" || message?.type == "video"){
-      const mediaID=message?.image?.id || message?.document?.id || message?.video?.id;
+    // Handle media messages
+    if (message?.type === "image" || message?.type === "document" || message?.type === "video") {
+      const mediaID = message?.image?.id || message?.document?.id || message?.video?.id;
       let mediaURL;
-      
-      //to get media/doc url
-      await axios({
-        method: "GET",
-        url: `https://graph.facebook.com/v19.0/${mediaID}`,
-        headers: {
-          Authorization: `Bearer ${GRAPH_API_TOKEN}`,
-        },
-      })
-      .then(function (response) {
-        mediaURL=response.data.url;
-        // console.log(mediaURL);
-      })
-      .catch(function (error) {
-        console.error("Error:", error);
-      });
-      
-      
-      //to retrieve media/doc
-      let document_file;
-      await axios({
-        method: "GET",
-        url: mediaURL,
-        headers: {
-          Authorization: `Bearer ${GRAPH_API_TOKEN}`,
-        },
-      })
-      .then(function (response) {
-        document_file = response;
-        console.log(document_file);
-      })
-      .catch(function (error) {
-        console.error("Error:", error);
-      });
-      //upload document
-      // handleFileUpload(document_file);
+
+      // Get media/doc URL
+      if (mediaID) {
+        try {
+          const response = await axios({
+            method: "GET",
+            url: `https://graph.facebook.com/v19.0/${mediaID}`,
+            headers: {
+              Authorization: `Bearer ${GRAPH_API_TOKEN}`,
+            },
+          });
+          mediaURL = response.data.url;
+          console.log("Media URL:", mediaURL);
+
+          // Retrieve media/doc
+          if (mediaURL) {
+            const document_file = await axios({
+              method: "GET",
+              url: mediaURL,
+              headers: {
+                Authorization: `Bearer ${GRAPH_API_TOKEN}`,
+              },
+            });
+            console.log("Document file:", document_file);
+            // Handle document upload if needed
+            // handleFileUpload(document_file);
+          } else {
+            console.error("Media URL is not defined");
+          }
+        } catch (error) {
+          console.error("Error retrieving media:", error);
+        }
+      } else {
+        console.error("mediaID is not defined");
+      }
     }
 
-  res.sendStatus(200);
- }
-  catch (error) {
+    res.sendStatus(200);
+  } catch (error) {
     console.error("Error in webhook handler:", error);
     res.sendStatus(500);
   }
-  })
+});
+
 
 app.get("/webhook", (req, res) => {
   const mode = req.query["hub.mode"];

@@ -1,7 +1,6 @@
 import express from "express";
 import axios from "axios";
 import { createServer } from "http";
-import sendWhatsappMessage from './send_whatsapp_msg.js';
 import { Server } from "socket.io";
 import cors from 'cors';
 

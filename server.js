@@ -4,6 +4,7 @@ import { createServer } from "http";
 import sendWhatsappMessage from './send_whatsapp_msg.js';
 import { Server } from "socket.io";
 import cors from 'cors';
+import { ok } from "assert";
 
 const WEBHOOK_VERIFY_TOKEN = "COOL";
 const GRAPH_API_TOKEN = 'EAAVZBobCt7AcBO8trGDsP8t4bTe2mRA7sNdZCQ346G9ZANwsi4CVdKM5MwYwaPlirOHAcpDQ63LoHxPfx81tN9h2SUIHc1LUeEByCzS8eQGH2J7wwe9tqAxZAdwr4SxkXGku2l7imqWY16qemnlOBrjYH3dMjN4gamsTikIROudOL3ScvBzwkuShhth0rR9P';
@@ -14,7 +15,6 @@ const inputMap = new Map();
 
 var AI_Replies = true;
 var AIMode = false;
-
 
 var currNode = 0;
 let zipName;
@@ -67,7 +67,7 @@ app.post("/flowdata", async (req, res) => {
 
 
 async function sendImageMessage( message,business_phone_number_id, userSelection, zipName, prompt, imageUrl) {
-  // const result = await get_result_from_query(userSelection, zipName, prompt);
+  const result = await get_result_from_query(userSelection, zipName, prompt);
   await axios({
     method: "POST",
     url: `https://graph.facebook.com/v18.0/${business_phone_number_id}/messages`,

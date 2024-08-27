@@ -2,11 +2,6 @@ import express from "express";
 import axios from "axios";
 import { createServer } from "http";
 import sendWhatsappMessage from './send_whatsapp_msg.js';
-import get_result_from_query from "./get_result_from_query.js";
-import addConversation from "./addConversation.js";
-import response_from_gpt from "./response_from_gpt.js";
-import handleFileUpload from "./handleFileUpload.js";
-import { getdata } from './fromFirestore.js';
 import { Server } from "socket.io";
 import cors from 'cors';
 
@@ -20,7 +15,6 @@ const inputMap = new Map();
 var AI_Replies = true;
 var AIMode = false;
 
-export { addConversation, conversationData };
 
 var currNode = 0;
 let zipName;
@@ -73,7 +67,7 @@ app.post("/flowdata", async (req, res) => {
 
 
 async function sendImageMessage( message,business_phone_number_id, userSelection, zipName, prompt, imageUrl) {
-  const result = await get_result_from_query(userSelection, zipName, prompt);
+  // const result = await get_result_from_query(userSelection, zipName, prompt);
   await axios({
     method: "POST",
     url: `https://graph.facebook.com/v18.0/${business_phone_number_id}/messages`,
@@ -227,7 +221,6 @@ async function sendNodeMessage(node){ //0
 if(node==0 || nextNode.length !=0){
     nextNode=adjList[node];
   const node_message=flow[node].body;
-  await addConversation(contact.wa_id, node_message, ".", contact?.profile?.name)
   if(node_message) {
     io.emit('node-message', {message: node_message,
       phone_number_id: business_phone_number_id}
@@ -274,7 +267,7 @@ if(node==0 || nextNode.length !=0){
 app.get("/get-map", async (req, res) =>{
   try{
     const key=req.query.phone;
-    await getdata(conversationData);
+    // await getdata(conversationData);
 
     let list = conversationData.get(key);
       res.json({
@@ -354,7 +347,6 @@ try{
   if(message?.type==="interactive"){
     let userSelectionID = message?.interactive?.button_reply?.id;
     let userSelection = message?.interactive?.button_reply?.title; 
-    await addConversation(contact.wa_id, ".", userSelection, "crm")
   // add buttons' reply as well
     console.log("userSelection:", userSelection)
     try {
@@ -377,7 +369,7 @@ try{
     }
   }
   if(message?.type === "text"){
-    await addConversation(contact.wa_id, ".", message?.text?.body, contact?.profile?.name);
+
     
     if(currNode!=0)
     {
@@ -392,7 +384,6 @@ try{
 else {
   if (message?.type === "interactive") {
     let userSelection = message?.interactive?.list_reply?.title;
-    addConversation(contact.wa_id, ".", userSelection, contact?.profile?.name);
 
     switch (userSelection) {
       case "Steve Jobs":
@@ -498,3 +489,4 @@ io.on('connection', (socket) => {
     console.log('user disconnected');
   });
 });
+

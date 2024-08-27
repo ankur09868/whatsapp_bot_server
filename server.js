@@ -2,11 +2,6 @@ import express from "express";
 import axios from "axios";
 import { createServer } from "http";
 import sendWhatsappMessage from './send_whatsapp_msg.js';
-import get_result_from_query from "./get_result_from_query.js";
-import addConversation from "./addConversation.js";
-import response_from_gpt from "./response_from_gpt.js";
-import handleFileUpload from "./handleFileUpload.js";
-import { getdata } from './fromFirestore.js';
 import { Server } from "socket.io";
 import cors from 'cors';
 
@@ -20,7 +15,6 @@ const inputMap = new Map();
 var AI_Replies = true;
 var AIMode = false;
 
-export { addConversation, conversationData };
 
 var currNode = 0;
 let zipName;
@@ -73,7 +67,7 @@ app.post("/flowdata", async (req, res) => {
 
 
 async function sendImageMessage( message,business_phone_number_id, userSelection, zipName, prompt, imageUrl) {
-  const result = await get_result_from_query(userSelection, zipName, prompt);
+  // const result = await get_result_from_query(userSelection, zipName, prompt);
   await axios({
     method: "POST",
     url: `https://graph.facebook.com/v18.0/${business_phone_number_id}/messages`,
@@ -95,58 +89,43 @@ async function sendImageMessage( message,business_phone_number_id, userSelection
 
 
 async function sendButtonMessage(buttons, message){
-  let button_rows=[];
-  for(let i=0; i<buttons.length; i++){
-    const buttonNode=buttons[i];
-    button_rows.push({
+  try {
+    let button_rows = buttons.map(buttonNode => ({
       type: 'reply',
-      reply :{
-        id: flow[buttonNode].id, 
+      reply: {
+        id: flow[buttonNode].id,
         title: flow[buttonNode].body
       }
-    })
-    console.log("button_row:" ,button_rows)
-  }
-  await axios({
-    method: "POST",
-    url: `https://graph.facebook.com/v18.0/${business_phone_number_id}/messages`,
-    headers: {
-      Authorization: `Bearer ${GRAPH_API_TOKEN}`,
-    },
-    data: {
+    }));
+
+    const response = await axios.post(`https://graph.facebook.com/v18.0/${business_phone_number_id}/messages`, {
       messaging_product: "whatsapp",
       recipient_type: "individual",
       to: contact.wa_id,
       type: "interactive",
       interactive: {
         type: "button",
-        body:{
-          text: message
-        },
-        action:{
-          buttons: button_rows
-        }
+        body: { text: message },
+        action: { buttons: button_rows }
       }
-    }
-  })
-}
-
-async function sendListMessage(list, message){
-  const actionSections = [];
-  const rows = [];
-
-  for (let i = 0; i < list.length; i++) {
-    listNode=list[i]
-    rows.push({
-      id: `list-${i + 1}`,
-      title: flow[listNode].body,
+    }, {
+      headers: { Authorization: `Bearer ${GRAPH_API_TOKEN}` }
     });
-  }
 
-  actionSections.push({
-    title: "Section Title",
-    rows: rows,
-  });
+    console.log('Button message sent successfully:', response.data);
+    return { success: true, data: response.data };
+  } catch (error) {
+    console.error('Failed to send button message:', error.response ? error.response.data : error.message);
+    return { success: false, error: error.response ? error.response.data : error.message };
+  }
+}
+async function sendListMessage(list, message){
+  const rows = list.map((listNode, index) => ({
+    id: flow[listNode].id,
+    title: flow[listNode].body
+  }));
+
+  const actionSections = [{ title: "Section Title", rows }];
 
   await axios({
     method: "POST",
@@ -162,10 +141,10 @@ async function sendListMessage(list, message){
       interactive: {
         type: "list",
         body: {
-          text: "Welcome to NurenAI, We offer AI Mentors you can engage with. Have a try!",
+          text: message,
         },
         action: {
-          button: "Select a mentor",
+          button: "Choose Option",
           sections: actionSections,
         },
       },
@@ -238,58 +217,61 @@ async function sendAIMessage(message){
 
 var nextNode;
 
-async function sendNodeMessage(node){ //0
-if(node==0 || nextNode.length !=0){
-    nextNode=adjList[node];
-  const node_message=flow[node].body;
-  await addConversation(contact.wa_id, node_message, ".", contact?.profile?.name)
-  if(node_message) {
-    io.emit('node-message', {message: node_message,
-      phone_number_id: business_phone_number_id}
-     );
-    console.log("test");
-  }
-  console.log("messagee " , node_message)
-  if(flow[node].type === "button"){
-    const buttons=nextNode;
-    sendButtonMessage(buttons, node_message);
-  }
-  else if(flow[node].type === "list"){
-    const list=nextNode;
-    sendListMessage(list, node_message);
-  }
+async function sendNodeMessage(node) {
+  if (typeof node !== 'undefined' && node !== null && adjList && adjList[node]?.length > 0) {
+    nextNode = adjList[node];
+    const node_message = flow[node]?.body;
 
-  else if(flow[node].type === "Input"){
-    sendStringMessage(node_message);
+    if (node_message) {
+      io.emit('node-message', {
+        message: node_message,
+        phone_number_id: business_phone_number_id
+      });
+      console.log("test");
+    }
 
+    console.log("messagee ", node_message);
+
+    if (flow[node]?.type === "Button") {
+      const buttons = nextNode;
+      sendButtonMessage(buttons, node_message);
+    } else if (flow[node]?.type === "List") {
+      const list = nextNode;
+      sendListMessage(list, node_message);
+    } else if (flow[node]?.type === "Input") {
+      sendStringMessage(node_message);
+    } else if (flow[node]?.type === "string") {
+      await sendStringMessage(node_message);
+      currNode = nextNode[0] || null;  // Ensure currNode is valid
+      console.log("currrrrrrrrrrrr ", flow[node]);
+      if (currNode !== null) {  // Check if currNode is valid before calling sendNodeMessage again
+        sendNodeMessage(currNode);
+      }
+    } else if (flow[node]?.type === "image") {
+      sendImagesMessage(node_message, flow[node]?.body?.url);
+    } else if (flow[node]?.type === "AI") {
+      sendStringMessage(node_message);
+      AIMode = true;
+    }
+
+    console.log("messagee2 ", node_message);
+  } else {
+    currNode = 0;
+    if(adjList) {nextNode = adjList[currNode] || [];
+    if (nextNode.length > 0) {
+      sendNodeMessage(currNode);
+    } else {
+      console.log("No further nodes to process.");
+    }
   }
-  else if(flow[node].type === "string"){
-    await sendStringMessage(node_message);
-    currNode = nextNode[0]; console.log("currrrrrrrrrrrr ", flow[node])
-    sendNodeMessage(currNode);
   }
-  else if(flow[node].type === "image"){
-    sendImagesMessage(node_message, flow[node].body?.url);
-  }
-  else if(flow[node].type === "AI"){
-    sendStringMessage(node_message);
-    AIMode=true;
-    
-  }
-  
-  console.log("messagee2 " ,node_message)
 }
-  else {
-    currNode=0;
-    nextNode=adjList[currNode];
-  }
-  
-}
+
 
 app.get("/get-map", async (req, res) =>{
   try{
     const key=req.query.phone;
-    await getdata(conversationData);
+    // await getdata(conversationData);
 
     let list = conversationData.get(key);
       res.json({
@@ -350,76 +332,93 @@ app.patch("/toggleAiReplies", async(req,res) =>{
 
 var flag =false;
 app.post("/webhook", async (req, res) => {
-  try {
-    // Extracting values from the request body
-    const business_phone_number_id = req.body.entry?.[0].changes?.[0].value?.metadata?.phone_number_id;
-    const contact = req.body.entry?.[0]?.changes[0]?.value?.contacts?.[0];
-    const message = req.body.entry?.[0]?.changes[0]?.value?.messages?.[0];
+try{ 
+  business_phone_number_id =req.body.entry?.[0].changes?.[0].value?.metadata?.phone_number_id;
+  contact = req.body.entry?.[0]?.changes[0]?.value?.contacts?.[0];
+  const message = req.body.entry?.[0]?.changes[0]?.value?.messages?.[0];
 
-    // Emit new message event
-    if (message) {
-      io.emit('new-message', {
-        message: message?.text?.body || message?.interactive?.body,
-        phone_number_id: business_phone_number_id,
-        contactPhone: contact
+  if (message) {
+    io.emit('new-message', {
+      message: message?.text?.body || message?.interactive?.body,
+      phone_number_id: business_phone_number_id,
+      contactPhone: contact
+    });
+  console.log("test");
+  }
+
+ if(!AIMode){
+  if(message?.type==="interactive"){
+    let userSelectionID = message?.interactive?.button_reply?.id;
+    let userSelection = message?.interactive?.button_reply?.title; 
+  // add buttons' reply as well
+    console.log("userSelection:", userSelection)
+    try {
+      nextNode.forEach(i => {
+        console.log("I: ", flow[i].id)
+        if (flow[i].id == userSelectionID) {
+          currNode = i;
+          console.log("currNde: " ,currNode)
+          nextNode = adjList[currNode];
+          console.log("nextnode: ", nextNode)
+          currNode = nextNode[0];
+          console.log("currnode", currNode)
+          sendNodeMessage(currNode);
+          return;
+        }
       });
-      console.log("Message emitted");
+    } catch (error) {
+      console.log('An error occurred while processing the next node:', error.message);
+      // Handle the error as needed, such as returning an error response or performing fallback logic.
+    }
+  }
+  if(message?.type === "text"){
+
+    
+    if(currNode!=0)
+    {
+      inputMap.set(currNode, message?.text?.body);
+      currNode=nextNode[0];
+    }
+    sendNodeMessage(currNode);
+ }
+}
+  
+
+else {
+  if (message?.type === "interactive") {
+    let userSelection = message?.interactive?.list_reply?.title;
+
+    switch (userSelection) {
+      case "Steve Jobs":
+        await sendImageMessage(message, business_phone_number_id, userSelection, '1c16de68-d364-4dd2-bd47-7ad58bce3a60.zip', 'Reply in 10 words to an entrepreneur', 'https://cdn.glitch.global/6679f495-37ef-4b2c-977b-d95db7c797f0/Steve%20Jobs.jpg?v=1689619406365');
+        break;
+      case "Bob Marley":
+        await sendImageMessage(message, business_phone_number_id, userSelection, 'c1f8c20e-b41a-4d3a-92d7-2302c0649f32.zip', 'Reply in 10 words to a musician', 'https://cdn.glitch.global/6679f495-37ef-4b2c-977b-d95db7c797f0/Bob%20Marley.jpg?v=1689619402060');
+        break;
+      case "Lionel Messi":
+        await sendImageMessage(message, business_phone_number_id, userSelection, '4de17496-0465-44eb-816f-563e3c5bece6.zip', 'Reply in 10 words to a footballer', 'https://cdn.glitch.global/6679f495-37ef-4b2c-977b-d95db7c797f0/Lionel%20Messi.jpg?v=1689619405125');
+        break;
     }
 
-    // Handle AIMode-related logic
-    if (!AIMode) {
-      if (message?.type === "interactive") {
-        let userSelectionID = message?.interactive?.button_reply?.id;
-        let userSelection = message?.interactive?.button_reply?.title;
+    AIMode = false;
+  }
+  if (message?.type === "text") {
+    if (flow[currNode]?.type === "image") {
+      zipName = flow[currNode]?.zipName;
+      prompt = message?.text?.body;
+      let keys = Array.from(inputMap.keys());
 
-        // Check if flow and adjList are defined
-        if (Array.isArray(nextNode)) {
-          console.log("userSelection:", userSelection);
-          try {
-            if (Array.isArray(flow) && Array.isArray(adjList)) {
-              nextNode.forEach(i => {
-                if (flow[i]?.id === userSelectionID) {
-                  currNode = i;
-                  console.log("currNode:", currNode);
-                  nextNode = adjList[currNode] || [];
-                  console.log("nextNode:", nextNode);
-                  if (nextNode.length > 0) {
-                    currNode = nextNode[0];
-                    console.log("new currNode:", currNode);
-                    sendNodeMessage(currNode);
-                  } else {
-                    console.error("nextNode is empty for currNode:", currNode);
-                  }
-                  return;
-                }
-              });
-            } else {
-              console.warn("flow or adjList is not properly defined");
-            }
-          } catch (error) {
-            console.error('An error occurred while processing the next node:', error.message);
-          }
-        } else {
-          console.warn("nextNode is not defined or not an array");
-        }
+      if (keys.length > 0) {
+        sendNodeMessage(keys[0]);
       }
-
-      if (message?.type === "text") {
-        if (currNode !== 0) {
-          inputMap.set(currNode, message?.text?.body);
-          if (Array.isArray(nextNode) && nextNode.length > 0) {
-            currNode = nextNode[0];
-            sendNodeMessage(currNode);
-          } else {
-            console.warn("nextNode is not defined or empty");
-          }
-        }
-      }
+    } else {
+      sendNodeMessage(currNode);
     }
+  }
+} 
 
-    // Handle media messages
-    if (message?.type === "image" || message?.type === "document" || message?.type === "video") {
-      const mediaID = message?.image?.id || message?.document?.id || message?.video?.id;
+  if(message?.type=="image" || message?.type == "document" || message?.type == "video"){
+      const mediaID=message?.image?.id || message?.document?.id || message?.video?.id;
       let mediaURL;
 
       // Get media/doc URL
@@ -492,3 +491,4 @@ io.on('connection', (socket) => {
     console.log('user disconnected');
   });
 });
+

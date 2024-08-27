@@ -1,7 +1,6 @@
 import express from "express";
 import axios from "axios";
 import { createServer } from "http";
-import sendWhatsappMessage from './send_whatsapp_msg.js';
 import { Server } from "socket.io";
 import cors from 'cors';
 import { ok } from "assert";
@@ -65,6 +64,24 @@ app.post("/flowdata", async (req, res) => {
   res.status(200).json({ success: true, message: "flowdata sent successfully" });
 })
 
+
+async function sendWhatsappMessage(phoneNumber, message) {
+  try {
+    const response = await axios.post(`https://graph.facebook.com/v18.0/${business_phone_number_id}/messages`, {
+      messaging_product: "whatsapp",
+      recipient_type: "individual",
+      to: phoneNumber,
+      type: "text",
+      text: { body: message }
+    }, {
+      headers: { Authorization: `Bearer ${GRAPH_API_TOKEN}` }
+    });
+
+    console.log('Message sent successfully:', response.data);
+  } catch (error) {
+    console.error('Failed to send message:', error.response ? error.response.data : error.message);
+  }
+}
 
 async function sendImageMessage( message,business_phone_number_id, userSelection, zipName, prompt, imageUrl) {
   const result = await get_result_from_query(userSelection, zipName, prompt);

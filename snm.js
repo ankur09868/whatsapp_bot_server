@@ -1,4 +1,4 @@
-import { userSessions, io, updateStatus } from "./server2.js";
+import { userSessions, io, updateStatus } from "./server.js";
 import axios from "axios";
 
 export async function sendMessage(phoneNumber, business_phone_number_id, messageData, access_token = null) {

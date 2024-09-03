@@ -6,7 +6,7 @@ import cors from 'cors';
 import session from "express-session";
 import { getAccessToken, getWabaID, getPhoneNumberID, registerAccount, postRegister } from "./login-flow.js";
 import { sendNodeMessage, sendImageMessage, sendButtonMessage, sendTextMessage, sendMessage } from "./snm.js";
-import { inputVariable } from "./globals.js";
+
 
 
 const AIMode=false;
@@ -225,12 +225,12 @@ app.post("/send-template", async(req,res) => {
   }
 })
 
-async function updateDynamicModelInstance(modelName, phone, updateData) {
+export async function addDynamicModelInstance(modelName, updateData) {
   const url = `http://localhost:8000/dynamic-model-data/${modelName}/`;
-  const data = { phone_no: phone, ...updateData };
-
+  const data = updateData;
+  console.log("DATAAAAAAAAAAAAAAAAAAAAAAA: ", data)
   try {
-      const response = await axios.put(url, data, {
+      const response = await axios.post(url, data, {
           headers: {
               'Content-Type': 'application/json',
               'X-Tenant-Id': 'll'
@@ -273,14 +273,6 @@ app.post("/webhook", async (req, res) => {
         message,
         userPhoneNumber
       });
-      if (inputVariable != null){
-
-        const updateData = {
-          [inputVariable] : message.text?.body
-        }
-        await updateDynamicModelInstance('ModelName' ,userPhoneNumber, updateData)
-        inputVariable == null
-      }
       console.log("Emitting new message event");
       io.emit('new-message', {
         message: message?.text?.body || message?.interactive?.body,
@@ -315,7 +307,7 @@ app.post("/webhook", async (req, res) => {
             currNode: 0,
             nextNode:adjList[0],
             business_number_id:business_phone_number_id,
-            inputMap: new Map()
+            inputVariable : null
           };
           const key = userPhoneNumber + business_phone_number_id
           userSessions.set(key, userSession);
@@ -333,6 +325,17 @@ app.post("/webhook", async (req, res) => {
         // console.log(`Existing session found for user ${userPhoneNumber}:`, userSession);
       }
       if (!AIMode) {
+        
+        if (userSession.inputVariable != null){
+          console.log(userSession.inputVariable)
+          const updateData = {
+            phone_no : userPhoneNumber,
+            [userSession.inputVariable] : message.text?.body
+          }
+          userSession.inputVariable = null
+          await addDynamicModelInstance('ModelName' , updateData)
+          console.log(userSession.inputVariable)
+        }
         console.log("Processing in non-AI mode");
         if (message?.type === "interactive") {
           console.log("Processing interactive message");

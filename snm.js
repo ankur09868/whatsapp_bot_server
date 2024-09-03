@@ -1,6 +1,5 @@
-import { userSessions, io, updateStatus } from "./new_shreyas_server.js";
+import { userSessions, io, updateStatus } from "./server2.js";
 import axios from "axios";
-import { inputVariable, setInputVariable } from "./globals.js";
 
 export async function sendMessage(phoneNumber, business_phone_number_id, messageData, access_token = null) {
     const key = phoneNumber + business_phone_number_id
@@ -97,7 +96,6 @@ export async function sendListMessage(list, message, phoneNumber, business_phone
     const key = phoneNumber + business_phone_number_id
     console.log("USER SESSIONS: ",  userSessions, key)
     const userSession = userSessions.get(key);
-    console.log("USER SESSION: ", userSession)
     const flow = userSession.flowData
   
     const rows = list.map((listNode, index) => ({
@@ -154,9 +152,10 @@ export async function sendNodeMessage(userPhoneNumber, business_phone_number_id)
                 await sendListMessage(list, node_message, userPhoneNumber,business_phone_number_id, accessToken);
                 break;
             case "Input":
-                setInputVariable(flow[currNode]?.Input[0]) //name
-                console.log("input variable: ", inputVariable)
-                await createDynamicModelInstance('ModelName', userPhoneNumber)
+                userSession.inputVariable=flow[currNode]?.Input[0] //name
+                console.log("input variable: ", userSession.inputVariable)
+                const data = {phone_no : userPhoneNumber}
+                await addDynamicModelInstance('ModelName', data)
                 await sendInputMessage(userPhoneNumber,business_phone_number_id, node_message);
                 break;
               
@@ -187,9 +186,9 @@ export async function sendNodeMessage(userPhoneNumber, business_phone_number_id)
     }
 }
 
-export async function createDynamicModelInstance(modelName, phone) {
+async function addDynamicModelInstance(modelName, updateData) {
     const url = `http://localhost:8000/dynamic-model-data/${modelName}/`;
-    const data = {phone_no: phone}
+    const data = updateData
     try {
         const response = await axios.post(url, data, {
             headers: {

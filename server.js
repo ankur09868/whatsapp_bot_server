@@ -61,7 +61,7 @@ export async function updateStatus(status, message_id, business_phone_number_id,
     console.log("Sending request with data:", data);
 
     // Send POST request with JSON payload
-    const response = await axios.post("http://localhost:8000/set-status/", data, {
+    const response = await axios.post("https://webappbaackend.azurewebsites.net/set-status/", data, {
       headers: { 
         "X-Tenant-Id": "ll", 
         "Content-Type": "application/json" 
@@ -139,7 +139,7 @@ app.post("/send-message", async (req, res) => {
       const formattedPhoneNumber = `91${phoneNumber}`;
 
       try {
-        const res = await axios.get(`http://127.0.0.1:8000/whatsapp_tenant?business_phone_id=${business_phone_number_id}`, {
+        const res = await axios.get(`https://webappbaackend.azurewebsites.net/whatsapp_tenant?business_phone_id=${business_phone_number_id}`, {
           headers: { 'X-Tenant-Id': 'll' }
         });
         
@@ -197,7 +197,7 @@ app.post("/send-template", async(req,res) => {
   }
   
   try {
-    const res = await axios.get(`http://127.0.0.1:8000/whatsapp_tenant?business_phone_id=${business_phone_number_id}`, {
+    const res = await axios.get(`https://webappbaackend.azurewebsites.net/whatsapp_tenant?business_phone_id=${business_phone_number_id}`, {
       headers: { 'X-Tenant-Id': 'll' }
     });
     
@@ -226,7 +226,7 @@ app.post("/send-template", async(req,res) => {
 })
 
 export async function addDynamicModelInstance(modelName, updateData) {
-  const url = `http://localhost:8000/dynamic-model-data/${modelName}/`;
+  const url = `dynamic-model-data/${modelName}/`;
   const data = updateData;
   console.log("DATAAAAAAAAAAAAAAAAAAAAAAA: ", data)
   try {
@@ -286,7 +286,7 @@ app.post("/webhook", async (req, res) => {
       if (!userSession) {
         console.log(`Creating new session for user ${userPhoneNumber}`);
         try {
-          const response = await axios.get(`http://127.0.0.1:8000/whatsapp_tenant?business_phone_id=${business_phone_number_id}`,{
+          const response = await axios.get(`https://webappbaackend.azurewebsites.net/whatsapp_tenant?business_phone_id=${business_phone_number_id}`,{
             headers: {'X-Tenant-Id': 'll'} 
           });
           const flowData = response.data.flow_data
@@ -463,7 +463,7 @@ app.post("/login-flow", async (req, res) => {
     const waba_id = await getWabaID(access_token)
     const business_phone_number_id = await getPhoneNumberID(access_token, waba_id);
     const register_response = await registerAccount(business_phone_number_id, access_token)
-    const response = axios.post("http://localhost:8000/insert-flow/", {
+    const response = axios.post("https://webappbaackend.azurewebsites.net/insert-flow/", {
       business_phone_number_id : business_phone_number_id,
       access_token : access_token,
       accountID : waba_id,

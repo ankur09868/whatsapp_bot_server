@@ -74,6 +74,36 @@ export async function updateStatus(status, message_id, business_phone_number_id,
   }
 }
 
+export async function addDynamicModelInstance(modelName, updateData) {
+  const url = `dynamic-model-data/${modelName}/`;
+  const data = updateData;
+  console.log("DATAAAAAAAAAAAAAAAAAAAAAAA: ", data)
+  try {
+      const response = await axios.post(url, data, {
+          headers: {
+              'Content-Type': 'application/json',
+              'X-Tenant-Id': 'll'
+          },
+      });
+      console.log('Data updated successfully:', response.data);
+      return response.data;
+  } catch (error) {
+      if (error.response) {
+          // The request was made and the server responded with a status code
+          // that falls out of the range of 2xx
+          console.error(`Failed to update data: ${error.response.status}, ${error.response.data}`);
+      } else if (error.request) {
+          // The request was made but no response was received
+          console.error('No response received:', error.request);
+      } else {
+          // Something happened in setting up the request that triggered an Error
+          console.error('Error in setting up the request:', error.message);
+      }
+      console.error('Config details:', error.config);
+      return null;
+  }
+}
+
 async function sendTemplates(template){
   const templateData = {
     type: "template",
@@ -132,83 +162,98 @@ app.patch("/toggleAiReplies", async(req,res) =>{
 
 app.post("/send-message", async (req, res) => {
   try {
-    const { phoneNumbers, message, url, messageType, additionalData, business_phone_number_id, bg_id } = req.body; // `additionalData` will include any extra information needed for specific message types
+    const { phoneNumbers, message, url, messageType, additionalData, business_phone_number_id, bg_id } = req.body;
     const urlbool = url;
-
+    console.log("quwudhwueduwcbwubduebwubdwud", req.body);
+    console.log("myname is chiki chiki chik chik", business_phone_number_id);
+    
     for (const phoneNumber of phoneNumbers) {
       const formattedPhoneNumber = `91${phoneNumber}`;
-
+      let access_token;
+      
       try {
-        const res = await axios.get(`https://webappbaackend.azurewebsites.net/whatsapp_tenant?business_phone_id=${business_phone_number_id}`, {
+        const tenantRes = await axios.get(`https://webappbaackend.azurewebsites.net/whatsapp_tenant?business_phone_id=${business_phone_number_id}`, {
           headers: { 'X-Tenant-Id': 'll' }
         });
-        
-        console.log("rcvd response: ", res.data.access_token); // Log the response data
-        var access_token = res.data.access_token
+        access_token = tenantRes.data.access_token;
       } catch (error) {
         console.error(`Error fetching tenant data for user ${business_phone_number_id}:`, error);
         throw error;
       }
       
       let response;
-
+      let formattedConversation = [{ text: message , sender: "bot" }];
+      try {
+        const saveRes = await fetch(`https://webappbaackend.azurewebsites.net/whatsapp_convo_post/${formattedPhoneNumber}/?source=whatsapp`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Tenant-Id': 'll'
+          },
+          body: JSON.stringify({
+            contact_id: formattedPhoneNumber,
+            conversations: formattedConversation,
+            tenant: 'll',
+          }),
+        });
+        if (!saveRes.ok) throw new Error("Failed to save conversation");
+      } catch (error) {
+        console.error("Error saving conversation:", error.message);
+      }
       switch (messageType) {
         case 'text':
           response = await sendTextMessage(formattedPhoneNumber, business_phone_number_id, message, access_token);
+          formattedConversation.push({ text: message, sender: "bot" });
           break;
 
         case 'image':
           const { imageUrl, caption } = additionalData;
-          response = await sendImageMessage(formattedPhoneNumber,business_phone_number_id,imageUrl,caption, access_token);
+          response = await sendImageMessage(formattedPhoneNumber, business_phone_number_id, imageUrl, caption, access_token);
+          formattedConversation.push({ text: caption, sender: "bot" });
           break;
 
         case 'button':
           const { buttons } = additionalData;
-          response = await sendButtonMessage(formattedPhoneNumber,business_phone_number_id,message,buttons, access_token);
+          response = await sendButtonMessage(formattedPhoneNumber, business_phone_number_id, message, buttons, access_token);
+          formattedConversation.push({ text: message, sender: "bot" });
           break;
 
         default:
           throw new Error("Invalid message type");
       }
-    const messageID = response.data?.messages[0]?.id
-    if(bg_id != null) await updateStatus(null, messageID, null, null, bg_id);
-    
+
+      const messageID = response.data?.messages[0]?.id;
+      if (bg_id != null) await updateStatus(null, messageID, null, null, bg_id);
+
+      // Save conversation to backend
+     
     }
 
-
-    res.status(200).json({ success: true, message: "WhatsApp message(s) sent successfully" });
+    res.status(200).json({ success: true, message: "WhatsApp message(s) sent and saved successfully" });
   } catch (error) {
     console.error("Error sending WhatsApp message:", error.message);
     res.status(500).json({ success: false, error: "Failed to send WhatsApp message" });
   }
 });
-
-app.post("/send-template", async(req,res) => {
-  const { bg_id, template,business_phone_number_id, phoneNumbers } = req.body
-  
+app.post("/send-template", async (req, res) => {
+  const { bg_id, template, business_phone_number_id, phoneNumbers } = req.body;
   const templateData = {
     type: "template",
     template: {
       name: template.name,
-      language:{
+      language: {
         code: "en_US"
       },
     }
-  }
+  };
   
   try {
-    const res = await axios.get(`https://webappbaackend.azurewebsites.net/whatsapp_tenant?business_phone_id=${business_phone_number_id}`, {
+    const tenantRes = await axios.get(`https://webappbaackend.azurewebsites.net/whatsapp_tenant?business_phone_id=${business_phone_number_id}`, {
       headers: { 'X-Tenant-Id': 'll' }
     });
-    
-    console.log("rcvd response: ", res.data.access_token); // Log the response data
-    var access_token = res.data.access_token
-  } catch (error) {
-    console.error(`Error fetching tenant data for user ${business_phone_number_id}:`, error);
-    throw error;
-  }
+    const access_token = tenantRes.data.access_token;
 
-  for(const phoneNumber of phoneNumbers){
+    for (const phoneNumber of phoneNumbers) {
       try {
         const formattedPhoneNumber = `${phoneNumber}`;
         const response = await sendMessage(formattedPhoneNumber, business_phone_number_id, templateData, access_token);
@@ -217,43 +262,34 @@ app.post("/send-template", async(req,res) => {
         if (bg_id != null) {
           await updateStatus(null, messageID, null, null, bg_id);
         }
-        res.status(200).json({ success: true, message: "WhatsApp message(s) sent successfully" });
+
+        // Save conversation to backend
+        const formattedConversation = [{ text: template.name, sender: "bot" }];
+        const saveRes = await fetch(`https://webappbaackend.azurewebsites.net/whatsapp_convo_post/${formattedPhoneNumber}/?source=whatsapp`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Tenant-Id': 'll'
+          },
+          body: JSON.stringify({
+            contact_id: formattedPhoneNumber,
+            conversations: formattedConversation,
+            tenant: 'll',
+          }),
+        });
+        if (!saveRes.ok) throw new Error("Failed to save conversation");
       } catch (error) {
         console.error(`Failed to send message to ${phoneNumber}:`, error);
-        // Optionally, handle the error (e.g., log it, notify someone, etc.)
       }
-  }
-})
+    }
 
-export async function addDynamicModelInstance(modelName, updateData) {
-  const url = `dynamic-model-data/${modelName}/`;
-  const data = updateData;
-  console.log("DATAAAAAAAAAAAAAAAAAAAAAAA: ", data)
-  try {
-      const response = await axios.post(url, data, {
-          headers: {
-              'Content-Type': 'application/json',
-              'X-Tenant-Id': 'll'
-          },
-      });
-      console.log('Data updated successfully:', response.data);
-      return response.data;
+    res.status(200).json({ success: true, message: "WhatsApp message(s) sent and saved successfully" });
   } catch (error) {
-      if (error.response) {
-          // The request was made and the server responded with a status code
-          // that falls out of the range of 2xx
-          console.error(`Failed to update data: ${error.response.status}, ${error.response.data}`);
-      } else if (error.request) {
-          // The request was made but no response was received
-          console.error('No response received:', error.request);
-      } else {
-          // Something happened in setting up the request that triggered an Error
-          console.error('Error in setting up the request:', error.message);
-      }
-      console.error('Config details:', error.config);
-      return null;
+    console.error("Error sending WhatsApp message:", error.message);
+    res.status(500).json({ success: false, error: "Failed to send WhatsApp message" });
   }
-}
+});
+
 
 
 app.post("/webhook", async (req, res) => {
@@ -273,7 +309,35 @@ app.post("/webhook", async (req, res) => {
         message,
         userPhoneNumber
       });
+
       console.log("Emitting new message event");
+        
+      let formattedConversation = [
+        {
+          text: message?.text?.body || 
+                (message?.interactive ? (message?.interactive?.button_reply?.title || message?.interactive?.list_reply?.title) : null),
+          sender: "user"
+        }
+      ];
+        
+        // Save conversation to backend
+        try {
+          const saveRes = await fetch(`https://webappbaackend.azurewebsites.net/whatsapp_convo_post/${userPhoneNumber}/?source=whatsapp`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'X-Tenant-Id': 'll'
+            },
+            body: JSON.stringify({
+              contact_id: userPhoneNumber,
+              conversations: formattedConversation,
+              tenant: 'll',
+            }),
+          });
+          if (!saveRes.ok) throw new Error("Failed to save conversation");
+        } catch (error) {
+          console.error("Error saving conversation:", error.message);
+        }
       io.emit('new-message', {
         message: message?.text?.body || message?.interactive?.body,
         phone_number_id: business_phone_number_id,

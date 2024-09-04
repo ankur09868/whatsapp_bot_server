@@ -1,3 +1,5 @@
+import axios from "axios";
+
 export async function getAccessToken(auth_code) {
     const client_id = '1546607802575879'; 
     const client_secret = '1cc11e828571e071c91f56da993bb60b'; 

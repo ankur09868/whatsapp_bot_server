@@ -22,6 +22,24 @@ export async function sendMessage(phoneNumber, business_phone_number_id, message
         const messageID = response.data?.messages?.[0]?.id
         const status = "sent";
         await updateStatus(status, messageID,  business_phone_number_id, phoneNumber)
+        let formattedConversation = [{ text: messageData , sender: "bot" }];
+        try {
+            const saveRes = await fetch(`https://webappbaackend.azurewebsites.net/whatsapp_convo_post/${phoneNumber}/?source=whatsapp`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Tenant-Id': 'll'
+                },
+                body: JSON.stringify({
+                    contact_id: phoneNumber,
+                    conversations: formattedConversation,
+                    tenant: 'll',
+                }),
+            });
+            if (!saveRes.ok) throw new Error("Failed to save conversation");
+        } catch (error) {
+            console.error("Error saving conversation:", error.message);
+        }
         return { success: true, data: response.data };
     } catch (error) {
         console.error('Failed to send message:', error.response ? error.response.data : error.message);

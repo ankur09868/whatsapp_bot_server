@@ -3,9 +3,9 @@ import axios from "axios";
 export async function getAccessToken(auth_code) {
     const client_id = '1546607802575879'; 
     const client_secret = '1cc11e828571e071c91f56da993bb60b'; 
-    const redirect_uri = 'https://crm.nuren.ai//ll//chatbot'; 
+    const redirect_uri = 'https://crm.nuren.ai/chatbotredirect'; 
   
-    const url = `https://graph.facebook.com/v18.0/oauth/access_token?client_id=${client_id}&redirect_uri=${encodeURIComponent(redirect_uri)}&client_secret=${client_secret}&code=${auth_code}`;
+    const url = `https://graph.facebook.com/v18.0/oauth/access_token?client_id=${client_id}&redirect_uri=${redirect_uri}&client_secret=${client_secret}&code=${auth_code}`;
   
     try {
       const response = await axios.get(url);
@@ -30,11 +30,16 @@ export async function getWabaID(access_token) {
           "Authorization": `Bearer ${access_token}`,
         },
       });
-      
       if (response.status === 200) {
         const data = response.data;
-        const waba_id = data.granular_scopes[0].target_ids[0]
-        if (data.data.length > 0) {
+        let waba_id;
+        for (const g_scope of data.data.granular_scopes){
+          if (g_scope.scope == "whatsapp_business_messaging"){
+            waba_id = g_scope.target_ids[0]
+          }
+        }
+        
+        if (waba_id) {
           return waba_id
         } else {
           throw new Error('No WABA ID found for this access token');
@@ -50,6 +55,7 @@ export async function getWabaID(access_token) {
 
 
 export async function getPhoneNumberID(access_token, waba_id) {
+
     const url = `https://graph.facebook.com/v18.0/${waba_id}/phone_numbers`;
   
     try {
@@ -61,6 +67,7 @@ export async function getPhoneNumberID(access_token, waba_id) {
   
       if (response.status === 200) {
         const data = response.data;
+        console.log("phone numebr id: ", data)
         return data.data[0].id; 
       } else {
         throw new Error(`Error: ${response.data.error.message}`);
@@ -72,27 +79,36 @@ export async function getPhoneNumberID(access_token, waba_id) {
 }
 
 export async function registerAccount(business_phone_number_id, access_token){
-    const url = `https://graph.facebook.com/v19.0/${business_phone_number_id}/register`;
-    try{
-        const response = await axios.post(url, {
-            headers: {
-                "Authorization": `Bearer ${access_token}`,
-            }
-        });
-        if (response.status === 200) {
-            const data = response.data;
-            return data.data[0].id; 
-        } else {
-            throw new Error(`Error: ${response.data.error.message}`);
-        }
-    }catch (error) {
-        console.error('Failed to retrieve phone number ID:', error);
-        throw error;
+  console.log("KHB");
+  const url = `https://graph.facebook.com/v19.0/${business_phone_number_id}/register`;
+  console.log(url);
+  const body = {
+    "messaging_product": "whatsapp",
+    "pin": "123456"
+  };
+  console.log("Request Body:", body); // Log the body
+
+  try {
+    const response = await axios.post(url, body, {
+      headers: {
+        "Authorization": `Bearer ${access_token}`,
       }
+    });
+    console.log("Response Data:", JSON.stringify(response.data, null, 4)); // Log response data
+    if (response.status === 200) {
+      return response.data;
+    } else {
+      throw new Error(`Error: ${response.data.error.message}`);
+    }
+  } catch (error) {
+    console.error('Failed to register account:', error.response ? error.response.data : error.message); // More detailed error logging
+    throw error;
+  }
 }
 
 export async function postRegister(access_token, account_id){
     const url = `https://graph.facebook.com/v19.0/${account_id}/subscribed_apps?access_token=${access_token}`
+    
     try{
         const response = await axios.get(url, {
             headers:{
@@ -101,7 +117,7 @@ export async function postRegister(access_token, account_id){
         });
         if (response.status === 200) {
             const data = response.data;
-            return data.data[0].id; 
+            return response.status
         } else {
             throw new Error(`Error: ${response.data.error.message}`);
         }

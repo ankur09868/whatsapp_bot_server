@@ -75,7 +75,7 @@ export async function updateStatus(status, message_id, business_phone_number_id,
     console.error("Error updating status:", error.response ? error.response.data : error.message);
   }
 }
-
+/*
 export async function addDynamicModelInstance(modelName, updateData) {
   const url = `dynamic-model-data/${modelName}/`;
   const data = updateData;
@@ -104,7 +104,7 @@ export async function addDynamicModelInstance(modelName, updateData) {
       console.error('Config details:', error.config);
       return null;
   }
-}
+}*/
 
 async function sendTemplates(template){
   const templateData = {

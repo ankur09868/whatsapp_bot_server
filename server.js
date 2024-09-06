@@ -5,7 +5,9 @@ import { Server } from "socket.io";
 import cors from 'cors';
 import session from "express-session";
 import { getAccessToken, getWabaID, getPhoneNumberID, registerAccount, postRegister } from "./login-flow.js";
-import { sendNodeMessage, sendImageMessage, sendButtonMessage, sendTextMessage, sendMessage } from "./snm.js";
+import { sendNodeMessage, sendImageMessage, sendButtonMessage, sendTextMessage, sendMessage, replacePlaceholders, addDynamicModelInstance } from "./snm.js";
+
+
 
 
 
@@ -112,6 +114,46 @@ async function sendTemplates(template){
   return templateData
 }
 
+
+async function validateInput(inputVariable, message){
+  try{
+  const prompt = `Question being asked is: ${inputVariable}?\n
+  Response being given is: ${message}\n
+  Does the response answer the question? reply in yes or no. nothing else `
+
+  const api_key = "OPENAI-API-KEY"
+
+  const data = {
+    model: "gpt-4o-mini",
+    messages : [
+      {
+        role: "system",
+        content: "you are a helpful assisstant who replies in yes or no only"
+      },
+      {
+        role: "user",
+        content: prompt
+      }
+    ]
+  }
+  const response = await axios.post('https://api.openai.com/v1/chat/completions',data, {
+    headers: {
+      'Authorization': `Bearer ${api_key}`,
+      'Content-Type': 'application/json',
+    }
+  });
+
+  const validationResult = response.data.choices[0].message.content;
+  console.log("Validation Result: ", validationResult)
+  return validationResult
+} catch (error) {
+  console.error('Error validating input:', error);
+  return false;
+}
+}
+
+
+
 app.use(express.json());
 app.use(cors());
 
@@ -162,11 +204,10 @@ app.patch("/toggleAiReplies", async(req,res) =>{
 
 app.post("/send-message", async (req, res) => {
   try {
-    const { phoneNumbers, message, url, messageType, additionalData, business_phone_number_id, bg_id } = req.body;
+    var { phoneNumbers, message, url, messageType, additionalData, business_phone_number_id, bg_id } = req.body; // `additionalData` will include any extra information needed for specific message types
     const urlbool = url;
-    console.log("quwudhwueduwcbwubduebwubdwud", req.body);
-    console.log("myname is chiki chiki chik chik", business_phone_number_id);
-    
+    const tenant_id = req.headers['X-Tenant-Id']
+
     for (const phoneNumber of phoneNumbers) {
       const formattedPhoneNumber = `91${phoneNumber}`;
       let access_token;
@@ -202,18 +243,21 @@ app.post("/send-message", async (req, res) => {
       }
       switch (messageType) {
         case 'text':
+          message = await replacePlaceholders(message, null, phoneNumber, tenant_id)
           response = await sendTextMessage(formattedPhoneNumber, business_phone_number_id, message, access_token);
           formattedConversation.push({ text: message, sender: "bot" });
           break;
 
         case 'image':
-          const { imageUrl, caption } = additionalData;
+          var { imageUrl, caption } = additionalData;
+          caption = await replacePlaceholders(caption, null, phoneNumber, tenant_id)
           response = await sendImageMessage(formattedPhoneNumber, business_phone_number_id, imageUrl, caption, access_token);
           formattedConversation.push({ text: caption, sender: "bot" });
           break;
 
         case 'button':
           const { buttons } = additionalData;
+          message = await replacePlaceholders(message, null, phoneNumber, tenant_id)
           response = await sendButtonMessage(formattedPhoneNumber, business_phone_number_id, message, buttons, access_token);
           formattedConversation.push({ text: message, sender: "bot" });
           break;
@@ -221,22 +265,20 @@ app.post("/send-message", async (req, res) => {
         default:
           throw new Error("Invalid message type");
       }
-
-      const messageID = response.data?.messages[0]?.id;
-      if (bg_id != null) await updateStatus(null, messageID, null, null, bg_id);
-
-      // Save conversation to backend
-     
+    const messageID = response.data?.messages[0]?.id
+    if(bg_id != null) await updateStatus(null, messageID, null, null, bg_id);
     }
-
-    res.status(200).json({ success: true, message: "WhatsApp message(s) sent and saved successfully" });
+    res.status(200).json({ success: true, message: "WhatsApp message(s) sent successfully" });
   } catch (error) {
     console.error("Error sending WhatsApp message:", error.message);
     res.status(500).json({ success: false, error: "Failed to send WhatsApp message" });
   }
 });
-app.post("/send-template", async (req, res) => {
-  const { bg_id, template, business_phone_number_id, phoneNumbers } = req.body;
+
+app.post("/send-template", async(req,res) => {
+  const { bg_id, template,business_phone_number_id, phoneNumbers } = req.body
+  tenant_id = req.headers['X-Tenant-Id']
+
   const templateData = {
     type: "template",
     template: {
@@ -244,6 +286,31 @@ app.post("/send-template", async (req, res) => {
       language: {
         code: "en_US"
       },
+      components: [
+      {
+        type: "body",
+        parameters: [
+          {
+            type: "text",
+            text: "Batman"
+          },
+          {
+            type: "currency",
+            currency: {
+              fallback_value: "100.0",
+              code: "INR",
+              amount_1000: 100000
+            }
+          },
+          {
+            type: "date_time",
+            date_time: {
+              fallback_value: "2024-09-05 10:00:00"
+            }
+          }
+        ]
+      }
+    ]
     }
   };
   
@@ -299,8 +366,6 @@ app.post("/webhook", async (req, res) => {
     const message = req.body.entry?.[0]?.changes[0]?.value?.messages?.[0];
     const userPhoneNumber = contact?.wa_id;
     const statuses = req.body.entry?.[0]?.changes[0]?.value?.statuses?.[0];
-    
-    
 
     if (message) {
       console.log("Extracted data:", {
@@ -355,7 +420,7 @@ app.post("/webhook", async (req, res) => {
           });
           const flowData = response.data.flow_data
           const adjList = response.data.adj_list
-          // console.log("Tenant data received:", response.data);
+          console.log("Tenant data received:", response.data);
   
           // Validate the data types
           if (!Array.isArray(flowData)) {
@@ -364,14 +429,23 @@ app.post("/webhook", async (req, res) => {
           if (!Array.isArray(adjList) || !adjList.every(Array.isArray)) {
             throw new Error("adjList is not an array of arrays");
           }
+
+          const startNode = response.data.start -1;
+          const currNode = startNode !== null ? startNode : 0;
           userSession = { 
             flowData: response.data.flow_data,
             adjList: response.data.adj_list,
             accessToken: response.data.access_token,
-            currNode: 0,
-            nextNode:adjList[0],
+            // flow_name : response.data.flow_name,
+            startNode : startNode,
+            currNode: currNode,
+            nextNode:adjList[currNode],
             business_number_id:business_phone_number_id,
-            inputVariable : null
+            userPhoneNumber : userPhoneNumber,
+            inputVariable : null,
+            inputVariableType: null,
+            fallback_msg : response.data.fallback_msg,
+            fallback_count: response.data.fallback_count
           };
           const key = userPhoneNumber + business_phone_number_id
           userSessions.set(key, userSession);
@@ -391,14 +465,40 @@ app.post("/webhook", async (req, res) => {
       if (!AIMode) {
         
         if (userSession.inputVariable != null){
-          console.log(userSession.inputVariable)
-          const updateData = {
-            phone_no : userPhoneNumber,
-            [userSession.inputVariable] : message.text?.body
+          console.log(userSession.inputVariable, userSession.inputVariableType)
+          var validateResponse = await validateInput(userSession.inputVariable, message.text?.body)
+          //TODO: fallback condiiton
+          validateResponse = validateResponse.trim()
+          if(validateResponse == "No." || validateResponse == "No"){
+            console.log("Entering Fallback")
+            var fallback_count = userSession.fallback_count
+            if(fallback_count > 0){
+              console.log("Fallback Count: ", fallback_count)
+              const fallback_msg = userSession.fallback_msg
+              const access_token = userSession.accessToken
+              const response = await sendTextMessage(userPhoneNumber, business_phone_number_id, fallback_msg, access_token)
+              fallback_count=fallback_count - 1;
+              userSession.fallback_count = fallback_count
+              res.sendStatus(200);
+              return;
+            }
+            else{
+              userSessions.delete(userPhoneNumber+business_phone_number_id)
+              console.log("restarting user session for user: ", userPhoneNumber)
+              res.sendStatus(200);
+              return;
+            }
+          }else{
+            const updateData = {
+              phone_no : userPhoneNumber,
+              [userSession.inputVariable] : message.text?.body
+            }
+            userSession.inputVariable = null
+            const modelName = `${business_phone_number_id}`
+            await addDynamicModelInstance(modelName , updateData)
+
+            console.log(userSession.inputVariable)
           }
-          userSession.inputVariable = null
-          await addDynamicModelInstance('ModelName' , updateData)
-          console.log(userSession.inputVariable)
         }
         console.log("Processing in non-AI mode");
         if (message?.type === "interactive") {
@@ -429,7 +529,8 @@ app.post("/webhook", async (req, res) => {
         }
         if (message?.type === "text") {
           console.log("Processing text message");
-          if (userSession.currNode != 0) {
+          console.log(userSession.currNode, userSession.startNode)
+          if (userSession.currNode != userSession.startNode) {
             console.log(`Storing input for node ${userSession.currNode}:`, message?.text?.body);
             //userSession.inputMap.set(userSession.currNode, message?.text?.body);
             userSession.currNode = userSession.nextNode[0];
@@ -496,7 +597,8 @@ app.post("/webhook", async (req, res) => {
     }
   
     res.sendStatus(200);
-  } catch (error) {
+  }
+  catch (error) {
     console.error("Error in webhook handler:", error);
     res.sendStatus(500);
   }
@@ -522,18 +624,26 @@ app.get("/", (req, res) => {
 
 app.post("/login-flow", async (req, res) => {
   try {
+    const tenant_id = req.headers['X-Tenant-Id']
     const authCode = req.body.code;
     const access_token = await getAccessToken(authCode);
     const waba_id = await getWabaID(access_token)
     const business_phone_number_id = await getPhoneNumberID(access_token, waba_id);
+
     const register_response = await registerAccount(business_phone_number_id, access_token)
+    const postRegister_response = await postRegister(access_token, waba_id)
+    
     const response = axios.post(" https://backenreal-hgg2d7a0d9fzctgj.eastus-01.azurewebsites.net/insert-flow/", {
       business_phone_number_id : business_phone_number_id,
       access_token : access_token,
       accountID : waba_id,
       firstInsert : true
-    })
-    const postRegister_response = await postRegister(access_token)
+    },
+    {
+      headers: {
+        'X-Tenant-Id': tenant_id
+      }
+    });
     
     res.sendStatus(200);
   } catch (error) {

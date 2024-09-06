@@ -24,7 +24,7 @@ export async function sendMessage(phoneNumber, business_phone_number_id, message
         await updateStatus(status, messageID,  business_phone_number_id, phoneNumber)
         let formattedConversation = [{ text: messageData , sender: "bot" }];
         try {
-            const saveRes = await fetch(`https://webappbaackend.azurewebsites.net/whatsapp_convo_post/${phoneNumber}/?source=whatsapp`, {
+            const saveRes = await fetch(`https://backenreal-hgg2d7a0d9fzctgj.eastus-01.azurewebsites.net/whatsapp_convo_post/${phoneNumber}/?source=whatsapp`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',

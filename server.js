@@ -61,7 +61,7 @@ export async function updateStatus(status, message_id, business_phone_number_id,
     console.log("Sending request with data:", data);
 
     // Send POST request with JSON payload
-    const response = await axios.post("https://webappbaackend.azurewebsites.net/set-status/", data, {
+    const response = await axios.post(" https://backenreal-hgg2d7a0d9fzctgj.eastus-01.azurewebsites.net/set-status/", data, {
       headers: { 
         "X-Tenant-Id": "ll", 
         "Content-Type": "application/json" 
@@ -172,7 +172,7 @@ app.post("/send-message", async (req, res) => {
       let access_token;
       
       try {
-        const tenantRes = await axios.get(`https://webappbaackend.azurewebsites.net/whatsapp_tenant?business_phone_id=${business_phone_number_id}`, {
+        const tenantRes = await axios.get(` https://backenreal-hgg2d7a0d9fzctgj.eastus-01.azurewebsites.net/whatsapp_tenant?business_phone_id=${business_phone_number_id}`, {
           headers: { 'X-Tenant-Id': 'll' }
         });
         access_token = tenantRes.data.access_token;
@@ -184,7 +184,7 @@ app.post("/send-message", async (req, res) => {
       let response;
       let formattedConversation = [{ text: message , sender: "bot" }];
       try {
-        const saveRes = await fetch(`https://webappbaackend.azurewebsites.net/whatsapp_convo_post/${formattedPhoneNumber}/?source=whatsapp`, {
+        const saveRes = await fetch(`https://backenreal-hgg2d7a0d9fzctgj.eastus-01.azurewebsites.net/whatsapp_convo_post/${formattedPhoneNumber}/?source=whatsapp`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -248,7 +248,7 @@ app.post("/send-template", async (req, res) => {
   };
   
   try {
-    const tenantRes = await axios.get(`https://webappbaackend.azurewebsites.net/whatsapp_tenant?business_phone_id=${business_phone_number_id}`, {
+    const tenantRes = await axios.get(` https://backenreal-hgg2d7a0d9fzctgj.eastus-01.azurewebsites.net/whatsapp_tenant?business_phone_id=${business_phone_number_id}`, {
       headers: { 'X-Tenant-Id': 'll' }
     });
     const access_token = tenantRes.data.access_token;
@@ -265,7 +265,7 @@ app.post("/send-template", async (req, res) => {
 
         // Save conversation to backend
         const formattedConversation = [{ text: template.name, sender: "bot" }];
-        const saveRes = await fetch(`https://webappbaackend.azurewebsites.net/whatsapp_convo_post/${formattedPhoneNumber}/?source=whatsapp`, {
+        const saveRes = await fetch(`https://backenreal-hgg2d7a0d9fzctgj.eastus-01.azurewebsites.net/whatsapp_convo_post/${formattedPhoneNumber}/?source=whatsapp`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -322,7 +322,7 @@ app.post("/webhook", async (req, res) => {
         
         // Save conversation to backend
         try {
-          const saveRes = await fetch(`https://webappbaackend.azurewebsites.net/whatsapp_convo_post/${userPhoneNumber}/?source=whatsapp`, {
+          const saveRes = await fetch(`https://backenreal-hgg2d7a0d9fzctgj.eastus-01.azurewebsites.net/whatsapp_convo_post/${userPhoneNumber}/?source=whatsapp`, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
@@ -350,7 +350,7 @@ app.post("/webhook", async (req, res) => {
       if (!userSession) {
         console.log(`Creating new session for user ${userPhoneNumber}`);
         try {
-          const response = await axios.get(`https://webappbaackend.azurewebsites.net/whatsapp_tenant?business_phone_id=${business_phone_number_id}`,{
+          const response = await axios.get(` https://backenreal-hgg2d7a0d9fzctgj.eastus-01.azurewebsites.net/whatsapp_tenant?business_phone_id=${business_phone_number_id}`,{
             headers: {'X-Tenant-Id': 'll'} 
           });
           const flowData = response.data.flow_data
@@ -441,7 +441,7 @@ app.post("/webhook", async (req, res) => {
       } else {
         console.log("Processing in AI mode");
       }
-  
+      
       if (message?.type == "image" || message?.type == "document" || message?.type == "video") {
         console.log("Processing media message:", message?.type);
         const mediaID = message?.image?.id || message?.document?.id || message?.video?.id;
@@ -527,7 +527,7 @@ app.post("/login-flow", async (req, res) => {
     const waba_id = await getWabaID(access_token)
     const business_phone_number_id = await getPhoneNumberID(access_token, waba_id);
     const register_response = await registerAccount(business_phone_number_id, access_token)
-    const response = axios.post("https://webappbaackend.azurewebsites.net/insert-flow/", {
+    const response = axios.post(" https://backenreal-hgg2d7a0d9fzctgj.eastus-01.azurewebsites.net/insert-flow/", {
       business_phone_number_id : business_phone_number_id,
       access_token : access_token,
       accountID : waba_id,

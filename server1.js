@@ -5,7 +5,7 @@ import { Server } from "socket.io";
 import cors from 'cors';
 import session from "express-session";
 import { getAccessToken, getWabaID, getPhoneNumberID, registerAccount, postRegister } from "./login-flow.js";
-import { sendNodeMessage, sendImageMessage, sendButtonMessage, sendTextMessage, sendMessage, replacePlaceholders, addDynamicModelInstance, sendAudioMessage, sendVideoMessage } from "./snm.js";
+import { sendNodeMessage, sendImageMessage, sendButtonMessage, sendTextMessage, sendMessage, replacePlaceholders, addDynamicModelInstance } from "./snm.js";
 
 
 
@@ -63,7 +63,7 @@ export async function updateStatus(status, message_id, business_phone_number_id,
     console.log("Sending request with data:", data);
 
     // Send POST request with JSON payload
-    const response = await axios.post(" https://8twdg37p-8000.inc1.devtunnels.ms/set-status/", data, {
+    const response = await axios.post(" https://backenreal-hgg2d7a0d9fzctgj.eastus-01.azurewebsites.net/set-status/", data, {
       headers: { 
         "X-Tenant-Id": "ll", 
         "Content-Type": "application/json" 
@@ -75,6 +75,140 @@ export async function updateStatus(status, message_id, business_phone_number_id,
     console.error("Error updating status:", error.response ? error.response.data : error.message);
   }
 }
+/*
+export async function addDynamicModelInstance(modelName, updateData) {
+  const url = `dynamic-model-data/${modelName}/`;
+  const data = updateData;
+  console.log("DATAAAAAAAAAAAAAAAAAAAAAAA: ", data)
+  try {
+      const response = await axios.post(url, data, {
+          headers: {
+              'Content-Type': 'application/json',
+              'X-Tenant-Id': 'll'
+          },
+      });
+      console.log('Data updated successfully:', response.data);
+      return response.data;
+  } catch (error) {
+      if (error.response) {
+          // The request was made and the server responded with a status code
+          // that falls out of the range of 2xx
+          console.error(`Failed to update data: ${error.response.status}, ${error.response.data}`);
+      } else if (error.request) {
+          // The request was made but no response was received
+          console.error('No response received:', error.request);
+      } else {
+          // Something happened in setting up the request that triggered an Error
+          console.error('Error in setting up the request:', error.message);
+      }
+      console.error('Config details:', error.config);
+      return null;
+  }
+}*/
+import dotenv from 'dotenv';
+
+// Load environment variables
+dotenv.config();
+app.use(express.json({ limit: "100mb" }));
+app.use(express.urlencoded({ limit: "100mb", extended: true }));
+
+// Dynamically import the CommonJS module
+const { RUCreateSession, RUInitiateUpload, createWABANOTemplates } = await import('./whatsapp.helper.cjs');
+
+
+
+import path from 'path';
+import multer from 'multer';
+
+// CONFIGURATION
+const fileSize = 250; // 250MB
+const fileTypes = /jpeg|jpg|png|mp4|pdf/;
+const upload = multer({
+    storage: multer.memoryStorage(),
+    limits: {
+        fileSize: (1024 * 1024 * fileSize) // 250 MB
+    },
+    fileFilter: async (req, file, cb) => {
+        // VALIDATE FILE EXT
+        const extname = fileTypes.test(path.extname(file.originalname).toLowerCase());
+        if (extname && file.mimetype) {
+            cb(null, true);
+        } else {
+            cb(new Error(`Only ${fileTypes.toString()} extentions are allowed!`), false);
+        }
+    }
+});
+
+// UPLOAD MEDIA ROUTE
+app.use('/uploadMedia', async (req, res) => {
+    // UPLOAD
+    upload.single('file')(req, res, async (error) => {
+        // PROBABLY FILE SIZE ERROR
+        if (error instanceof multer.MulterError) {
+            // LOG ERROR, AND RESPONSE
+            console.error(error);
+            res.status(400).send({
+                message: `Max file size ${fileSize} allowed!`
+            });
+        }
+        // SOMETHING OTHER ERROR 
+        else if (error) {
+            // LOG ERROR, AND RESPONSE
+            console.error(error);
+            res.status(400).send({
+                message: `Something went wrong please try again!`
+            });
+        }
+        // FILE IS REQUIRED
+        else if (!req.file) {
+            // LOG ERROR, AND RESPONSE
+            res.status(400).send({
+                message: `File is required!`
+            });
+        }
+        else {
+            // CREATE SESSION
+            let session = await RUCreateSession({
+                file_length: req.file.size,
+                file_name: req.file.originalname,
+                file_type: req.file.mimetype
+            });
+            if (session.body.error) {
+                // LOG ERROR, AND RESPONSE
+                console.error(session.body.error);
+                return res.status(400).send({
+                    message: session.body.error.error_user_title ? session.body.error.error_user_title + ` (${session.body.error.error_user_msg})` : session.body.error.message
+                });
+            }
+            //INITIATE UPLOAD
+            let iupload = await RUInitiateUpload(session.body.id, req.file.buffer);
+            if (iupload.body.h) {
+                // SUCCESS RESPONSE
+                console.error(iupload.body);
+                return res.status(200).send({
+                    message: "Uploaded!",
+                    body: iupload.body
+                });
+            }
+            // ERROR
+            else if (iupload.body.error) {
+                // LOG ERROR, AND RESPONSE
+                console.error(iupload.body.error);
+                return res.status(400).send({
+                    message: iupload.body.error.error_user_title ? iupload.body.error.error_user_title + ` (${iupload.body.error.error_user_msg})` : iupload.body.error.message
+                });
+            }
+            else {
+                // LOG ERROR, AND RESPONSE
+                console.error(iupload);
+                return res.status(400).send({
+                    message: "Something went wrong please try again!"
+                });
+            }
+        }
+    });
+});
+
 
 async function sendTemplates(template){
   const templateData = {
@@ -124,7 +258,7 @@ async function validateInput(inputVariable, message){
 
 
 
-app.use(express.json());
+
 app.use(cors());
 
 app.use((req, res, next) => {
@@ -175,6 +309,7 @@ app.patch("/toggleAiReplies", async(req,res) =>{
 app.post("/send-message", async (req, res) => {
   try {
     var { phoneNumbers, message, url, messageType, additionalData, business_phone_number_id, bg_id } = req.body; // `additionalData` will include any extra information needed for specific message types
+    const urlbool = url;
     const tenant_id = req.headers['X-Tenant-Id']
 
     for (const phoneNumber of phoneNumbers) {
@@ -182,7 +317,7 @@ app.post("/send-message", async (req, res) => {
       let access_token;
       
       try {
-        const tenantRes = await axios.get(` https://8twdg37p-8000.inc1.devtunnels.ms/whatsapp_tenant?business_phone_id=${business_phone_number_id}`, {
+        const tenantRes = await axios.get(` https://backenreal-hgg2d7a0d9fzctgj.eastus-01.azurewebsites.net/whatsapp_tenant?business_phone_id=${business_phone_number_id}`, {
           headers: { 'X-Tenant-Id': 'll' }
         });
         access_token = tenantRes.data.access_token;
@@ -194,7 +329,7 @@ app.post("/send-message", async (req, res) => {
       let response;
       let formattedConversation = [{ text: message , sender: "bot" }];
       try {
-        const saveRes = await fetch(`https://8twdg37p-8000.inc1.devtunnels.ms/whatsapp_convo_post/${formattedPhoneNumber}/?source=whatsapp`, {
+        const saveRes = await fetch(`https://backenreal-hgg2d7a0d9fzctgj.eastus-01.azurewebsites.net/whatsapp_convo_post/${formattedPhoneNumber}/?source=whatsapp`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -210,7 +345,6 @@ app.post("/send-message", async (req, res) => {
       } catch (error) {
         console.error("Error saving conversation:", error.message);
       }
-      console.log("message type:", messageType)
       switch (messageType) {
         case 'text':
           message = await replacePlaceholders(message, null, phoneNumber, tenant_id)
@@ -219,11 +353,9 @@ app.post("/send-message", async (req, res) => {
           break;
 
         case 'image':
-          var { imageID, caption } = additionalData;
-          console.log(imageID, caption)
+          var { imageUrl, caption } = additionalData;
           caption = await replacePlaceholders(caption, null, phoneNumber, tenant_id)
-          console.log(formattedPhoneNumber, business_phone_number_id, imageID, caption, access_token)
-          response = await sendImageMessage(formattedPhoneNumber, business_phone_number_id, imageID, caption, access_token);
+          response = await sendImageMessage(formattedPhoneNumber, business_phone_number_id, imageUrl, caption, access_token);
           formattedConversation.push({ text: caption, sender: "bot" });
           break;
 
@@ -232,16 +364,6 @@ app.post("/send-message", async (req, res) => {
           message = await replacePlaceholders(message, null, phoneNumber, tenant_id)
           response = await sendButtonMessage(formattedPhoneNumber, business_phone_number_id, message, buttons, access_token);
           formattedConversation.push({ text: message, sender: "bot" });
-          break;
-
-        case 'audio':
-          const { audioID } = additionalData
-          response = await sendAudioMessage(formattedPhoneNumber, business_phone_number_id, audioID, access_token)
-          break;
-
-        case 'video':
-          const { videoID } = additionalData
-          response = await sendVideoMessage(formattedPhoneNumber, business_phone_number_id, videoID, access_token)
           break;
 
         default:
@@ -256,7 +378,6 @@ app.post("/send-message", async (req, res) => {
     res.status(500).json({ success: false, error: "Failed to send WhatsApp message" });
   }
 });
-
 
 app.post("/send-template", async(req,res) => {
   const { bg_id, template,business_phone_number_id, phoneNumbers } = req.body
@@ -298,7 +419,7 @@ app.post("/send-template", async(req,res) => {
   };
   
   try {
-    const tenantRes = await axios.get(` https://8twdg37p-8000.inc1.devtunnels.ms/whatsapp_tenant?business_phone_id=${business_phone_number_id}`, {
+    const tenantRes = await axios.get(` https://backenreal-hgg2d7a0d9fzctgj.eastus-01.azurewebsites.net/whatsapp_tenant?business_phone_id=${business_phone_number_id}`, {
       headers: { 'X-Tenant-Id': 'll' }
     });
     const access_token = tenantRes.data.access_token;
@@ -315,7 +436,7 @@ app.post("/send-template", async(req,res) => {
 
         // Save conversation to backend
         const formattedConversation = [{ text: template.name, sender: "bot" }];
-        const saveRes = await fetch(`https://8twdg37p-8000.inc1.devtunnels.ms/whatsapp_convo_post/${formattedPhoneNumber}/?source=whatsapp`, {
+        const saveRes = await fetch(`https://backenreal-hgg2d7a0d9fzctgj.eastus-01.azurewebsites.net/whatsapp_convo_post/${formattedPhoneNumber}/?source=whatsapp`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -370,7 +491,7 @@ app.post("/webhook", async (req, res) => {
         
         // Save conversation to backend
         try {
-          const saveRes = await fetch(`https://8twdg37p-8000.inc1.devtunnels.ms/whatsapp_convo_post/${userPhoneNumber}/?source=whatsapp`, {
+          const saveRes = await fetch(`https://backenreal-hgg2d7a0d9fzctgj.eastus-01.azurewebsites.net/whatsapp_convo_post/${userPhoneNumber}/?source=whatsapp`, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
@@ -398,7 +519,7 @@ app.post("/webhook", async (req, res) => {
       if (!userSession) {
         console.log(`Creating new session for user ${userPhoneNumber}`);
         try {
-          const response = await axios.get(` https://8twdg37p-8000.inc1.devtunnels.ms/whatsapp_tenant?business_phone_id=${business_phone_number_id}`,{
+          const response = await axios.get(` https://backenreal-hgg2d7a0d9fzctgj.eastus-01.azurewebsites.net/whatsapp_tenant?business_phone_id=${business_phone_number_id}`,{
             headers: {'X-Tenant-Id': 'll'} 
           });
           const flowData = response.data.flow_data
@@ -413,7 +534,7 @@ app.post("/webhook", async (req, res) => {
             throw new Error("adjList is not an array of arrays");
           }
 
-          const startNode = response.data.start;
+          const startNode = response.data.start -1;
           const currNode = startNode !== null ? startNode : 0;
           userSession = { 
             flowData: response.data.flow_data,
@@ -441,62 +562,48 @@ app.post("/webhook", async (req, res) => {
         if(userSession.currNode != null) userSession.nextNode = userSession.adjList[userSession.currNode]
         else {
           userSession.nextNode = userSession.adjList[0]
-          userSession.currNode = userSession.startNode
+          userSession.currNode = 0
         }
         // console.log(`Existing session found for user ${userPhoneNumber}:`, userSession);
       }
       if (!AIMode) {
-        console.log("input vr: ", userSession.inputVariable)
-        if (userSession.inputVariable !== undefined && userSession.inputVariable !== null && userSession.inputVariable.length > 0){
-          console.log(`Input Variable: ${userSession.inputVariable}`);
-          console.log(`Input Variable Type: ${userSession.inputVariableType}`);
-
-          try{
-            let userSelection = message?.interactive?.button_reply?.title || message?.interactive?.list_reply?.title || message?.text?.body;
-          
-            var validateResponse = await validateInput(userSession.inputVariable, userSelection)
+        
+        if (userSession.inputVariable != null){
+          console.log(userSession.inputVariable, userSession.inputVariableType)
+          var validateResponse = await validateInput(userSession.inputVariable, message.text?.body)
           //TODO: fallback condiiton
-            validateResponse = validateResponse.trim()
-            if(validateResponse == "No." || validateResponse == "No"){
-              console.log("Entering Fallback")
-              var fallback_count = userSession.fallback_count
-              if(fallback_count > 0){
-                console.log("Fallback Count: ", fallback_count)
-                const fallback_msg = userSession.fallback_msg
-                const access_token = userSession.accessToken
-                const response = await sendTextMessage(userPhoneNumber, business_phone_number_id, fallback_msg, access_token)
-                fallback_count=fallback_count - 1;
-                userSession.fallback_count = fallback_count
-                res.sendStatus(200);
-                return;
-              }
-              else{
-                userSessions.delete(userPhoneNumber+business_phone_number_id)
-                console.log("restarting user session for user: ", userPhoneNumber)
-                res.sendStatus(200);
-                return;
-              }
-            }else{
-              let userSelection = message?.interactive?.button_reply?.title || message?.interactive?.list_reply?.title || message?.text?.body;
-          
-              const updateData = {
-                phone_no : userPhoneNumber,
-                [userSession.inputVariable] : userSelection
-              }
-              userSession.inputVariable = null
-              const modelName = `${business_phone_number_id}`
-              await addDynamicModelInstance(modelName , updateData)
-
-              console.log(`Updated model instance with data: ${JSON.stringify(updateData)}`);
-              console.log(`Input Variable after update: ${userSession.inputVariable}`);
+          validateResponse = validateResponse.trim()
+          if(validateResponse == "No." || validateResponse == "No"){
+            console.log("Entering Fallback")
+            var fallback_count = userSession.fallback_count
+            if(fallback_count > 0){
+              console.log("Fallback Count: ", fallback_count)
+              const fallback_msg = userSession.fallback_msg
+              const access_token = userSession.accessToken
+              const response = await sendTextMessage(userPhoneNumber, business_phone_number_id, fallback_msg, access_token)
+              fallback_count=fallback_count - 1;
+              userSession.fallback_count = fallback_count
+              res.sendStatus(200);
+              return;
             }
-        } catch (error) {
-          console.error("An error occurred during processing:", error);
-          if (!res.headersSent) {
-            res.sendStatus(500); // Or any other error status code based on your use case
+            else{
+              userSessions.delete(userPhoneNumber+business_phone_number_id)
+              console.log("restarting user session for user: ", userPhoneNumber)
+              res.sendStatus(200);
+              return;
+            }
+          }else{
+            const updateData = {
+              phone_no : userPhoneNumber,
+              [userSession.inputVariable] : message.text?.body
+            }
+            userSession.inputVariable = null
+            const modelName = `${business_phone_number_id}`
+            await addDynamicModelInstance(modelName , updateData)
+
+            console.log(userSession.inputVariable)
           }
         }
-      }
         console.log("Processing in non-AI mode");
         if (message?.type === "interactive") {
           console.log("Processing interactive message");
@@ -630,7 +737,7 @@ app.post("/login-flow", async (req, res) => {
     const register_response = await registerAccount(business_phone_number_id, access_token)
     const postRegister_response = await postRegister(access_token, waba_id)
     
-    const response = axios.post(" https://8twdg37p-8000.inc1.devtunnels.ms/insert-data/", {
+    const response = axios.post(" https://backenreal-hgg2d7a0d9fzctgj.eastus-01.azurewebsites.net/insert-flow/", {
       business_phone_number_id : business_phone_number_id,
       access_token : access_token,
       accountID : waba_id,

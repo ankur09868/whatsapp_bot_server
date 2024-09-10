@@ -46,7 +46,7 @@ export async function sendMessage(phoneNumber, business_phone_number_id, message
 
             // Save conversation
             try {
-                const saveRes = await fetch(`https://backenreal-hgg2d7a0d9fzctgj.eastus-01.azurewebsites.net/whatsapp_convo_post/${phoneNumber}/?source=whatsapp`, {
+                const saveRes = await fetch(`https://8twdg37p-8000.inc1.devtunnels.ms/whatsapp_convo_post/${phoneNumber}/?source=whatsapp`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -78,6 +78,23 @@ export async function sendMessage(phoneNumber, business_phone_number_id, message
     }
 }
 
+export async function sendVideoMessage(phone, bpid, videoID, access_token) {
+    const messageData = {
+        type : "video",
+        video : {
+            id: videoID
+        }
+    }
+    return sendMessage(phone, bpid, messageData, access_token)
+}
+
+export async function sendAudioMessage(phone, bpid, audioID, access_token) {
+  const messageData = {
+    type: "audio",
+    audio: { id: audioID}
+  }
+  return sendMessage(phone, bpid, messageData, access_token)
+}
   
 export async function sendTextMessage(userPhoneNumber, business_phone_number_id,message, access_token = null){
     const messageData = {
@@ -85,13 +102,13 @@ export async function sendTextMessage(userPhoneNumber, business_phone_number_id,
         text: { body: message }
     }
     return sendMessage(userPhoneNumber, business_phone_number_id, messageData, access_token)
-}  
-  
-export async function sendImageMessage(phoneNumber, business_phone_number_id, imageUrl, caption, access_token = null) {
+} 
+ 
+export async function sendImageMessage(phoneNumber, business_phone_number_id, imageID, caption, access_token = null) {
     const messageData = {
         type: "image",
         image: {
-            link: imageUrl,
+            id: imageID,
             caption: caption
         }
     };
@@ -130,9 +147,6 @@ export async function sendButtonMessage(buttons, message, phoneNumber, business_
 }
 
 export async function sendInputMessage(userPhoneNumber, business_phone_number_id,message, access_token = null){
-    const key = userPhoneNumber + business_phone_number_id
-    const userSession = userSessions.get(key);
-    console.log("user session: ", userSession)
     const messageData = {
         type: "text",
         text: { body: message }
@@ -191,25 +205,42 @@ export async function sendNodeMessage(userPhoneNumber, business_phone_number_id)
             case "Button":
                 const buttons = nextNode
                 node_message = await replacePlaceholders(node_message, userSession)
-        
+                userSession.inputVariable=flow[currNode]?.variable //name
+                // userSession.inputVariableType = flow[currNode]?.InputType[0]
+                if(userSession.inputVariable){
+                console.log("input variable: ", userSession.inputVariable)
+                var data = {phone_no : BigInt(userPhoneNumber).toString()}
+                var modelName = business_phone_number_id
+                await addDynamicModelInstance(modelName, data)
+                }
                 await sendButtonMessage(buttons, node_message, userPhoneNumber,business_phone_number_id);
                 break;
          
             case "List":
                 const list = nextNode
                 node_message = await replacePlaceholders(node_message, userSession)
-        
+                userSession.inputVariable=flow[currNode]?.variable //name
+                // userSession.inputVariableType = flow[currNode]?.InputType[0]
+                if(userSession.inputVariable){
+                    console.log("input variable: ", userSession.inputVariable)
+                    var data = {phone_no : BigInt(userPhoneNumber).toString()}
+                    var modelName = business_phone_number_id
+                    await addDynamicModelInstance(modelName, data)
+                    }
+                
                 await sendListMessage(list, node_message, userPhoneNumber,business_phone_number_id, accessToken);
                 break;
-            case "Input":
+            case "Text":
                 node_message = await replacePlaceholders(node_message, userSession)
         
-                userSession.inputVariable=flow[currNode]?.Input[0] //name
+                userSession.inputVariable=flow[currNode]?.variable //name
                 // userSession.inputVariableType = flow[currNode]?.InputType[0]
-                console.log("input variable: ", userSession.inputVariable)
-                const data = {phone_no : BigInt(userPhoneNumber).toString()}
-                const modelName = `${business_phone_number_id}`
-                await addDynamicModelInstance(modelName, data)
+                if(userSession.inputVariable){
+                    console.log("input variable: ", userSession.inputVariable)
+                    var data = {phone_no : BigInt(userPhoneNumber).toString()}
+                    var modelName = business_phone_number_id
+                    await addDynamicModelInstance(modelName, data)
+                    }
                 await sendInputMessage(userPhoneNumber,business_phone_number_id, node_message);
                 break;
               
@@ -225,7 +256,7 @@ export async function sendNodeMessage(userPhoneNumber, business_phone_number_id)
                 break;
             case "image":
 
-                await sendImageMessage(userPhoneNumber,business_phone_number_id, flow[currNode]?.body?.url, flow[currNode]?.body?.caption ,accessToken);
+                await sendImageMessage(userPhoneNumber,business_phone_number_id, flow[currNode]?.body?.id, flow[currNode]?.body?.caption ,accessToken);
                 userSession.currNode = nextNode[0] || null;
                 console.log("image currNode: ", userSession.currNode)
                 if(userSession.currNode!=null) {
@@ -249,7 +280,8 @@ export async function sendNodeMessage(userPhoneNumber, business_phone_number_id)
 }
 
 export async function addDynamicModelInstance(modelName, updateData) {
-    const url = `https://backenreal-hgg2d7a0d9fzctgj.eastus-01.azurewebsites.net/${modelName}/`;
+    modelName = 'hotelFlow'
+    const url = `https://8twdg37p-8000.inc1.devtunnels.ms/dynamic-model-data/${modelName}/`;
     const data = updateData;
     console.log("DATAAAAAAAAAAAAAAAAAAAAAAA: ", data)
     try {
@@ -289,7 +321,7 @@ export async function replacePlaceholders(message, userSession =null, userPhoneN
         let key = placeholder[0].slice(2, -2).trim();
         
         try {
-            const response = await axios.get(`https://backenreal-hgg2d7a0d9fzctgj.eastus-01.azurewebsites.net/contacts-by-phone/${userPhoneNumber}`, {
+            const response = await axios.get(`https://8twdg37p-8000.inc1.devtunnels.ms/contacts-by-phone/${userPhoneNumber}`, {
                 headers: {
                     "X-Tenant-Id": tenant
                 }

@@ -1,7 +1,6 @@
 
 import { userSessions, io, updateStatus } from "./server.js";
 import axios from "axios";
-export const baseURL = 'http://localhost:8000'
 
 export async function sendMessage(phoneNumber, business_phone_number_id, messageData, access_token = null) {
     const key = phoneNumber + business_phone_number_id;
@@ -40,14 +39,14 @@ export async function sendMessage(phoneNumber, business_phone_number_id, message
             const status = "sent";
 
             // Update status
-            updateStatus(status, messageID, business_phone_number_id, phoneNumber);
+            await updateStatus(status, messageID, business_phone_number_id, phoneNumber);
 
             // Prepare conversation data
             let formattedConversation = [{ text: messageData, sender: "bot" }];
 
             // Save conversation
             try {
-                const saveRes = await fetch(`${baseURL}/whatsapp_convo_post/${phoneNumber}/?source=whatsapp`, {
+                const saveRes = await fetch(`https://8twdg37p-8000.inc1.devtunnels.ms/whatsapp_convo_post/${phoneNumber}/?source=whatsapp`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -77,20 +76,6 @@ export async function sendMessage(phoneNumber, business_phone_number_id, message
         console.error('Failed to send message:', error.response ? error.response.data : error.message);
         return { success: false, error: error.response ? error.response.data : error.message };
     }
-}
-
-export async function sendLocationMessage(phone, bpid, body, access_token) {
-    const { latitude, longitude, name, address } = body
-    const messageData = {
-        type: "location",
-        location : {
-            latitude: latitude,
-            longitude: longitude,
-            name: name,
-            address: address
-        }
-    }
-    return sendMessage(phone, bpid, messageData, access_token)
 }
 
 export async function sendVideoMessage(phone, bpid, videoID, access_token) {
@@ -219,65 +204,49 @@ export async function sendNodeMessage(userPhoneNumber, business_phone_number_id)
         switch (flow[currNode]?.type) {
             case "Button":
                 const buttons = nextNode
-
-                var placeholders = [...node_message.matchAll(/{{\s*[\w]+\s*}}/g)];
-                if(placeholders.length > 0) node_message = await replacePlaceholders(node_message, userSession)
-                
-                var variable = flow[currNode]?.variable
-                if(variable) {
-                    userSession.inputVariable = variable
-
-                    // userSession.inputVariableType = flow[currNode]?.InputType[0]
-                    console.log("input variable: ", userSession.inputVariable)
-                    var data = {phone_no : BigInt(userPhoneNumber).toString()}
-                    var modelName = userSession.flowName
-                    await addDynamicModelInstance(modelName, data)
+                node_message = await replacePlaceholders(node_message, userSession)
+                userSession.inputVariable=flow[currNode]?.variable //name
+                // userSession.inputVariableType = flow[currNode]?.InputType[0]
+                if(userSession.inputVariable){
+                console.log("input variable: ", userSession.inputVariable)
+                var data = {phone_no : BigInt(userPhoneNumber).toString()}
+                var modelName = business_phone_number_id
+                await addDynamicModelInstance(modelName, data)
                 }
-        
                 await sendButtonMessage(buttons, node_message, userPhoneNumber,business_phone_number_id);
                 break;
          
             case "List":
                 const list = nextNode
-
-                var placeholders = [...node_message.matchAll(/{{\s*[\w]+\s*}}/g)];
-                if(placeholders.length > 0) node_message = await replacePlaceholders(node_message, userSession)
-                
-                var variable = flow[currNode]?.variable
-                if(variable) {
-                    userSession.inputVariable = variable
-                
+                node_message = await replacePlaceholders(node_message, userSession)
+                userSession.inputVariable=flow[currNode]?.variable //name
+                // userSession.inputVariableType = flow[currNode]?.InputType[0]
+                if(userSession.inputVariable){
                     console.log("input variable: ", userSession.inputVariable)
                     var data = {phone_no : BigInt(userPhoneNumber).toString()}
-                    var modelName = userSession.flowName
+                    var modelName = business_phone_number_id
                     await addDynamicModelInstance(modelName, data)
-                }
+                    }
                 
                 await sendListMessage(list, node_message, userPhoneNumber,business_phone_number_id, accessToken);
                 break;
             case "Text":
-
-                var placeholders = [...node_message.matchAll(/{{\s*[\w]+\s*}}/g)];
-                if(placeholders.length > 0) node_message = await replacePlaceholders(node_message, userSession)
-                 
-                var variable = flow[currNode]?.variable
-                if(variable) {
-                    userSession.inputVariable = variable
-                    
+                node_message = await replacePlaceholders(node_message, userSession)
+        
+                userSession.inputVariable=flow[currNode]?.variable //name
+                // userSession.inputVariableType = flow[currNode]?.InputType[0]
+                if(userSession.inputVariable){
                     console.log("input variable: ", userSession.inputVariable)
                     var data = {phone_no : BigInt(userPhoneNumber).toString()}
-                    var modelName = userSession.flowName
+                    var modelName = business_phone_number_id
                     await addDynamicModelInstance(modelName, data)
-                }
-
+                    }
                 await sendInputMessage(userPhoneNumber,business_phone_number_id, node_message);
                 break;
               
             case "string":
-                
-                var placeholders = [...node_message.matchAll(/{{\s*[\w]+\s*}}/g)];
-                if(placeholders.length > 0) node_message = await replacePlaceholders(node_message, userSession)
-                 
+                node_message = await replacePlaceholders(node_message, userSession)
+        
                 await sendTextMessage(userPhoneNumber,business_phone_number_id, node_message);
                 userSession.currNode = nextNode[0] || null;
                 console.log("string currNode: ", userSession.currNode)
@@ -286,10 +255,7 @@ export async function sendNodeMessage(userPhoneNumber, business_phone_number_id)
                 }
                 break;
             case "image":
-                const caption = flow[currNode]?.body?.caption
-                var placeholders = [...caption.matchAll(/{{\s*[\w]+\s*}}/g)];
-                if(placeholders.length > 0) caption = await replacePlaceholders(node_message, userSession)
-                 
+
                 await sendImageMessage(userPhoneNumber,business_phone_number_id, flow[currNode]?.body?.id, flow[currNode]?.body?.caption ,accessToken);
                 userSession.currNode = nextNode[0] || null;
                 console.log("image currNode: ", userSession.currNode)
@@ -297,42 +263,10 @@ export async function sendNodeMessage(userPhoneNumber, business_phone_number_id)
                     await sendNodeMessage(userPhoneNumber,business_phone_number_id)
                 }
                 break;
-
-            case "audio":
-
-                await sendAudioMessage(userPhoneNumber, business_phone_number_id, flow[currNode]?.body?.audioID, accessToken);
-                userSession.currNode = nextNode[0] || null;
-                console.log("audio currNode: ", userSession.currNode)
-                if(userSession.currNode!=null) {
-                    await sendNodeMessage(userPhoneNumber,business_phone_number_id)
-                }
-                break;
-            
-            case "video":
-                
-                await sendVideoMessage(userPhoneNumber, business_phone_number_id, flow[currNode]?.body?.videoID, accessToken);
-                userSession.currNode = nextNode[0] || null;
-                console.log("video currNode: ", userSession.currNode)
-                if(userSession.currNode!=null) {
-                    await sendNodeMessage(userPhoneNumber,business_phone_number_id)
-                }
-                break;
-
-            case "location":
-
-                await sendLocationMessage(userPhoneNumber, business_phone_number_id, flow[currNode]?.body , accessToken)
-                userSession.currNode = nextNode[0] || null;
-                console.log("image currNode: ", userSession.currNode)
-                if(userSession.currNode!=null) {
-                    await sendNodeMessage(userPhoneNumber,business_phone_number_id)
-                }
-                break;
-
             case "AI":
                 await sendTextMessage(userPhoneNumber,business_phone_number_id, node_message);
                 userSession.AIMode = true;
                 break;
-                
             default:
                 console.log(`Unknown node type: ${flow[currNode]?.type}`);
         }
@@ -346,7 +280,8 @@ export async function sendNodeMessage(userPhoneNumber, business_phone_number_id)
 }
 
 export async function addDynamicModelInstance(modelName, updateData) {
-    const url = `${baseURL}/dynamic-model-data/${modelName}/`;
+    modelName = 'hotelFlow'
+    const url = `https://8twdg37p-8000.inc1.devtunnels.ms/dynamic-model-data/${modelName}/`;
     const data = updateData;
     console.log("DATAAAAAAAAAAAAAAAAAAAAAAA: ", data)
     try {
@@ -379,28 +314,20 @@ export async function replacePlaceholders(message, userSession =null, userPhoneN
     }
     
     let modifiedMessage = message;
-    const flowName = userSession.flowName
 
     const placeholders = [...message.matchAll(/{{\s*[\w]+\s*}}/g)];
     
     for (const placeholder of placeholders) {
         let key = placeholder[0].slice(2, -2).trim();
-        const keys = key.split('.')
-        var url;
-
-        if(keys[0]=="contact") url = `${baseURL}/contacts-by-phone/${userPhoneNumber}`
-        else if(keys[0] == "opportunity") url = `${baseURL}/opportunity-by-phone/${userPhoneNumber}`
-        else if(keys[0] == "dynamic") url = `${baseURL}/${flowName}/${userPhoneNumber}`
-
+        
         try {
-            const response = await axios.get(url, {
+            const response = await axios.get(`https://8twdg37p-8000.inc1.devtunnels.ms/contacts-by-phone/${userPhoneNumber}`, {
                 headers: {
-                    "X-Tenant-Id": "ll"
+                    "X-Tenant-Id": tenant
                 }
             });
             const responseData = response.data?.[0]
-            console.log("response : " ,responseData)
-            const replacementValue = responseData?.[keys[1]] !== undefined ? responseData[keys[1]] : '';
+            const replacementValue = responseData[key] !== undefined ? responseData[key] : '';
 
             modifiedMessage = modifiedMessage.replace(placeholder[0], replacementValue);
             

@@ -5,7 +5,10 @@ import { Server } from "socket.io";
 import cors from 'cors';
 import session from "express-session";
 import { getAccessToken, getWabaID, getPhoneNumberID, registerAccount, postRegister } from "./login-flow.js";
-import { sendNodeMessage, sendImageMessage, sendButtonMessage, sendTextMessage, sendMessage, replacePlaceholders, addDynamicModelInstance, sendAudioMessage, sendVideoMessage,sendLocationMessage, baseURL } from "./snm.js";
+import { sendNodeMessage, sendImageMessage, sendButtonMessage, sendTextMessage, sendMessage, replacePlaceholders, addDynamicModelInstance, sendAudioMessage, sendVideoMessage } from "./snm.js";
+
+
+
 
 
 const AIMode=false;
@@ -60,7 +63,7 @@ export async function updateStatus(status, message_id, business_phone_number_id,
     console.log("Sending request with data:", data);
 
     // Send POST request with JSON payload
-    const response = await axios.post(`${baseURL}/set-status/`, data, {
+    const response = await axios.post(" https://8twdg37p-8000.inc1.devtunnels.ms/set-status/", data, {
       headers: { 
         "X-Tenant-Id": "ll", 
         "Content-Type": "application/json" 
@@ -179,7 +182,7 @@ app.post("/send-message", async (req, res) => {
       let access_token;
       
       try {
-        const tenantRes = await axios.get(`${baseURL}/whatsapp_tenant?business_phone_id=${business_phone_number_id}`, {
+        const tenantRes = await axios.get(` https://8twdg37p-8000.inc1.devtunnels.ms/whatsapp_tenant?business_phone_id=${business_phone_number_id}`, {
           headers: { 'X-Tenant-Id': 'll' }
         });
         access_token = tenantRes.data.access_token;
@@ -191,7 +194,7 @@ app.post("/send-message", async (req, res) => {
       let response;
       let formattedConversation = [{ text: message , sender: "bot" }];
       try {
-        const saveRes = await fetch(`${baseURL}/whatsapp_convo_post/${formattedPhoneNumber}/?source=whatsapp`, {
+        const saveRes = await fetch(`https://8twdg37p-8000.inc1.devtunnels.ms/whatsapp_convo_post/${formattedPhoneNumber}/?source=whatsapp`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -240,15 +243,12 @@ app.post("/send-message", async (req, res) => {
           const { videoID } = additionalData
           response = await sendVideoMessage(formattedPhoneNumber, business_phone_number_id, videoID, access_token)
           break;
-        
-        case 'location':
-          response = await sendLocationMessage(formattedPhoneNumber, business_phone_number_id, additionalData, access_token)
-          break;
+
         default:
           throw new Error("Invalid message type");
       }
     const messageID = response.data?.messages[0]?.id
-    if(bg_id != null) updateStatus(null, messageID, null, null, bg_id);
+    if(bg_id != null) await updateStatus(null, messageID, null, null, bg_id);
     }
     res.status(200).json({ success: true, message: "WhatsApp message(s) sent successfully" });
   } catch (error) {
@@ -298,7 +298,7 @@ app.post("/send-template", async(req,res) => {
   };
   
   try {
-    const tenantRes = await axios.get(`${baseURL}/whatsapp_tenant?business_phone_id=${business_phone_number_id}`, {
+    const tenantRes = await axios.get(` https://8twdg37p-8000.inc1.devtunnels.ms/whatsapp_tenant?business_phone_id=${business_phone_number_id}`, {
       headers: { 'X-Tenant-Id': 'll' }
     });
     const access_token = tenantRes.data.access_token;
@@ -310,12 +310,12 @@ app.post("/send-template", async(req,res) => {
         
         const messageID = response.data?.messages[0]?.id;
         if (bg_id != null) {
-          updateStatus(null, messageID, null, null, bg_id);
+          await updateStatus(null, messageID, null, null, bg_id);
         }
 
         // Save conversation to backend
         const formattedConversation = [{ text: template.name, sender: "bot" }];
-        const saveRes = await fetch(`${baseURL}/whatsapp_convo_post/${formattedPhoneNumber}/?source=whatsapp`, {
+        const saveRes = await fetch(`https://8twdg37p-8000.inc1.devtunnels.ms/whatsapp_convo_post/${formattedPhoneNumber}/?source=whatsapp`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -370,7 +370,7 @@ app.post("/webhook", async (req, res) => {
         
         // Save conversation to backend
         try {
-          const saveRes = await fetch(`${baseURL}/whatsapp_convo_post/${userPhoneNumber}/?source=whatsapp`, {
+          const saveRes = await fetch(`https://8twdg37p-8000.inc1.devtunnels.ms/whatsapp_convo_post/${userPhoneNumber}/?source=whatsapp`, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
@@ -398,7 +398,7 @@ app.post("/webhook", async (req, res) => {
       if (!userSession) {
         console.log(`Creating new session for user ${userPhoneNumber}`);
         try {
-          const response = await axios.get(`${baseURL}/whatsapp_tenant?business_phone_id=${business_phone_number_id}`,{
+          const response = await axios.get(` https://8twdg37p-8000.inc1.devtunnels.ms/whatsapp_tenant?business_phone_id=${business_phone_number_id}`,{
             headers: {'X-Tenant-Id': 'll'} 
           });
           const flowData = response.data.flow_data
@@ -419,7 +419,7 @@ app.post("/webhook", async (req, res) => {
             flowData: response.data.flow_data,
             adjList: response.data.adj_list,
             accessToken: response.data.access_token,
-            flowName : response.data.flow_name,
+            // flow_name : response.data.flow_name,
             startNode : startNode,
             currNode: currNode,
             nextNode:adjList[currNode],
@@ -484,7 +484,7 @@ app.post("/webhook", async (req, res) => {
                 [userSession.inputVariable] : userSelection
               }
               userSession.inputVariable = null
-              const modelName = userSession.flowName
+              const modelName = `${business_phone_number_id}`
               await addDynamicModelInstance(modelName , updateData)
 
               console.log(`Updated model instance with data: ${JSON.stringify(updateData)}`);
@@ -588,7 +588,7 @@ app.post("/webhook", async (req, res) => {
       const id = statuses?.id
       const business_phone_number_id = req.body.entry?.[0].changes?.[0].value?.metadata?.phone_number_id;
       
-      updateStatus(status, id)
+      await updateStatus(status, id)
       console.log(status, id)
 
     }
@@ -630,7 +630,7 @@ app.post("/login-flow", async (req, res) => {
     const register_response = await registerAccount(business_phone_number_id, access_token)
     const postRegister_response = await postRegister(access_token, waba_id)
     
-    const response = axios.post(`${baseURL}/insert-data/`, {
+    const response = axios.post(" https://8twdg37p-8000.inc1.devtunnels.ms/insert-data/", {
       business_phone_number_id : business_phone_number_id,
       access_token : access_token,
       accountID : waba_id,

@@ -1,14 +1,13 @@
 import express from "express";
 import axios from "axios";
 import { createServer } from "http";
-import { BlobServiceClient } from '@azure/storage-blob';
 import { Server } from "socket.io";
 import cors from 'cors';
 import session from "express-session";
 import { getAccessToken, getWabaID, getPhoneNumberID, registerAccount, postRegister } from "./login-flow.js";
 import { sendNodeMessage, sendImageMessage, sendButtonMessage, sendTextMessage, sendMessage, replacePlaceholders, addDynamicModelInstance, sendAudioMessage, sendVideoMessage,sendLocationMessage, baseURL } from "./snm.js";
 import NodeCache from 'node-cache';
-const messageCache = new NodeCache({ stdTTL: 600 }); //
+const messageCache = new NodeCache({ stdTTL: 600 });
 
 const AIMode=false;
 const WEBHOOK_VERIFY_TOKEN = "COOL";
@@ -58,7 +57,7 @@ export async function updateStatus(status, message_id, business_phone_number_id,
       message_id: message_id,
       bg_id : broadcastGroup_id
     };
-
+    
     console.log("Sending request with data:", data);
 
     // Send POST request with JSON payload
@@ -83,62 +82,13 @@ async function sendTemplates(template){
   return templateData
 }
 
-async function getImageAndUploadToBlob(imageID, access_token) {
-  try {
-    const url = `https://graph.facebook.com/v16.0/${imageID}`;
-    const response = await axios.get(url, {
-      headers: { "Authorization": `Bearer ${access_token}` }
-    });
-
-    const imageURL = response.data?.url;
-    if (!imageURL) {
-      throw new Error('Image URL not found');
-    }
-
-    console.log("Image URL: ", imageURL);
-
-    const imageResponse = await axios.get(imageURL, {
-      headers: { "Authorization": `Bearer ${access_token}` },
-      responseType: 'arraybuffer'
-    });
-
-    const imageBuffer = imageResponse.data;
-    const contentType = imageResponse.headers['content-type'];
-    const account = "pdffornurenai";
-    const sas = "sv=2022-11-02&ss=bfqt&srt=co&sp=rwdlacupiytfx&se=2025-06-01T16:13:31Z&st=2024-06-01T08:13:31Z&spr=https&sig=8s7IAdQ3%2B7zneCVJcKw8o98wjXa12VnKNdylgv02Udk%3D";
-    const containerName = 'pdf';
-
-    const blobServiceClient = new BlobServiceClient(`https://${account}.blob.core.windows.net/?${sas}`);
-    const containerClient = blobServiceClient.getContainerClient(containerName);
-
-    const fileExtension = contentType.split('/').pop();
-    const newFileName = `image_${imageID}.${fileExtension}`;
-
-    const blockBlobClient = containerClient.getBlockBlobClient(newFileName);
-    const uploadBlobResponse = await blockBlobClient.uploadData(imageBuffer, {
-      blobHTTPHeaders: {
-        blobContentType: contentType,
-      },
-    });
-
-    console.log(`Uploaded image ${newFileName} successfully, request ID: ${uploadBlobResponse.requestId}`);
-    return blockBlobClient.url;
-
-  } catch (error) {
-    console.error('Error:', error);
-    throw error;
-  }
-}
-
-
 async function validateInput(inputVariable, message){
   try{
   const prompt = `Question being asked is: ${inputVariable}?\n
   Response being given is: ${message}\n
   Does the response answer the question? reply in yes or no. nothing else `
 
-  const api_key = "OPENAI-API-KEY"
-
+  const api_key = os.getenv("OPENAI_API_KEY");
   const data = {
     model: "gpt-4o-mini",
     messages : [
@@ -216,11 +166,8 @@ app.get("/imageData/:bpid/:id", async (req, res) => {
       console.error(`Error fetching tenant data for user ${bpid}:`, error);
       throw error;
     }
-     
-    console.log(imageID, access_token)
     let result = await getImageAndUploadToBlob(imageID, access_token)
-    
-    console.log("RESULT: ", result)
+    console.log("blob url: ", result)
     res.json(result)
   } catch (error) {
     console.error("Error fetching image:", error);
@@ -287,6 +234,7 @@ app.post("/send-message", async (req, res) => {
       let sendMessagePromise;
       switch (messageType) {
         case 'text':
+
           sendMessagePromise = sendTextMessage(formattedPhoneNumber, business_phone_number_id, message, access_token);
           break;
         case 'image':
@@ -294,10 +242,10 @@ app.post("/send-message", async (req, res) => {
           sendMessagePromise = sendImageMessage(formattedPhoneNumber, business_phone_number_id, imageID, caption, access_token);
           formattedConversation.push({ text: caption, sender: "bot" });
           break;
-        case 'button':
-          const { buttons } = additionalData;
-          sendMessagePromise = sendButtonMessage(formattedPhoneNumber, business_phone_number_id, message, buttons, access_token);
-          break;
+        // case 'button':
+        //   const { buttons } = additionalData;
+        //   sendMessagePromise = sendButtonMessage(formattedPhoneNumber, business_phone_number_id, message, buttons, access_token);
+        //   break;
         case 'audio':
           const { audioID } = additionalData;
           sendMessagePromise = sendAudioMessage(formattedPhoneNumber, business_phone_number_id, audioID, access_token);
@@ -338,7 +286,7 @@ app.post("/send-message", async (req, res) => {
 app.post("/send-template", async(req,res) => {
   const { bg_id, template,business_phone_number_id, phoneNumbers } = req.body
   tenant_id = req.headers['X-Tenant-Id']
-
+  
   try {
     const tenantRes = await axios.get(`${baseURL}/whatsapp_tenant?business_phone_id=${business_phone_number_id}`, {
       headers: { 'X-Tenant-Id': 'll' }
@@ -412,7 +360,7 @@ app.post("/webhook", async (req, res) => {
         
         // Save conversation to backend
         try {
-          const saveRes = await fetch(`${baseURL}/whatsapp_convo_post/${userPhoneNumber}/?source=whatsapp`, {
+          const saveRes =fetch(`${baseURL}/whatsapp_convo_post/${userPhoneNumber}/?source=whatsapp`, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',

@@ -10,17 +10,21 @@
     "author": "WhatsApp Team",
     "license": "MIT",
     "dependencies": {
+        "@azure/storage-blob": "^12.24.0",
         "axios": "^1.6.7",
         "cors": "^2.8.5",
+        "dotenv": "^16.3.1",
         "express": "^4.19.2",
         "express-session": "^1.18.0",
         "firebase": "^10.11.0",
         "firebase-admin": "^12.1.0",
+        "got": "^11.8.5",
+        "ioredis": "^5.4.1",
+        "multer": "^1.4.5-lts.1",
+        "node-cache": "^5.1.2",
         "pg": "^8.12.0",
-        "socket.io": "^4.7.5",
-        "dotenv": "^16.3.1",
-    "got": "^11.8.5",
-    "multer": "^1.4.5-lts.1"
+        "rate-limiter-flexible": "^5.0.3",
+        "socket.io": "^4.7.5"
     },
     "engines": {
         "node": ">=16.0.0"

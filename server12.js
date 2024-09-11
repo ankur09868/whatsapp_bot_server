@@ -1,14 +1,12 @@
 import express from "express";
 import axios from "axios";
 import { createServer } from "http";
-import { BlobServiceClient } from '@azure/storage-blob';
 import { Server } from "socket.io";
 import cors from 'cors';
 import session from "express-session";
 import { getAccessToken, getWabaID, getPhoneNumberID, registerAccount, postRegister } from "./login-flow.js";
 import { sendNodeMessage, sendImageMessage, sendButtonMessage, sendTextMessage, sendMessage, replacePlaceholders, addDynamicModelInstance, sendAudioMessage, sendVideoMessage,sendLocationMessage, baseURL } from "./snm.js";
-import NodeCache from 'node-cache';
-const messageCache = new NodeCache({ stdTTL: 600 }); //
+
 
 const AIMode=false;
 const WEBHOOK_VERIFY_TOKEN = "COOL";
@@ -83,53 +81,6 @@ async function sendTemplates(template){
   return templateData
 }
 
-async function getImageAndUploadToBlob(imageID, access_token) {
-  try {
-    const url = `https://graph.facebook.com/v16.0/${imageID}`;
-    const response = await axios.get(url, {
-      headers: { "Authorization": `Bearer ${access_token}` }
-    });
-
-    const imageURL = response.data?.url;
-    if (!imageURL) {
-      throw new Error('Image URL not found');
-    }
-
-    console.log("Image URL: ", imageURL);
-
-    const imageResponse = await axios.get(imageURL, {
-      headers: { "Authorization": `Bearer ${access_token}` },
-      responseType: 'arraybuffer'
-    });
-
-    const imageBuffer = imageResponse.data;
-    const contentType = imageResponse.headers['content-type'];
-    const account = "pdffornurenai";
-    const sas = "sv=2022-11-02&ss=bfqt&srt=co&sp=rwdlacupiytfx&se=2025-06-01T16:13:31Z&st=2024-06-01T08:13:31Z&spr=https&sig=8s7IAdQ3%2B7zneCVJcKw8o98wjXa12VnKNdylgv02Udk%3D";
-    const containerName = 'pdf';
-
-    const blobServiceClient = new BlobServiceClient(`https://${account}.blob.core.windows.net/?${sas}`);
-    const containerClient = blobServiceClient.getContainerClient(containerName);
-
-    const fileExtension = contentType.split('/').pop();
-    const newFileName = `image_${imageID}.${fileExtension}`;
-
-    const blockBlobClient = containerClient.getBlockBlobClient(newFileName);
-    const uploadBlobResponse = await blockBlobClient.uploadData(imageBuffer, {
-      blobHTTPHeaders: {
-        blobContentType: contentType,
-      },
-    });
-
-    console.log(`Uploaded image ${newFileName} successfully, request ID: ${uploadBlobResponse.requestId}`);
-    return blockBlobClient.url;
-
-  } catch (error) {
-    console.error('Error:', error);
-    throw error;
-  }
-}
-
 
 async function validateInput(inputVariable, message){
   try{
@@ -169,6 +120,7 @@ async function validateInput(inputVariable, message){
 }
 
 
+
 app.use(express.json());
 app.use(cors());
 
@@ -198,36 +150,6 @@ app.use(session({
   cookie: { secure: true }  // Set to true if you're using HTTPS
 }));
 
-app.get("/imageData/:bpid/:id", async (req, res) => {
-  try {
-    const imageID = req.params.id;  
-    const bpid = req.params.bpid;
-    if (!imageID) {
-      return res.status(400).send("Image ID is required");
-    }
-    let access_token;
-      
-    try {
-      const tenantRes = await axios.get(`${baseURL}/whatsapp_tenant?business_phone_id=${bpid}`, {
-        headers: { 'X-Tenant-Id': 'll' }
-      });
-      access_token = tenantRes.data.access_token;
-    } catch (error) {
-      console.error(`Error fetching tenant data for user ${bpid}:`, error);
-      throw error;
-    }
-     
-    console.log(imageID, access_token)
-    let result = await getImageAndUploadToBlob(imageID, access_token)
-    
-    console.log("RESULT: ", result)
-    res.json(result)
-  } catch (error) {
-    console.error("Error fetching image:", error);
-    res.status(500).send("Internal Server Error");
-  }
-});
-
 app.post("/flowdata", async (req, res) => {
   adjList=req.body.adjacencyList;
   flow=req.body.nodes;
@@ -249,96 +171,132 @@ app.patch("/toggleAiReplies", async(req,res) =>{
 
 app.post("/send-message", async (req, res) => {
   try {
-    const { phoneNumbers, message, url, messageType, additionalData, business_phone_number_id, bg_id } = req.body;
-    const tenant_id = req.headers['X-Tenant-Id'];
+    var { phoneNumbers, message, url, messageType, additionalData, business_phone_number_id, bg_id } = req.body; // `additionalData` will include any extra information needed for specific message types
+    const tenant_id = req.headers['X-Tenant-Id']
 
-    const sendPromises = phoneNumbers.map(async (phoneNumber) => {
+    for (const phoneNumber of phoneNumbers) {
       const formattedPhoneNumber = `91${phoneNumber}`;
-      const cacheKey = `${business_phone_number_id}_${tenant_id}`;
+      let access_token;
       
-      let access_token = messageCache.get(cacheKey);
-      if (!access_token) {
-        try {
-          const tenantRes = await axios.get(`${baseURL}/whatsapp_tenant?business_phone_id=${business_phone_number_id}`, {
-            headers: { 'X-Tenant-Id': 'll' }
-          });
-          access_token = tenantRes.data.access_token;
-          messageCache.set(cacheKey, access_token);
-        } catch (error) {
-          console.error(`Error fetching tenant data for user ${business_phone_number_id}:`, error);
-          throw error;
-        }
+      try {
+        const tenantRes = await axios.get(`${baseURL}/whatsapp_tenant?business_phone_id=${business_phone_number_id}`, {
+          headers: { 'X-Tenant-Id': 'll' }
+        });
+        access_token = tenantRes.data.access_token;
+      } catch (error) {
+        console.error(`Error fetching tenant data for user ${business_phone_number_id}:`, error);
+        throw error;
       }
-
-      let formattedConversation = [{ text: message, sender: "bot" }];
-      const saveConversationPromise = fetch(`${baseURL}/whatsapp_convo_post/${formattedPhoneNumber}/?source=whatsapp`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Tenant-Id': 'll'
-        },
-        body: JSON.stringify({
-          contact_id: formattedPhoneNumber,
-          conversations: formattedConversation,
-          tenant: 'll',
-        }),
-      });
-
-      let sendMessagePromise;
+      
+      let response;
+      let formattedConversation = [{ text: message , sender: "bot" }];
+      try {
+        const saveRes = await fetch(`${baseURL}/whatsapp_convo_post/${formattedPhoneNumber}/?source=whatsapp`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Tenant-Id': 'll'
+          },
+          body: JSON.stringify({
+            contact_id: formattedPhoneNumber,
+            conversations: formattedConversation,
+            tenant: 'll',
+          }),
+        });
+        if (!saveRes.ok) throw new Error("Failed to save conversation");
+      } catch (error) {
+        console.error("Error saving conversation:", error.message);
+      }
+      console.log("message type:", messageType)
       switch (messageType) {
         case 'text':
-          sendMessagePromise = sendTextMessage(formattedPhoneNumber, business_phone_number_id, message, access_token);
+          message = await replacePlaceholders(message, null, phoneNumber, tenant_id)
+          response = await sendTextMessage(formattedPhoneNumber, business_phone_number_id, message, access_token);
+          formattedConversation.push({ text: message, sender: "bot" });
           break;
+
         case 'image':
-          const { imageID, caption } = additionalData;
-          sendMessagePromise = sendImageMessage(formattedPhoneNumber, business_phone_number_id, imageID, caption, access_token);
+          var { imageID, caption } = additionalData;
+          console.log(imageID, caption)
+          caption = await replacePlaceholders(caption, null, phoneNumber, tenant_id)
+          console.log(formattedPhoneNumber, business_phone_number_id, imageID, caption, access_token)
+          response = await sendImageMessage(formattedPhoneNumber, business_phone_number_id, imageID, caption, access_token);
           formattedConversation.push({ text: caption, sender: "bot" });
           break;
+
         case 'button':
           const { buttons } = additionalData;
-          sendMessagePromise = sendButtonMessage(formattedPhoneNumber, business_phone_number_id, message, buttons, access_token);
+          message = await replacePlaceholders(message, null, phoneNumber, tenant_id)
+          response = await sendButtonMessage(formattedPhoneNumber, business_phone_number_id, message, buttons, access_token);
+          formattedConversation.push({ text: message, sender: "bot" });
           break;
+
         case 'audio':
-          const { audioID } = additionalData;
-          sendMessagePromise = sendAudioMessage(formattedPhoneNumber, business_phone_number_id, audioID, access_token);
+          const { audioID } = additionalData
+          response = await sendAudioMessage(formattedPhoneNumber, business_phone_number_id, audioID, access_token)
           break;
+
         case 'video':
-          const { videoID } = additionalData;
-          sendMessagePromise = sendVideoMessage(formattedPhoneNumber, business_phone_number_id, videoID, access_token);
+          const { videoID } = additionalData
+          response = await sendVideoMessage(formattedPhoneNumber, business_phone_number_id, videoID, access_token)
           break;
+        
         case 'location':
-          sendMessagePromise = sendLocationMessage(formattedPhoneNumber, business_phone_number_id, additionalData, access_token);
+          response = await sendLocationMessage(formattedPhoneNumber, business_phone_number_id, additionalData, access_token)
           break;
         default:
           throw new Error("Invalid message type");
       }
-
-      const [saveRes, response] = await Promise.all([saveConversationPromise, sendMessagePromise]);
-
-      if (!saveRes.ok) {
-        console.error("Error saving conversation:", await saveRes.text());
-      }
-
-      const messageID = response.data?.messages[0]?.id;
-      if (bg_id != null && messageID) {
-        updateStatus(null, messageID, null, null, bg_id).catch(console.error);
-      }
-
-      return { phoneNumber: formattedPhoneNumber, messageID, success: true };
-    });
-
-    const results = await Promise.all(sendPromises);
-    res.status(200).json({ success: true, message: "WhatsApp message(s) sent successfully", results });
+    const messageID = response.data?.messages[0]?.id
+    if(bg_id != null) updateStatus(null, messageID, null, null, bg_id);
+    }
+    res.status(200).json({ success: true, message: "WhatsApp message(s) sent successfully" });
   } catch (error) {
     console.error("Error sending WhatsApp message:", error.message);
     res.status(500).json({ success: false, error: "Failed to send WhatsApp message" });
   }
 });
 
+
 app.post("/send-template", async(req,res) => {
   const { bg_id, template,business_phone_number_id, phoneNumbers } = req.body
   tenant_id = req.headers['X-Tenant-Id']
 
+  const templateData = {
+    type: "template",
+    template: {
+      name: template.name,
+      language: {
+        code: "en_US"
+      },
+      components: [
+      {
+        type: "body",
+        parameters: [
+          {
+            type: "text",
+            text: "Batman"
+          },
+          {
+            type: "currency",
+            currency: {
+              fallback_value: "100.0",
+              code: "INR",
+              amount_1000: 100000
+            }
+          },
+          {
+            type: "date_time",
+            date_time: {
+              fallback_value: "2024-09-05 10:00:00"
+            }
+          }
+        ]
+      }
+    ]
+    }
+  };
+  
   try {
     const tenantRes = await axios.get(`${baseURL}/whatsapp_tenant?business_phone_id=${business_phone_number_id}`, {
       headers: { 'X-Tenant-Id': 'll' }
@@ -348,7 +306,7 @@ app.post("/send-template", async(req,res) => {
     for (const phoneNumber of phoneNumbers) {
       try {
         const formattedPhoneNumber = `${phoneNumber}`;
-        const response = await sendMessage(formattedPhoneNumber, business_phone_number_id, access_token);
+        const response = await sendMessage(formattedPhoneNumber, business_phone_number_id, templateData, access_token);
         
         const messageID = response.data?.messages[0]?.id;
         if (bg_id != null) {

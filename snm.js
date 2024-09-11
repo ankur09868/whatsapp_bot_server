@@ -1,8 +1,9 @@
 
 import { userSessions, io, updateStatus } from "./server.js";
 import axios from "axios";
-export const baseURL = 'http://localhost:8000'
-
+export const baseURL = 'https://backenreal-hgg2d7a0d9fzctgj.eastus-01.azurewebsites.net/';
+import NodeCache from 'node-cache';
+const messageCache = new NodeCache({ stdTTL: 600 }); //
 export async function sendMessage(phoneNumber, business_phone_number_id, messageData, access_token = null) {
     const key = phoneNumber + business_phone_number_id;
     const userSession = userSessions.get(key);
@@ -46,26 +47,26 @@ export async function sendMessage(phoneNumber, business_phone_number_id, message
             let formattedConversation = [{ text: messageData, sender: "bot" }];
 
             // Save conversation
-            try {
-                const saveRes = await fetch(`${baseURL}/whatsapp_convo_post/${phoneNumber}/?source=whatsapp`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-Tenant-Id': 'll',
-                    },
-                    body: JSON.stringify({
-                        contact_id: phoneNumber,
-                        conversations: formattedConversation,
-                        tenant: 'll',
-                    }),
-                });
+            // try {
+            //     const saveRes = await fetch(`${baseURL}/whatsapp_convo_post/${phoneNumber}/?source=whatsapp`, {
+            //         method: 'POST',
+            //         headers: {
+            //             'Content-Type': 'application/json',
+            //             'X-Tenant-Id': 'll',
+            //         },
+            //         body: JSON.stringify({
+            //             contact_id: phoneNumber,
+            //             conversations: formattedConversation,
+            //             tenant: 'll',
+            //         }),
+            //     });
 
-                if (!saveRes.ok) throw new Error("Failed to save conversation");
-                console.log("Conversation saved successfully");
+            //     if (!saveRes.ok) throw new Error("Failed to save conversation");
+            //     console.log("Conversation saved successfully");
 
-            } catch (error) {
-                console.error("Error saving conversation:", error.message);
-            }
+            // } catch (error) {
+            //     console.error("Error saving conversation:", error.message);
+            // }
 
             return { success: true, data: response.data };
 

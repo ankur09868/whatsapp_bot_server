@@ -3,6 +3,7 @@ import axios from "axios";
 import { createServer } from "http";
 import { Server } from "socket.io";
 import cors from 'cors';
+import dotenv from 'dotenv';
 import session from "express-session";
 import { getAccessToken, getWabaID, getPhoneNumberID, registerAccount, postRegister } from "./login-flow.js";
 import { sendNodeMessage, sendImageMessage, sendButtonMessage, sendTextMessage, sendMessage, replacePlaceholders, addDynamicModelInstance, sendAudioMessage, sendVideoMessage,sendLocationMessage, baseURL } from "./snm.js";
@@ -58,7 +59,7 @@ export async function updateStatus(status, message_id, business_phone_number_id,
       bg_id : broadcastGroup_id
     };
     
-    console.log("Sending request with data:", data);
+    // console.log("Sending request with data:", data);
 
     // Send POST request with JSON payload
     const response = await axios.post(`${baseURL}/set-status/`, data, {
@@ -88,7 +89,8 @@ async function validateInput(inputVariable, message){
   Response being given is: ${message}\n
   Does the response answer the question? reply in yes or no. nothing else `
 
-  const api_key = os.getenv("OPENAI_API_KEY");
+  const api_key = process.env.OPENAI_API_KEY;
+
   const data = {
     model: "gpt-4o-mini",
     messages : [
@@ -330,7 +332,26 @@ app.post("/send-template", async(req,res) => {
   }
 });
 
-
+async function executeFallback(userSession){
+  console.log("Entering Fallback")
+  var fallback_count = userSession.fallback_count
+              if(fallback_count > 0){
+                console.log("Fallback Count: ", fallback_count)
+                const fallback_msg = userSession.fallback_msg
+                const access_token = userSession.accessToken
+                const response = await sendTextMessage(userPhoneNumber, business_phone_number_id, fallback_msg, access_token)
+                fallback_count=fallback_count - 1;
+                userSession.fallback_count = fallback_count
+                res.sendStatus(200);
+                return;
+              }
+              else{
+                userSessions.delete(userPhoneNumber+business_phone_number_id)
+                console.log("restarting user session for user: ", userPhoneNumber)
+                res.sendStatus(200);
+                return;
+              }
+}
 
 app.post("/webhook", async (req, res) => {
   try {
@@ -360,7 +381,7 @@ app.post("/webhook", async (req, res) => {
         
         // Save conversation to backend
         try {
-          const saveRes =fetch(`${baseURL}/whatsapp_convo_post/${userPhoneNumber}/?source=whatsapp`, {
+          fetch(`${baseURL}/whatsapp_convo_post/${userPhoneNumber}/?source=whatsapp`, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
@@ -372,7 +393,7 @@ app.post("/webhook", async (req, res) => {
               tenant: 'll',
             }),
           });
-          if (!saveRes.ok) throw new Error("Failed to save conversation");
+          // if (!saveRes.ok) throw new Error("Failed to save conversation");
         } catch (error) {
           console.error("Error saving conversation:", error.message);
         }
@@ -430,12 +451,13 @@ app.post("/webhook", async (req, res) => {
       } else {
         if(userSession.currNode != null) userSession.nextNode = userSession.adjList[userSession.currNode]
         else {
-          userSession.nextNode = userSession.adjList[0]
           userSession.currNode = userSession.startNode
+          userSession.nextNode = userSession.adjList[userSession.currNode]
         }
         // console.log(`Existing session found for user ${userPhoneNumber}:`, userSession);
       }
       if (!AIMode) {
+        let sendDynamicPromise;
         console.log("input vr: ", userSession.inputVariable)
         if (userSession.inputVariable !== undefined && userSession.inputVariable !== null && userSession.inputVariable.length > 0){
           console.log(`Input Variable: ${userSession.inputVariable}`);
@@ -445,27 +467,11 @@ app.post("/webhook", async (req, res) => {
             let userSelection = message?.interactive?.button_reply?.title || message?.interactive?.list_reply?.title || message?.text?.body;
           
             var validateResponse = await validateInput(userSession.inputVariable, userSelection)
-          //TODO: fallback condiiton
+            //TODO: fallback condiiton
             validateResponse = validateResponse.trim()
             if(validateResponse == "No." || validateResponse == "No"){
-              console.log("Entering Fallback")
-              var fallback_count = userSession.fallback_count
-              if(fallback_count > 0){
-                console.log("Fallback Count: ", fallback_count)
-                const fallback_msg = userSession.fallback_msg
-                const access_token = userSession.accessToken
-                const response = await sendTextMessage(userPhoneNumber, business_phone_number_id, fallback_msg, access_token)
-                fallback_count=fallback_count - 1;
-                userSession.fallback_count = fallback_count
-                res.sendStatus(200);
-                return;
-              }
-              else{
-                userSessions.delete(userPhoneNumber+business_phone_number_id)
-                console.log("restarting user session for user: ", userPhoneNumber)
-                res.sendStatus(200);
-                return;
-              }
+              await executeFallback(userSession)
+              return
             }else{
               let userSelection = message?.interactive?.button_reply?.title || message?.interactive?.list_reply?.title || message?.text?.body;
           
@@ -475,18 +481,18 @@ app.post("/webhook", async (req, res) => {
               }
               userSession.inputVariable = null
               const modelName = userSession.flowName
-              await addDynamicModelInstance(modelName , updateData)
+              sendDynamicPromise = addDynamicModelInstance(modelName , updateData)
 
               console.log(`Updated model instance with data: ${JSON.stringify(updateData)}`);
               console.log(`Input Variable after update: ${userSession.inputVariable}`);
             }
-        } catch (error) {
-          console.error("An error occurred during processing:", error);
-          if (!res.headersSent) {
-            res.sendStatus(500); // Or any other error status code based on your use case
+          } catch (error) {
+            console.error("An error occurred during processing:", error);
+            if (!res.headersSent) {
+              res.sendStatus(500); // Or any other error status code based on your use case
+            }
           }
         }
-      }
         console.log("Processing in non-AI mode");
         if (message?.type === "interactive") {
           console.log("Processing interactive message");
@@ -514,15 +520,24 @@ app.post("/webhook", async (req, res) => {
             console.error('Error processing interactive message:', error);
           }
         }
-        if (message?.type === "text") {
+        else if (message?.type === "text") {
           console.log("Processing text message");
           console.log(userSession.currNode, userSession.startNode)
-          if (userSession.currNode != userSession.startNode) {
-            console.log(`Storing input for node ${userSession.currNode}:`, message?.text?.body);
+          const flow = userSession.flowData
+          const type = flow[userSession.currNode].type
+          if (userSession.currNode != userSession.startNode){
+            if (['Text', 'string', 'audio', 'video', 'location', 'image'].includes(type)) {
+            // console.log(`Storing input for node ${userSession.currNode}:`, message?.text?.body);
             //userSession.inputMap.set(userSession.currNode, message?.text?.body);
             userSession.currNode = userSession.nextNode[0];
             console.log("Updated currNode:", userSession.currNode);
+            }
+            else if(['Button', 'List'].includes(type)){
+              await executeFallback(userSession)
+              return
+            }
           }
+
           console.log("Calling sendNodeMessage");
           sendNodeMessage(userPhoneNumber,business_phone_number_id);
         }

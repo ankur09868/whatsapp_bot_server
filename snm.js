@@ -2,7 +2,7 @@
 import { userSessions, io, updateStatus } from "./server.js";
 import axios from "axios";
 import { BlobServiceClient } from '@azure/storage-blob';
-export const baseURL = 'https://backenreal-hgg2d7a0d9fzctgj.eastus-01.azurewebsites.net/'
+export const baseURL = 'https://backenreal-hgg2d7a0d9fzctgj.eastus-01.azurewebsites.net'
 
 
 
@@ -45,20 +45,24 @@ export async function sendMessage(phoneNumber, business_phone_number_id, message
             // Update status
             updateStatus(status, messageID, business_phone_number_id, phoneNumber);
 
+            let mediaURLPromise = Promise.resolve(null);
             const mediaID = messageData?.video?.id || messageData?.audio?.id || messageData?.image?.id
             if (mediaID != undefined){
-                const mediaURL = await getImageAndUploadToBlob(mediaID, access_token)
+                mediaURLPromise = await getImageAndUploadToBlob(mediaID, access_token).then(mediaURL => {
+                    if (messageData?.video?.id) {
+                        messageData.video.id = mediaURL;
+                    } else if (messageData?.audio?.id) {
+                        messageData.audio.id = mediaURL;
+                    } else if (messageData?.image?.id) {
+                        messageData.image.id = mediaURL;
+                    }
+                    console.log("message data  updated: ", messageData)
+                })
 
-                if (messageData?.video?.id) {
-                    messageData.video.id = mediaURL;
-                } else if (messageData?.audio?.id) {
-                    messageData.audio.id = mediaURL;
-                } else if (messageData?.image?.id) {
-                    messageData.image.id = mediaURL;
-                }
-                console.log("message data  updated: ", messageData)
+                
             }
             // Prepare conversation data
+
             let formattedConversation = [{ text: messageData, sender: "bot" }];
 
             // Save conversation
@@ -76,12 +80,14 @@ export async function sendMessage(phoneNumber, business_phone_number_id, message
                     }),
                 });
 
-                if (!saveRes.ok) throw new Error("Failed to save conversation");
+                // if (!saveRes.ok) throw new Error("Failed to save conversation");
                 console.log("Conversation saved successfully");
 
             } catch (error) {
                 console.error("Error saving conversation:", error.message);
             }
+            
+            await mediaURLPromise
             return { success: true, data: response.data };
 
         } else {
@@ -251,7 +257,7 @@ export async function sendNodeMessage(userPhoneNumber, business_phone_number_id)
                     sendDynamicPromise = addDynamicModelInstance(modelName, data)
                 }
         
-                sendMessagePromise = sendButtonMessage(buttons, node_message, userPhoneNumber,business_phone_number_id);
+                await sendButtonMessage(buttons, node_message, userPhoneNumber,business_phone_number_id);
                 break;
                 
             case "List":
@@ -270,7 +276,7 @@ export async function sendNodeMessage(userPhoneNumber, business_phone_number_id)
                     sendDynamicPromise = addDynamicModelInstance(modelName, data)
                 }
                 
-                sendMessagePromise = sendListMessage(list, node_message, userPhoneNumber,business_phone_number_id, accessToken);
+                await sendListMessage(list, node_message, userPhoneNumber,business_phone_number_id, accessToken);
                 break;
             case "Text":
 
@@ -306,7 +312,7 @@ export async function sendNodeMessage(userPhoneNumber, business_phone_number_id)
                 const caption = flow[currNode]?.body?.caption
                 var placeholders = [...caption.matchAll(/{{\s*[\w]+\s*}}/g)];
                 if(placeholders.length > 0) caption = await replacePlaceholders(node_message, userSession)
-                 
+                
                 await sendImageMessage(userPhoneNumber,business_phone_number_id, flow[currNode]?.body?.id, flow[currNode]?.body?.caption ,accessToken);
                 userSession.currNode = nextNode[0] || null;
                 console.log("image currNode: ", userSession.currNode)

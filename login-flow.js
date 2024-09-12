@@ -3,7 +3,7 @@ import axios from "axios";
 export async function getAccessToken(auth_code) {
     const client_id = '1546607802575879'; 
     const client_secret = '1cc11e828571e071c91f56da993bb60b'; 
-    const redirect_uri = 'https://crm.nuren.ai/chatbotredirect'; 
+    const redirect_uri = 'https://whatsapp.nuren.ai/chatbotredirect/'; 
   
     const url = `https://graph.facebook.com/v18.0/oauth/access_token?client_id=${client_id}&redirect_uri=${redirect_uri}&client_secret=${client_secret}&code=${auth_code}`;
   
@@ -83,8 +83,7 @@ export async function registerAccount(business_phone_number_id, access_token){
   const url = `https://graph.facebook.com/v19.0/${business_phone_number_id}/register`;
   console.log(url);
   const body = {
-    "messaging_product": "whatsapp",
-    "pin": "123456"
+    "messaging_product": "whatsapp"
   };
   console.log("Request Body:", body); // Log the body
 
@@ -110,7 +109,7 @@ export async function postRegister(access_token, account_id){
     const url = `https://graph.facebook.com/v19.0/${account_id}/subscribed_apps?access_token=${access_token}`
     
     try{
-        const response = await axios.get(url, {
+        const response = await axios.post(url, {
             headers:{
                 'Authorization': `Bearer ${access_token}`,
             }

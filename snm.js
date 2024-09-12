@@ -2,7 +2,7 @@
 import { userSessions, io, updateStatus } from "./server.js";
 import axios from "axios";
 import { BlobServiceClient } from '@azure/storage-blob';
-export const baseURL = 'https://backenreal-hgg2d7a0d9fzctgj.eastus-01.azurewebsites.net'
+export const baseURL = 'http://localhost:8000'
 
 
 
@@ -86,7 +86,7 @@ export async function sendMessage(phoneNumber, business_phone_number_id, message
             } catch (error) {
                 console.error("Error saving conversation:", error.message);
             }
-            
+
             await mediaURLPromise
             return { success: true, data: response.data };
 
@@ -111,6 +111,7 @@ export async function sendLocationMessage(phone, bpid, body, access_token) {
             address: address
         }
     }
+
     return sendMessage(phone, bpid, messageData, access_token)
 }
 
@@ -221,14 +222,29 @@ export async function sendNodeMessage(userPhoneNumber, business_phone_number_id)
         console.error(`No session found for user ${userPhoneNumber}`);
         return;
     }
+
+
     // console.log("session for node message: ", userSession)
     const { flowData, adjList, currNode, accessToken } = userSession;
     const flow = flowData;
     const adjListParsed =adjList;
     console.log(currNode)
+    const delay = flow[currNode]?.delay;
+    if(delay !== undefined && delay > 0){
+        userSession.flowData[currNode].delay = 0
+        console.log(`delayed by ${delay} seconds`)
+        setTimeout(() => {
+            sendNodeMessage(userPhoneNumber, business_phone_number_id);
+        }, delay  * 1000)
+        
+        return;
+    }
+
     if (typeof currNode !== 'undefined' && currNode !== null && adjListParsed) {
+
         const nextNode = adjListParsed[currNode];
         var node_message = flow[currNode]?.body;
+        
         if (node_message) {
             io.emit('node-message', {
                 message: node_message,
@@ -256,7 +272,7 @@ export async function sendNodeMessage(userPhoneNumber, business_phone_number_id)
                     var modelName = userSession.flowName
                     sendDynamicPromise = addDynamicModelInstance(modelName, data)
                 }
-        
+                
                 await sendButtonMessage(buttons, node_message, userPhoneNumber,business_phone_number_id);
                 break;
                 
@@ -300,7 +316,8 @@ export async function sendNodeMessage(userPhoneNumber, business_phone_number_id)
                 
                 var placeholders = [...node_message.matchAll(/{{\s*[\w]+\s*}}/g)];
                 if(placeholders.length > 0) node_message = await replacePlaceholders(node_message, userSession)
-                 
+                
+                
                 await sendTextMessage(userPhoneNumber,business_phone_number_id, node_message);
                 userSession.currNode = nextNode[0] || null;
                 console.log("string currNode: ", userSession.currNode)
@@ -363,7 +380,7 @@ export async function sendNodeMessage(userPhoneNumber, business_phone_number_id)
         await Promise.all([sendMessagePromise, sendDynamicPromise])
     }
     else{
-        userSession.currNode = 0;
+        userSession.currNode = userSession.startNode;
         userSession.nextNode = adjListParsed[userSession.currNode] || [];
     }
     

@@ -335,22 +335,20 @@ app.post("/send-template", async(req,res) => {
 async function executeFallback(userSession){
   console.log("Entering Fallback")
   var fallback_count = userSession.fallback_count
-              if(fallback_count > 0){
-                console.log("Fallback Count: ", fallback_count)
-                const fallback_msg = userSession.fallback_msg
-                const access_token = userSession.accessToken
-                const response = await sendTextMessage(userPhoneNumber, business_phone_number_id, fallback_msg, access_token)
-                fallback_count=fallback_count - 1;
-                userSession.fallback_count = fallback_count
-                res.sendStatus(200);
-                return;
-              }
-              else{
-                userSessions.delete(userPhoneNumber+business_phone_number_id)
-                console.log("restarting user session for user: ", userPhoneNumber)
-                res.sendStatus(200);
-                return;
-              }
+  const userPhoneNumber = userSession.userPhoneNumber
+  const business_phone_number_id = userSession.business_number_id
+  if(fallback_count > 0){
+    console.log("Fallback Count: ", fallback_count)
+    const fallback_msg = userSession.fallback_msg
+    const access_token = userSession.accessToken
+    const response = await sendTextMessage(userPhoneNumber, business_phone_number_id, fallback_msg, access_token)
+    fallback_count=fallback_count - 1;
+    userSession.fallback_count = fallback_count
+  }
+  else{
+    userSessions.delete(userPhoneNumber+business_phone_number_id)
+    console.log("restarting user session for user: ", userPhoneNumber)
+    }
 }
 
 app.post("/webhook", async (req, res) => {
@@ -471,7 +469,7 @@ app.post("/webhook", async (req, res) => {
             validateResponse = validateResponse.trim()
             if(validateResponse == "No." || validateResponse == "No"){
               await executeFallback(userSession)
-              return
+              res.sendStatus(200)
             }else{
               let userSelection = message?.interactive?.button_reply?.title || message?.interactive?.list_reply?.title || message?.text?.body;
           
@@ -534,6 +532,7 @@ app.post("/webhook", async (req, res) => {
             }
             else if(['Button', 'List'].includes(type)){
               await executeFallback(userSession)
+              res.sendStatus(200)
               return
             }
           }
@@ -628,12 +627,14 @@ app.post("/login-flow", async (req, res) => {
   try {
     const tenant_id = req.headers['X-Tenant-Id']
     const authCode = req.body.code;
+    console.log("authCode: ", authCode)
     const access_token = await getAccessToken(authCode);
+    console.log("access token: ", access_token)
     const waba_id = await getWabaID(access_token)
     const business_phone_number_id = await getPhoneNumberID(access_token, waba_id);
 
-    const register_response = await registerAccount(business_phone_number_id, access_token)
-    const postRegister_response = await postRegister(access_token, waba_id)
+    const register_response = registerAccount(business_phone_number_id, access_token)
+    const postRegister_response = postRegister(access_token, waba_id)
     
     const response = axios.post(`${baseURL}/insert-data/`, {
       business_phone_number_id : business_phone_number_id,

@@ -15,11 +15,11 @@ const WEBHOOK_VERIFY_TOKEN = "COOL";
 const PORT = 8080;
 const app = express();
 const httpServer = createServer(app);
-const allowedOrigins = ['http://localhost:8080', 'http://localhost:5174', 'https://69af-14-142-75-54.ngrok-free.app', 'https://whatsappbotserver.azurewebsites.net'];
+const allowedOrigins = ['http://localhost:8080', 'http://localhost:5174', 'http://localhost:5173', 'https://whatsappbotserver.azurewebsites.net'];
 
 export const io = new Server(httpServer, {
   cors: {
-    origin: ['http://localhost:5174', 'http://localhost:8080', 'https://69af-14-142-75-54.ngrok-free.app', 'https://whatsappbotserver.azurewebsites.net'],
+    origin: ['http://localhost:5174', 'http://localhost:8080', 'http://localhost:5173', 'https://whatsappbotserver.azurewebsites.net'],
     methods: ['GET', 'POST']
   }
 });
@@ -36,7 +36,6 @@ export async function updateStatus(status, message_id, business_phone_number_id,
   let isSent = false;
 
   try {
-    // Determine status flags based on input
     if (status === "read") {
       isRead = true;
       isDelivered = true;
@@ -234,14 +233,16 @@ app.post("/send-message", async (req, res) => {
       });
 
       let sendMessagePromise;
+      let fr_flag;
       switch (messageType) {
         case 'text':
 
-          sendMessagePromise = sendTextMessage(formattedPhoneNumber, business_phone_number_id, message, access_token);
+          sendMessagePromise = sendTextMessage(formattedPhoneNumber, business_phone_number_id, message, access_token, fr_flag = true);
           break;
         case 'image':
-          const { imageID, caption } = additionalData;
-          sendMessagePromise = sendImageMessage(formattedPhoneNumber, business_phone_number_id, imageID, caption, access_token);
+          const { imageId, caption } = additionalData;
+          console.log(`image ID: ${imageId}, caption: ${caption}`)
+          sendMessagePromise = sendImageMessage(formattedPhoneNumber, business_phone_number_id, imageId, caption, access_token, fr_flag = true);
           formattedConversation.push({ text: caption, sender: "bot" });
           break;
         // case 'button':
@@ -250,14 +251,14 @@ app.post("/send-message", async (req, res) => {
         //   break;
         case 'audio':
           const { audioID } = additionalData;
-          sendMessagePromise = sendAudioMessage(formattedPhoneNumber, business_phone_number_id, audioID, access_token);
+          sendMessagePromise = sendAudioMessage(formattedPhoneNumber, business_phone_number_id, audioID, access_token, fr_flag = true);
           break;
         case 'video':
           const { videoID } = additionalData;
-          sendMessagePromise = sendVideoMessage(formattedPhoneNumber, business_phone_number_id, videoID, access_token);
+          sendMessagePromise = sendVideoMessage(formattedPhoneNumber, business_phone_number_id, videoID, access_token, fr_flag = true);
           break;
         case 'location':
-          sendMessagePromise = sendLocationMessage(formattedPhoneNumber, business_phone_number_id, additionalData, access_token);
+          sendMessagePromise = sendLocationMessage(formattedPhoneNumber, business_phone_number_id, additionalData, access_token, fr_flag = true);
           break;
         default:
           throw new Error("Invalid message type");
@@ -368,17 +369,14 @@ app.post("/webhook", async (req, res) => {
       });
 
       console.log("Emitting new message event");
-        
-      let formattedConversation = [
-        {
-          text: message?.text?.body || 
-                (message?.interactive ? (message?.interactive?.button_reply?.title || message?.interactive?.list_reply?.title) : null),
-          sender: "user"
-        }
-      ];
+      
+      let formattedConversation = [{
+        text: message?.text?.body || (message?.interactive ? (message?.interactive?.button_reply?.title || message?.interactive?.list_reply?.title) : null),
+        sender: "user"
+      }];
         
         // Save conversation to backend
-        try {
+      try {
           fetch(`${baseURL}/whatsapp_convo_post/${userPhoneNumber}/?source=whatsapp`, {
             method: 'POST',
             headers: {
@@ -395,11 +393,22 @@ app.post("/webhook", async (req, res) => {
         } catch (error) {
           console.error("Error saving conversation:", error.message);
         }
+        
+        const messageData = {
+          type: "text",
+          text: { body: message?.text?.body || (message?.interactive ? (message?.interactive?.button_reply?.title || message?.interactive?.list_reply?.title) : null) }
+      }
+      try{
       io.emit('new-message', {
-        message: message?.text?.body || message?.interactive?.body,
+        message: messageData,
         phone_number_id: business_phone_number_id,
-        contactPhone: contact
+        contactPhone: userPhoneNumber
       });
+      
+      console.log("Emitted node message: ", messageData)
+    }catch(error){
+      console.log("error occured while emission: ", error)
+    }
       
   
       // Retrieve or create user session
@@ -470,6 +479,7 @@ app.post("/webhook", async (req, res) => {
             if(validateResponse == "No." || validateResponse == "No"){
               await executeFallback(userSession)
               res.sendStatus(200)
+              return
             }else{
               let userSelection = message?.interactive?.button_reply?.title || message?.interactive?.list_reply?.title || message?.text?.body;
           

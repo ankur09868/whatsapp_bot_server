@@ -1,12 +1,11 @@
-
 import { userSessions, io, updateStatus } from "./server.js";
 import axios from "axios";
 import { BlobServiceClient } from '@azure/storage-blob';
-export const baseURL = 'https://backenreal-hgg2d7a0d9fzctgj.eastus-01.azurewebsites.net/'
+export const baseURL = 'https://backenreal-hgg2d7a0d9fzctgj.eastus-01.azurewebsites.net'
 
+export async function sendMessage(phoneNumber, business_phone_number_id, messageData, access_token = null, fr_flag) {
+    
 
-
-export async function sendMessage(phoneNumber, business_phone_number_id, messageData, access_token = null) {
     const key = phoneNumber + business_phone_number_id;
     const userSession = userSessions.get(key);
 
@@ -61,24 +60,30 @@ export async function sendMessage(phoneNumber, business_phone_number_id, message
 
                 
             }
-            // Prepare conversation data
+            if(fr_flag !== true){
+                try{
+                    console.log("MESSAGE DATA: ", messageData)
+                    io.emit('node-message', {
+                        message: messageData,
+                        phone_number_id: business_phone_number_id,
+                        contactPhone: phoneNumber
+                    });
+                    console.log("Emitted  Node Message: ", messageData)
+                    let formattedConversation = [{ text: messageData, sender: "bot" }];
 
-            let formattedConversation = [{ text: messageData, sender: "bot" }];
-
-            // Save conversation
-            try {
-                const saveRes = fetch(`${baseURL}/whatsapp_convo_post/${phoneNumber}/?source=whatsapp`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-Tenant-Id': 'll',
-                    },
-                    body: JSON.stringify({
-                        contact_id: phoneNumber,
-                        conversations: formattedConversation,
-                        tenant: 'll',
-                    }),
-                });
+                    try {
+                        const saveRes = fetch(`${baseURL}/whatsapp_convo_post/${phoneNumber}/?source=whatsapp`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-Tenant-Id': 'll',
+                        },
+                        body: JSON.stringify({
+                            contact_id: phoneNumber,
+                            conversations: formattedConversation,
+                            tenant: 'll',
+                        }),
+                    });
 
                 // if (!saveRes.ok) throw new Error("Failed to save conversation");
                 console.log("Conversation saved successfully");
@@ -86,6 +91,11 @@ export async function sendMessage(phoneNumber, business_phone_number_id, message
             } catch (error) {
                 console.error("Error saving conversation:", error.message);
             }
+                }catch(error){
+                    console.log("error occured while emission: ", error)
+                }
+            }
+            
 
             await mediaURLPromise
             return { success: true, data: response.data };
@@ -100,7 +110,7 @@ export async function sendMessage(phoneNumber, business_phone_number_id, message
     }
 }
 
-export async function sendLocationMessage(phone, bpid, body, access_token) {
+export async function sendLocationMessage(phone, bpid, body, access_token, fr_flag = false) {
     const { latitude, longitude, name, address } = body
     const messageData = {
         type: "location",
@@ -112,36 +122,36 @@ export async function sendLocationMessage(phone, bpid, body, access_token) {
         }
     }
 
-    return sendMessage(phone, bpid, messageData, access_token)
+    return sendMessage(phone, bpid, messageData, access_token, fr_flag)
 }
 
-export async function sendVideoMessage(phone, bpid, videoID, access_token) {
+export async function sendVideoMessage(phone, bpid, videoID, access_token, fr_flag = false) {
     const messageData = {
         type : "video",
         video : {
             id: videoID
         }
     }
-    return sendMessage(phone, bpid, messageData, access_token)
+    return sendMessage(phone, bpid, messageData, access_token, fr_flag)
 }
 
-export async function sendAudioMessage(phone, bpid, audioID, access_token) {
+export async function sendAudioMessage(phone, bpid, audioID, access_token, fr_flag = false) {
   const messageData = {
     type: "audio",
     audio: { id: audioID}
   }
-  return sendMessage(phone, bpid, messageData, access_token)
+  return sendMessage(phone, bpid, messageData, access_token, fr_flag)
 }
   
-export async function sendTextMessage(userPhoneNumber, business_phone_number_id,message, access_token = null){
+export async function sendTextMessage(userPhoneNumber, business_phone_number_id,message, access_token = null, fr_flag = false){
     const messageData = {
         type: "text",
         text: { body: message }
     }
-    return sendMessage(userPhoneNumber, business_phone_number_id, messageData, access_token)
+    return sendMessage(userPhoneNumber, business_phone_number_id, messageData, access_token, fr_flag)
 } 
  
-export async function sendImageMessage(phoneNumber, business_phone_number_id, imageID, caption, access_token = null) {
+export async function sendImageMessage(phoneNumber, business_phone_number_id, imageID, caption, access_token = null, fr_flag= false) {
     const messageData = {
         type: "image",
         image: {
@@ -150,10 +160,10 @@ export async function sendImageMessage(phoneNumber, business_phone_number_id, im
         }
     };
     console.log("IMAGEEEE");
-    return sendMessage(phoneNumber, business_phone_number_id, messageData, access_token);
+    return sendMessage(phoneNumber, business_phone_number_id, messageData, access_token, fr_flag);
 }
   
-export async function sendButtonMessage(buttons, message, phoneNumber, business_phone_number_id, access_token = null) {
+export async function sendButtonMessage(buttons, message, phoneNumber, business_phone_number_id, access_token = null, fr_flag = false) {
     const key = phoneNumber + business_phone_number_id
     console.log("USER SESSIONS: ", userSessions, key)
     const userSession = userSessions.get(key);
@@ -176,22 +186,22 @@ export async function sendButtonMessage(buttons, message, phoneNumber, business_
                 action: { buttons: button_rows }
             }
         }
-        return sendMessage(phoneNumber, business_phone_number_id, messageData, access_token)
+        return sendMessage(phoneNumber, business_phone_number_id, messageData, access_token, fr_flag)
     } catch (error) {
         console.error('Failed to send button message:', error.response ? error.response.data : error.message);
         return { success: false, error: error.response ? error.response.data : error.message };
     }
 }
 
-export async function sendInputMessage(userPhoneNumber, business_phone_number_id,message, access_token = null){
+export async function sendInputMessage(userPhoneNumber, business_phone_number_id,message, access_token = null, fr_flag = false){
     const messageData = {
         type: "text",
         text: { body: message }
     }
-    return sendMessage(userPhoneNumber, business_phone_number_id, messageData, access_token)
+    return sendMessage(userPhoneNumber, business_phone_number_id, messageData, access_token, fr_flag)
 }
 
-export async function sendListMessage(list, message, phoneNumber, business_phone_number_id, access_token =  null) {
+export async function sendListMessage(list, message, phoneNumber, business_phone_number_id, access_token =  null, fr_flag = false) {
     const key = phoneNumber + business_phone_number_id
     console.log("USER SESSIONS: ",  userSessions, key)
     const userSession = userSessions.get(key);
@@ -212,7 +222,7 @@ export async function sendListMessage(list, message, phoneNumber, business_phone
             }
         }
     };
-    return sendMessage(phoneNumber, business_phone_number_id, messageData, access_token);
+    return sendMessage(phoneNumber, business_phone_number_id, messageData, access_token, fr_flag);
 }
 
 export async function sendNodeMessage(userPhoneNumber, business_phone_number_id) {
@@ -244,14 +254,6 @@ export async function sendNodeMessage(userPhoneNumber, business_phone_number_id)
 
         const nextNode = adjListParsed[currNode];
         var node_message = flow[currNode]?.body;
-        
-        if (node_message) {
-            io.emit('node-message', {
-                message: node_message,
-                phone_number_id: business_phone_number_id
-            });
-        console.log("Emitted node message:", node_message);
-        }
         
         let sendMessagePromise;
         let sendDynamicPromise;

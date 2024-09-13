@@ -8,6 +8,7 @@ import session from "express-session";
 import { getAccessToken, getWabaID, getPhoneNumberID, registerAccount, postRegister } from "./login-flow.js";
 import { sendNodeMessage, sendImageMessage, sendButtonMessage, sendTextMessage, sendMessage, replacePlaceholders, addDynamicModelInstance, sendAudioMessage, sendVideoMessage,sendLocationMessage, baseURL } from "./snm.js";
 import NodeCache from 'node-cache';
+import fs from 'fs/promises'
 const messageCache = new NodeCache({ stdTTL: 600 });
 
 const AIMode=false;
@@ -15,11 +16,11 @@ const WEBHOOK_VERIFY_TOKEN = "COOL";
 const PORT = 8080;
 const app = express();
 const httpServer = createServer(app);
-const allowedOrigins = ['http://localhost:8080', 'http://localhost:5174', 'http://localhost:5173', 'https://whatsappbotserver.azurewebsites.net'];
+const allowedOrigins = ['http://localhost:8080', 'http://localhost:5174', 'http://localhost:5173', 'https://whatsappbotserver.azurewebsites.net','https://whatsapp.nuren.ai/'];
 
 export const io = new Server(httpServer, {
   cors: {
-    origin: ['http://localhost:5174', 'http://localhost:8080', 'http://localhost:5173', 'https://whatsappbotserver.azurewebsites.net'],
+    origin: ['http://localhost:5174', 'http://localhost:8080', 'http://localhost:5173', 'https://whatsappbotserver.azurewebsites.net','https://whatsapp.nuren.ai/'],
     methods: ['GET', 'POST']
   }
 });
@@ -638,10 +639,17 @@ app.post("/login-flow", async (req, res) => {
     const tenant_id = req.headers['X-Tenant-Id']
     const authCode = req.body.code;
     console.log("authCode: ", authCode)
+
+
     const access_token = await getAccessToken(authCode);
-    console.log("access token: ", access_token)
+    console.log("access token: ", access_token);
+
+
     const waba_id = await getWabaID(access_token)
+    console.log("waba_id: ", waba_id);
+
     const business_phone_number_id = await getPhoneNumberID(access_token, waba_id);
+    console.log("bipd: ", business_phone_number_id)
 
     const register_response = registerAccount(business_phone_number_id, access_token)
     const postRegister_response = postRegister(access_token, waba_id)

@@ -313,12 +313,12 @@ app.post("/send-template", async(req,res) => {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'X-Tenant-Id': 'll'
+            'X-Tenant-Id': tenant_id 
           },
           body: JSON.stringify({
             contact_id: formattedPhoneNumber,
             conversations: formattedConversation,
-            tenant: 'll',
+            tenant: tenant_id ,
           }),
         });
         if (!saveRes.ok) throw new Error("Failed to save conversation");
@@ -411,7 +411,19 @@ app.post("/webhook", async (req, res) => {
       console.log("error occured while emission: ", error)
     }
       
-  
+    const temp_user = message?.text?.body?.startsWith('*/') ? message.text.body.split('*/')[1]?.split(' ')[0] : null;
+      if(temp_user){
+        try{
+          io.emit('temp-user', {
+            temp_user: temp_user,
+            contactPhone: userPhoneNumber
+          });
+          
+          console.log("Emitted temp_user message: ", messageData)
+        }catch(error){
+          console.log("error occured while emission of temp_user: ", error)
+        }
+      }
       // Retrieve or create user session
       let userSession = userSessions.get(userPhoneNumber+business_phone_number_id);
       if (!userSession) {

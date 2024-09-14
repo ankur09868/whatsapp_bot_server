@@ -293,7 +293,7 @@ app.post("/send-template", async(req,res) => {
   
   try {
     const tenantRes = await axios.get(`${baseURL}/whatsapp_tenant?business_phone_id=${business_phone_number_id}`, {
-      headers: { 'X-Tenant-Id': 'll' }
+      headers: { 'X-Tenant-Id': tenant_id }
     });
     const access_token = tenantRes.data.access_token;
 

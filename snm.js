@@ -16,7 +16,7 @@ export async function sendMessage(phoneNumber, business_phone_number_id, message
 
     const url = `https://graph.facebook.com/v18.0/${business_phone_number_id}/messages`;
     console.log('Sending message to:', phoneNumber);
-    console.log('Message Data:', messageData);
+    console.log('Message Data:', JSON.stringify(messageData, null, 3));
 
     // Use session access token if not provided
     if (access_token == null) access_token = userSession.accessToken;
@@ -60,13 +60,17 @@ export async function sendMessage(phoneNumber, business_phone_number_id, message
 
                 
             }
+            
+            const now = new Date();
+            const timestamp = now.toLocaleString();
             if(fr_flag !== true){
                 try{
                     console.log("MESSAGE DATA: ", messageData)
                     io.emit('node-message', {
                         message: messageData,
                         phone_number_id: business_phone_number_id,
-                        contactPhone: phoneNumber
+                        contactPhone: phoneNumber,
+                        time: timestamp
                     });
                     console.log("Emitted  Node Message: ", messageData)
                     let formattedConversation = [{ text: messageData, sender: "bot" }];
@@ -415,7 +419,7 @@ export async function addDynamicModelInstance(modelName, updateData) {
 }
 
 
-export async function replacePlaceholders(message, userPhoneNumber = null) {
+export async function replacePlaceholders(message, userPhoneNumber = null, bpid=null) {
     
     let modifiedMessage = message;
 
@@ -429,10 +433,14 @@ export async function replacePlaceholders(message, userPhoneNumber = null) {
         // if(keys[0]=="contact") url = `${baseURL}/contacts-by-phone/${userPhoneNumber}`
         // else if(keys[0] == "opportunity") url = `${baseURL}/opportunity-by-phone/${userPhoneNumber}`
         // else if(keys[0] == "dynamic") url = `${baseURL}/${flowName}/${userPhoneNumber}`
+        const tenant_id = await axios.get(`${baseURL}/get-tenant/`, {
+            bpid: bpid
+        })
+
         try {
             const response = await axios.get(url, {
                 headers: {
-                    "X-Tenant-Id": "ll"
+                    "X-Tenant-Id": tenant_id
                 }
             });
             const responseData = response.data?.[0]
@@ -446,7 +454,6 @@ export async function replacePlaceholders(message, userPhoneNumber = null) {
 
         }
     }
-
     console.log(modifiedMessage)
     return modifiedMessage;
 }

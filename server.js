@@ -9,6 +9,7 @@ import { getAccessToken, getWabaID, getPhoneNumberID, registerAccount, postRegis
 import { sendNodeMessage, sendImageMessage, sendButtonMessage, sendTextMessage, sendMessage, replacePlaceholders, addDynamicModelInstance, sendAudioMessage, sendVideoMessage,sendLocationMessage, baseURL } from "./snm.js";
 import NodeCache from 'node-cache';
 import fs from 'fs/promises'
+import { time } from "console";
 const messageCache = new NodeCache({ stdTTL: 600 });
 
 const AIMode=false;
@@ -35,9 +36,15 @@ export async function updateStatus(status, message_id, business_phone_number_id,
   let isRead = false;
   let isDelivered = false;
   let isSent = false;
+  let isReplied = false;
 
   try {
-    if (status === "read") {
+    if (status === "replied"){
+      isReplied = true;
+      isRead = true;
+      isDelivered = true;
+      isSent = true;
+    }else if (status === "read") {
       isRead = true;
       isDelivered = true;
       isSent = true;
@@ -51,6 +58,7 @@ export async function updateStatus(status, message_id, business_phone_number_id,
     // Prepare data to send
     const data = {
       business_phone_number_id: business_phone_number_id,
+      is_replied: isReplied,
       is_read: isRead,
       is_delivered: isDelivered,
       is_sent: isSent,
@@ -287,20 +295,113 @@ app.post("/send-message", async (req, res) => {
   }
 });
 
+
+async function setTemplate(templateData, phone, bpid) {
+  try {
+    const components = templateData?.components;
+    const template_name = templateData.name;
+    const res_components = [];
+
+    for (const component of components) {
+      if (component.type === "HEADER") {
+        const header_handle = component?.example?.header_handle || [];
+        const header_text = component?.example?.header_text || [];
+        const parameters = [];
+
+        for (const handle of header_handle) {
+          parameters.push({
+            type: "image",
+            image: { id: handle }
+          });
+        }
+        for (const text of header_text) {
+          let modified_text = await replacePlaceholders(text, phone, bpid)
+          parameters.push({
+            type: "text",
+            text: modified_text
+          });
+        }
+        if(parameters.length> 0){
+        const header_component = {
+          type: "header",
+          parameters: parameters
+        };
+        res_components.push(header_component);
+      }
+      }
+      else if (component.type === "BODY") {
+        const body_text = component?.example?.body_text[0] || [];
+        const parameters = [];
+        
+        for (const text of body_text) {
+          let modified_text = await replacePlaceholders(text, phone, bpid)
+
+          parameters.push({
+            type: "text",
+            text: modified_text
+          });
+        }
+        if(parameters.length > 0){
+        const body_component = {
+          type: "body",
+          parameters: parameters
+        };
+        res_components.push(body_component);
+      }
+      } else {
+        console.warn(`Unknown component type: ${component.type}`);
+      }
+    }
+
+    const messageData = {
+      type: "template",
+      template: {
+        name: template_name,
+        language: {
+          code: "en_US"
+        },
+        components: res_components
+      }
+    };
+
+    return messageData;
+  } catch (error) {
+    console.error("Error in setTemplate function:", error);
+    throw error; // Rethrow the error to handle it further up the call stack if needed
+  }
+}
+
 app.post("/send-template", async(req,res) => {
-  const { bg_id, template,business_phone_number_id, phoneNumbers } = req.body
-  tenant_id = req.headers['X-Tenant-Id']
+  const { bg_id, template, business_phone_number_id, phoneNumbers } = req.body
+  const tenant_id = req.headers['X-Tenant-Id'];
   
+  const name = template.name
+  console.log(`tenant ID: ${tenant_id}, name: ${name}`)
   try {
     const tenantRes = await axios.get(`${baseURL}/whatsapp_tenant?business_phone_id=${business_phone_number_id}`, {
       headers: { 'X-Tenant-Id': tenant_id }
     });
     const access_token = tenantRes.data.access_token;
+    const account_id = tenantRes.data.account_id;
+    console.log(`access token: ${access_token}, account ID: ${account_id}`)
+    
+    const res  = await axios.get(`https://graph.facebook.com/v16.0/${account_id}/message_templates?name=${name}`, {
+      headers: {
+        Authorization: `Bearer ${access_token}`
+      }
+    })
+    const templateData = res.data.data[0]
+    console.log(`result: ${JSON.stringify(res.data, null, 3)}, template data: ${JSON.stringify(templateData, null, 3)}`)
+    
+    // console.log(`message data: ${JSON.stringify(messageData, null, 3)}`)
 
     for (const phoneNumber of phoneNumbers) {
       try {
         const formattedPhoneNumber = `${phoneNumber}`;
-        const response = await sendMessage(formattedPhoneNumber, business_phone_number_id, access_token);
+
+        const messageData = await setTemplate(templateData, phoneNumber, business_phone_number_id)
+
+        const response = await sendMessage(formattedPhoneNumber, business_phone_number_id, messageData, access_token);
         
         const messageID = response.data?.messages[0]?.id;
         if (bg_id != null) {
@@ -321,13 +422,13 @@ app.post("/send-template", async(req,res) => {
             tenant: tenant_id ,
           }),
         });
-        if (!saveRes.ok) throw new Error("Failed to save conversation");
+        // if (!saveRes.ok) throw new Error("Failed to save conversation");
       } catch (error) {
         console.error(`Failed to send message to ${phoneNumber}:`, error);
       }
     }
 
-    res.status(200).json({ success: true, message: "WhatsApp message(s) sent and saved successfully" });
+    res.sendStatus(200).json({ success: true, message: "WhatsApp message(s) sent successfully", results });
   } catch (error) {
     console.error("Error sending WhatsApp message:", error.message);
     res.status(500).json({ success: false, error: "Failed to send WhatsApp message" });
@@ -353,22 +454,53 @@ async function executeFallback(userSession){
     }
 }
 
+async function addContact(business_phone_number_id, c_data) {
+  try{
+    const response = await axios.post(`${baseURL}/get-tenant/`, {
+      bpid: business_phone_number_id
+    }, {
+      headers: {'X-Tenant-Id': 'll'}
+    })
+
+    const tenant = response.data.tenant
+
+    await axios.post(`${baseURL}/contacts_by_tenant/`, c_data, {
+      headers: {'X-Tenant-Id': tenant}
+    })
+  }catch (error){
+    console.error('Error Occured: ', error.message)
+  }
+}
+
 app.post("/webhook", async (req, res) => {
   try {
     const business_phone_number_id = req.body.entry?.[0].changes?.[0].value?.metadata?.phone_number_id;
     const contact = req.body.entry?.[0]?.changes[0]?.value?.contacts?.[0];
     const message = req.body.entry?.[0]?.changes[0]?.value?.messages?.[0];
-    const userPhoneNumber = contact?.wa_id;
+    const userPhoneNumber = contact?.wa_id || null;
     const statuses = req.body.entry?.[0]?.changes[0]?.value?.statuses?.[0];
+    
+    const name = contact?.profile?.name || null
+    console.log("Contact: ", name)
+    if(name && userPhoneNumber){
+      const contact_data = {
+        phone: userPhoneNumber,
+        name: name
+      }
+      const addContactPromise = addContact(business_phone_number_id, contact_data)
+    }
 
     if (message) {
+      const repliedTo = message?.context?.id || null
       console.log("Extracted data:", {
         business_phone_number_id,
         contact,
         message,
         userPhoneNumber
       });
+      if (repliedTo !== null) {
 
+      }
       console.log("Emitting new message event");
       
       let formattedConversation = [{
@@ -376,7 +508,8 @@ app.post("/webhook", async (req, res) => {
         sender: "user"
       }];
         
-        // Save conversation to backend
+      const now = new Date();
+      const timestamp = now.toLocaleString();
       try {
           fetch(`${baseURL}/whatsapp_convo_post/${userPhoneNumber}/?source=whatsapp`, {
             method: 'POST',
@@ -403,7 +536,8 @@ app.post("/webhook", async (req, res) => {
       io.emit('new-message', {
         message: messageData,
         phone_number_id: business_phone_number_id,
-        contactPhone: userPhoneNumber
+        contactPhone: userPhoneNumber,
+        time: timestamp
       });
       
       console.log("Emitted node message: ", messageData)
@@ -416,7 +550,8 @@ app.post("/webhook", async (req, res) => {
         try{
           io.emit('temp-user', {
             temp_user: temp_user,
-            contactPhone: userPhoneNumber
+            contactPhone: userPhoneNumber,
+            time: timestamp
           });
           
           console.log("Emitted temp_user message: ", messageData)
@@ -453,8 +588,8 @@ app.post("/webhook", async (req, res) => {
             flowName : response.data.flow_name,
             startNode : startNode,
             currNode: currNode,
-            nextNode:adjList[currNode],
-            business_number_id:business_phone_number_id,
+            nextNode: adjList[currNode],
+            business_number_id: business_phone_number_id,
             userPhoneNumber : userPhoneNumber,
             inputVariable : null,
             inputVariableType: null,
@@ -486,9 +621,9 @@ app.post("/webhook", async (req, res) => {
           try{
             let userSelection = message?.interactive?.button_reply?.title || message?.interactive?.list_reply?.title || message?.text?.body;
           
-            var validateResponse = await validateInput(userSession.inputVariable, userSelection)
+            // var validateResponse = await validateInput(userSession.inputVariable, userSelection)
             //TODO: fallback condiiton
-            validateResponse = validateResponse.trim()
+            var validateResponse = "Yes"
             if(validateResponse == "No." || validateResponse == "No"){
               await executeFallback(userSession)
               res.sendStatus(200)

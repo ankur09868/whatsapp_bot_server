@@ -621,9 +621,9 @@ app.post("/webhook", async (req, res) => {
           try{
             let userSelection = message?.interactive?.button_reply?.title || message?.interactive?.list_reply?.title || message?.text?.body;
           
-            var validateResponse = await validateInput(userSession.inputVariable, userSelection)
+            // var validateResponse = await validateInput(userSession.inputVariable, userSelection)
             //TODO: fallback condiiton
-            validateResponse = validateResponse.trim()
+            var validateResponse = "Yes"
             if(validateResponse == "No." || validateResponse == "No"){
               await executeFallback(userSession)
               res.sendStatus(200)

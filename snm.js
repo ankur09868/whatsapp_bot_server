@@ -1,7 +1,7 @@
 import { userSessions, io, updateStatus } from "./server.js";
 import axios from "axios";
 import { BlobServiceClient } from '@azure/storage-blob';
-export const baseURL = 'https://backenreal-hgg2d7a0d9fzctgj.eastus-01.azurewebsites.net'
+export const baseURL = 'http://localhost:8000'
 
 export async function sendMessage(phoneNumber, business_phone_number_id, messageData, access_token = null, fr_flag) {
 
@@ -138,10 +138,13 @@ export async function sendVideoMessage(phone, bpid, videoID, access_token, fr_fl
     return sendMessage(phone, bpid, messageData, access_token, fr_flag)
 }
 
-export async function sendAudioMessage(phone, bpid, audioID, access_token, fr_flag = false) {
+export async function sendAudioMessage(phone, bpid, audioID, caption, access_token, fr_flag = false) {
+    const audioObject = {}
+    if(audioID) audioObject.id = audioID
+    if(caption) audioObject.caption = caption
   const messageData = {
     type: "audio",
-    audio: { id: audioID}
+    audio: audioObject
   }
   return sendMessage(phone, bpid, messageData, access_token, fr_flag)
 }
@@ -155,12 +158,12 @@ export async function sendTextMessage(userPhoneNumber, business_phone_number_id,
 } 
  
 export async function sendImageMessage(phoneNumber, business_phone_number_id, imageID, caption, access_token = null, fr_flag= false) {
+    const imageObject = {}
+    if(imageID) imageObject.id = imageID
+    if(caption) imageObject.caption = caption
     const messageData = {
         type: "image",
-        image: {
-            id: imageID,
-            caption: caption
-        }
+        image: imageObject
     };
     console.log("IMAGEEEE");
     return sendMessage(phoneNumber, business_phone_number_id, messageData, access_token, fr_flag);
@@ -236,8 +239,6 @@ export async function sendNodeMessage(userPhoneNumber, business_phone_number_id)
         return;
     }
 
-
-    // console.log("session for node message: ", userSession)
     const { flowData, adjList, currNode, accessToken } = userSession;
     const flow = flowData;
     const adjListParsed =adjList;
@@ -299,6 +300,7 @@ export async function sendNodeMessage(userPhoneNumber, business_phone_number_id)
                 
                 await sendListMessage(list, node_message, userPhoneNumber,business_phone_number_id, accessToken);
                 break;
+            
             case "Text":
 
                 var placeholders = [...node_message.matchAll(/{{\s*[\w]+\s*}}/g)];
@@ -330,11 +332,15 @@ export async function sendNodeMessage(userPhoneNumber, business_phone_number_id)
                     sendNodeMessage(userPhoneNumber,business_phone_number_id)
                 }
                 break;
+
             case "image":
-                const caption = flow[currNode]?.body?.caption
-                var placeholders = [...caption.matchAll(/{{\s*[\w]+\s*}}/g)];
-                if(placeholders.length > 0) caption = await replacePlaceholders(node_message, userSession)
-                
+                var caption = flow[currNode]?.body?.caption
+
+                if(caption !== undefined){
+                    var placeholders = [...caption.matchAll(/{{\s*[\w]+\s*}}/g)];
+                    if(placeholders.length > 0) caption = await replacePlaceholders(node_message, userSession)
+                }
+
                 await sendImageMessage(userPhoneNumber,business_phone_number_id, flow[currNode]?.body?.id, flow[currNode]?.body?.caption ,accessToken);
                 userSession.currNode = nextNode[0] || null;
                 console.log("image currNode: ", userSession.currNode)
@@ -344,8 +350,15 @@ export async function sendNodeMessage(userPhoneNumber, business_phone_number_id)
                 break;
 
             case "audio":
+                const audioID = flow[currNode]?.body?.audioID
 
-                sendMessagePromise  = sendAudioMessage(userPhoneNumber, business_phone_number_id, flow[currNode]?.body?.audioID, accessToken);
+                var caption = flow[currNode]?.body?.caption
+                if(caption !== undefined){
+                    var placeholders = [...caption.matchAll(/{{\s*[\w]+\s*}}/g)];
+                    if(placeholders.length > 0) caption = await replacePlaceholders(node_message, userSession)
+                }
+
+                sendMessagePromise  = await sendAudioMessage(userPhoneNumber, business_phone_number_id, audioID, caption, accessToken);
                 userSession.currNode = nextNode[0] || null;
                 console.log("audio currNode: ", userSession.currNode)
                 if(userSession.currNode!=null) {
@@ -417,11 +430,15 @@ export async function addDynamicModelInstance(modelName, updateData) {
     }
 }
 
-export async function replacePlaceholders(message, userPhoneNumber = null, business_phone_number_id=null) {
+export async function replacePlaceholders(message, userSession=null, userPhoneNumber=null, business_phone_number_id=null) {
     
     let modifiedMessage = message;
 
     const placeholders = [...message.matchAll(/{{\s*[\w]+\s*}}/g)];
+    if (userSession !== null) {
+        var userPhoneNumber = userSession.userPhoneNumber
+        var business_phone_number_id = userSession.business_number_id
+    }
     
     for (const placeholder of placeholders) {
         let key = placeholder[0].slice(2, -2).trim();

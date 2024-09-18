@@ -417,8 +417,7 @@ export async function addDynamicModelInstance(modelName, updateData) {
     }
 }
 
-
-export async function replacePlaceholders(message, userPhoneNumber = null, bpid=null) {
+export async function replacePlaceholders(message, userPhoneNumber = null, business_phone_number_id=null) {
     
     let modifiedMessage = message;
 
@@ -432,10 +431,11 @@ export async function replacePlaceholders(message, userPhoneNumber = null, bpid=
         // if(keys[0]=="contact") url = `${baseURL}/contacts-by-phone/${userPhoneNumber}`
         // else if(keys[0] == "opportunity") url = `${baseURL}/opportunity-by-phone/${userPhoneNumber}`
         // else if(keys[0] == "dynamic") url = `${baseURL}/${flowName}/${userPhoneNumber}`
-        const tenant_id = await axios.get(`${baseURL}/get-tenant/`, {
-            bpid: bpid
-        })
-
+        const data = {
+            bpid: business_phone_number_id
+        }
+        const tenant_id_res = await axios.post(`${baseURL}/get-tenant/`, data)
+        const tenant_id = tenant_id_res.data.tenant
         try {
             const response = await axios.get(url, {
                 headers: {

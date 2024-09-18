@@ -8,8 +8,8 @@ import session from "express-session";
 import { getAccessToken, getWabaID, getPhoneNumberID, registerAccount, postRegister } from "./login-flow.js";
 import { sendNodeMessage, sendImageMessage, sendButtonMessage, sendTextMessage, sendMessage, replacePlaceholders, addDynamicModelInstance, sendAudioMessage, sendVideoMessage,sendLocationMessage, baseURL } from "./snm.js";
 import NodeCache from 'node-cache';
-import fs from 'fs/promises'
-import { time } from "console";
+
+import FormData from "form-data";
 const messageCache = new NodeCache({ stdTTL: 600 });
 
 const AIMode=false;
@@ -37,6 +37,7 @@ export async function updateStatus(status, message_id, business_phone_number_id,
   let isDelivered = false;
   let isSent = false;
   let isReplied = false;
+  let isFailed = false;
 
   try {
     if (status === "replied"){
@@ -53,11 +54,18 @@ export async function updateStatus(status, message_id, business_phone_number_id,
       isSent = true;
     } else if (status === "sent") {
       isSent = true;
+    } else if (status === "failed"){
+      isRead = false;
+      isDelivered = false;
+      isSent = false;
+      isReplied = false;
+      isFailed = true;
     }
 
     // Prepare data to send
     const data = {
       business_phone_number_id: business_phone_number_id,
+      is_failed: isFailed,
       is_replied: isReplied,
       is_read: isRead,
       is_delivered: isDelivered,
@@ -207,7 +215,7 @@ app.patch("/toggleAiReplies", async(req,res) =>{
 app.post("/send-message", async (req, res) => {
   try {
     const { phoneNumbers, message, url, messageType, additionalData, business_phone_number_id, bg_id } = req.body;
-    const tenant_id = req.headers['X-Tenant-Id'];
+    var tenant_id = req.headers['X-Tenant-Id'];
 
     const sendPromises = phoneNumbers.map(async (phoneNumber) => {
       const formattedPhoneNumber = `91${phoneNumber}`;
@@ -296,7 +304,31 @@ app.post("/send-message", async (req, res) => {
 });
 
 
-async function setTemplate(templateData, phone, bpid) {
+async function getMediaID(handle, bpid, access_token) {
+  const imageResponse = await axios.get(handle, { responseType: 'arraybuffer' });
+  
+  const formData = new FormData();
+  formData.append('file', Buffer.from(imageResponse.data), 'image.jpeg');
+  formData.append('type', 'image/jpeg');
+  formData.append('messaging_product', 'whatsapp');
+
+  const response = await axios.post(
+    `https://graph.facebook.com/v20.0/${bpid}/media`,
+    formData,
+    {
+      headers: {
+        Authorization: `Bearer ${access_token}`,
+        ...formData.getHeaders() 
+      }
+    }
+  );
+  
+  console.log(response.data);
+  return response.data.id;
+}
+
+
+async function setTemplate(templateData, phone, bpid, access_token) {
   try {
     const components = templateData?.components;
     const template_name = templateData.name;
@@ -309,9 +341,10 @@ async function setTemplate(templateData, phone, bpid) {
         const parameters = [];
 
         for (const handle of header_handle) {
+          const mediaID = await getMediaID(handle, bpid, access_token)
           parameters.push({
             type: "image",
-            image: { id: handle }
+            image: { id: mediaID }
           });
         }
         for (const text of header_text) {
@@ -399,7 +432,7 @@ app.post("/send-template", async(req,res) => {
       try {
         const formattedPhoneNumber = `${phoneNumber}`;
 
-        const messageData = await setTemplate(templateData, phoneNumber, business_phone_number_id)
+        const messageData = await setTemplate(templateData, phoneNumber, business_phone_number_id, access_token)
 
         const response = await sendMessage(formattedPhoneNumber, business_phone_number_id, messageData, access_token);
         
@@ -455,11 +488,12 @@ async function executeFallback(userSession){
 }
 
 async function addContact(business_phone_number_id, c_data) {
+  const data = {
+    bpid: business_phone_number_id
+  }
   try{
-    const response = await axios.post(`${baseURL}/get-tenant/`, {
-      bpid: business_phone_number_id
-    }, {
-      headers: {'X-Tenant-Id': 'll'}
+    const response = await axios.post(`${baseURL}/get-tenant/`, data, {
+      headers: {'X-Tenant-Id': 'll', 'Content-Type': 'application/json'}
     })
 
     const tenant = response.data.tenant
@@ -752,9 +786,7 @@ app.post("/webhook", async (req, res) => {
       
       updateStatus(status, id)
       console.log(status, id)
-
     }
-  
     res.sendStatus(200);
   }
   catch (error) {

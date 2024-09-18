@@ -255,7 +255,7 @@ export async function sendNodeMessage(userPhoneNumber, business_phone_number_id)
     }
 
     if (typeof currNode !== 'undefined' && currNode !== null && adjListParsed) {
-
+        
         const nextNode = adjListParsed[currNode];
         var node_message = flow[currNode]?.body;
         
@@ -326,7 +326,8 @@ export async function sendNodeMessage(userPhoneNumber, business_phone_number_id)
                 
                 
                 await sendTextMessage(userPhoneNumber,business_phone_number_id, node_message);
-                userSession.currNode = nextNode[0] || null;
+                console.log(nextNode[0])
+                userSession.currNode = nextNode[0] !==undefined ? nextNode[0] : null;
                 console.log("string currNode: ", userSession.currNode)
                 if(userSession.currNode!=null) {
                     sendNodeMessage(userPhoneNumber,business_phone_number_id)
@@ -342,7 +343,7 @@ export async function sendNodeMessage(userPhoneNumber, business_phone_number_id)
                 }
 
                 await sendImageMessage(userPhoneNumber,business_phone_number_id, flow[currNode]?.body?.id, flow[currNode]?.body?.caption ,accessToken);
-                userSession.currNode = nextNode[0] || null;
+                userSession.currNode = nextNode[0] !==undefined ? nextNode[0] : null;
                 console.log("image currNode: ", userSession.currNode)
                 if(userSession.currNode!=null) {
                     sendNodeMessage(userPhoneNumber,business_phone_number_id)
@@ -359,7 +360,7 @@ export async function sendNodeMessage(userPhoneNumber, business_phone_number_id)
                 }
 
                 sendMessagePromise  = await sendAudioMessage(userPhoneNumber, business_phone_number_id, audioID, caption, accessToken);
-                userSession.currNode = nextNode[0] || null;
+                userSession.currNode = nextNode[0] !==undefined ? nextNode[0] : null;
                 console.log("audio currNode: ", userSession.currNode)
                 if(userSession.currNode!=null) {
                     sendNodeMessage(userPhoneNumber,business_phone_number_id)
@@ -368,7 +369,7 @@ export async function sendNodeMessage(userPhoneNumber, business_phone_number_id)
             
             case "video":
                 sendMessagePromise = sendVideoMessage(userPhoneNumber, business_phone_number_id, flow[currNode]?.body?.videoID, accessToken);
-                userSession.currNode = nextNode[0] || null;
+                userSession.currNode = nextNode[0] !==undefined ? nextNode[0] : null;
                 console.log("video currNode: ", userSession.currNode)
                 if(userSession.currNode!=null) {
                     sendNodeMessage(userPhoneNumber,business_phone_number_id)
@@ -378,7 +379,7 @@ export async function sendNodeMessage(userPhoneNumber, business_phone_number_id)
             case "location":
 
                 sendMessagePromise = sendLocationMessage(userPhoneNumber, business_phone_number_id, flow[currNode]?.body , accessToken)
-                userSession.currNode = nextNode[0] || null;
+                userSession.currNode = nextNode[0] !==undefined ? nextNode[0] : null;
                 console.log("image currNode: ", userSession.currNode)
                 if(userSession.currNode!=null) {
                     sendNodeMessage(userPhoneNumber,business_phone_number_id)

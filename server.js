@@ -404,7 +404,7 @@ async function setTemplate(templateData, phone, bpid, access_token) {
   }
 }
 
-app.post("/send-template", async(req,res) => {
+app.post("/send-template", async(req, res) => {
   const { bg_id, template, business_phone_number_id, phoneNumbers } = req.body
   const tenant_id = req.headers['X-Tenant-Id'];
   
@@ -418,13 +418,13 @@ app.post("/send-template", async(req,res) => {
     const account_id = tenantRes.data.account_id;
     console.log(`access token: ${access_token}, account ID: ${account_id}`)
     
-    const res  = await axios.get(`https://graph.facebook.com/v16.0/${account_id}/message_templates?name=${name}`, {
+    const response  = await axios.get(`https://graph.facebook.com/v16.0/${account_id}/message_templates?name=${name}`, {
       headers: {
         Authorization: `Bearer ${access_token}`
       }
     })
-    const templateData = res.data.data[0]
-    console.log(`result: ${JSON.stringify(res.data, null, 3)}, template data: ${JSON.stringify(templateData, null, 3)}`)
+    const templateData = response.data.data[0]
+    console.log(`result: ${JSON.stringify(response.data, null, 3)}, template data: ${JSON.stringify(templateData, null, 3)}`)
     
     // console.log(`message data: ${JSON.stringify(messageData, null, 3)}`)
 
@@ -434,9 +434,9 @@ app.post("/send-template", async(req,res) => {
 
         const messageData = await setTemplate(templateData, phoneNumber, business_phone_number_id, access_token)
 
-        const response = await sendMessage(formattedPhoneNumber, business_phone_number_id, messageData, access_token);
+        const sendMessage_response = await sendMessage(formattedPhoneNumber, business_phone_number_id, messageData, access_token);
         
-        const messageID = response.data?.messages[0]?.id;
+        const messageID = sendMessage_response.data?.messages[0]?.id;
         if (bg_id != null) {
           updateStatus(null, messageID, null, null, bg_id);
         }
@@ -461,9 +461,9 @@ app.post("/send-template", async(req,res) => {
       }
     }
 
-    res.status(200).json({ success: true, message: "WhatsApp message(s) sent successfully", results });
+    res.status(200).json({ success: true, message: "WhatsApp message(s) sent successfully"});
   } catch (error) {
-    console.error("Error sending WhatsApp message:", error.message);
+    console.error("Error sending WhatsApp message::::", error.message);
     res.status(500).json({ success: false, error: "Failed to send WhatsApp message" });
   }
 });

@@ -348,7 +348,7 @@ async function setTemplate(templateData, phone, bpid, access_token) {
           });
         }
         for (const text of header_text) {
-          let modified_text = await replacePlaceholders(text, phone, bpid)
+          let modified_text = await replacePlaceholders(text, null, phone, bpid)
           parameters.push({
             type: "text",
             text: modified_text
@@ -367,7 +367,7 @@ async function setTemplate(templateData, phone, bpid, access_token) {
         const parameters = [];
         
         for (const text of body_text) {
-          let modified_text = await replacePlaceholders(text, phone, bpid)
+          let modified_text = await replacePlaceholders(text, null, phone, bpid)
 
           parameters.push({
             type: "text",
@@ -461,7 +461,7 @@ app.post("/send-template", async(req,res) => {
       }
     }
 
-    res.sendStatus(200).json({ success: true, message: "WhatsApp message(s) sent successfully", results });
+    res.status(200).json({ success: true, message: "WhatsApp message(s) sent successfully", results });
   } catch (error) {
     console.error("Error sending WhatsApp message:", error.message);
     res.status(500).json({ success: false, error: "Failed to send WhatsApp message" });
@@ -521,7 +521,7 @@ app.post("/webhook", async (req, res) => {
         phone: userPhoneNumber,
         name: name
       }
-      const addContactPromise = addContact(business_phone_number_id, contact_data)
+      addContact(business_phone_number_id, contact_data)
     }
 
     if (message) {
@@ -533,7 +533,8 @@ app.post("/webhook", async (req, res) => {
         userPhoneNumber
       });
       if (repliedTo !== null) {
-
+        console.log("updating status: ", repliedTo)
+        updateStatus("replied", repliedTo)
       }
       console.log("Emitting new message event");
       
@@ -732,6 +733,7 @@ app.post("/webhook", async (req, res) => {
           console.log("Calling sendNodeMessage");
           sendNodeMessage(userPhoneNumber,business_phone_number_id);
         }
+
       } else {
         console.log("Processing in AI mode");
       }

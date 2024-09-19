@@ -1,7 +1,7 @@
 import { userSessions, io, updateStatus } from "./server.js";
 import axios from "axios";
 import { BlobServiceClient } from '@azure/storage-blob';
-export const baseURL = "https://backenreal-hgg2d7a0d9fzctgj.eastus-01.azurewebsites.net/"
+export const baseURL = "http://localhost:8000"
 
 export async function sendMessage(phoneNumber, business_phone_number_id, messageData, access_token = null, fr_flag) {
 
@@ -83,6 +83,7 @@ export async function sendMessage(phoneNumber, business_phone_number_id, message
                         },
                         body: JSON.stringify({
                             contact_id: phoneNumber,
+                            business_phone_number_id: business_phone_number_id,
                             conversations: formattedConversation,
                             tenant: 'll',
                         }),

@@ -618,7 +618,7 @@ app.post("/webhook", async (req, res) => {
             throw new Error("adjList is not an array of arrays");
           }
 
-          const startNode = response.data.start !== null ? startNode : 0;
+          const startNode = response.data.start !== null ? response.data.start : 0;
           const currNode = startNode 
           userSession = { 
             flowData: response.data.flow_data,

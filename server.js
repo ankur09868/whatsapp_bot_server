@@ -506,6 +506,10 @@ async function addContact(business_phone_number_id, c_data) {
   }
 }
 
+app.post("/reset-session", async (req, res) => {
+
+})
+
 app.post("/webhook", async (req, res) => {
   try {
     const business_phone_number_id = req.body.entry?.[0].changes?.[0].value?.metadata?.phone_number_id;
@@ -614,8 +618,8 @@ app.post("/webhook", async (req, res) => {
             throw new Error("adjList is not an array of arrays");
           }
 
-          const startNode = response.data.start;
-          const currNode = startNode !== null ? startNode : 0;
+          const startNode = response.data.start !== null ? startNode : 0;
+          const currNode = startNode 
           userSession = { 
             flowData: response.data.flow_data,
             adjList: response.data.adj_list,

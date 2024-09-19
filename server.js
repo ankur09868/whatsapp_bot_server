@@ -244,6 +244,7 @@ app.post("/send-message", async (req, res) => {
         },
         body: JSON.stringify({
           contact_id: formattedPhoneNumber,
+          business_phone_number_id: business_phone_number_id,
           conversations: formattedConversation,
           tenant: 'll',
         }),
@@ -451,6 +452,7 @@ app.post("/send-template", async(req, res) => {
           },
           body: JSON.stringify({
             contact_id: formattedPhoneNumber,
+            business_phone_number_id: business_phone_number_id,
             conversations: formattedConversation,
             tenant: tenant_id ,
           }),
@@ -507,8 +509,23 @@ async function addContact(business_phone_number_id, c_data) {
 }
 
 app.post("/reset-session", async (req, res) => {
+  try {
+    const bpid = req.body.business_phone_number_id;
+    for (let key of userSessions.keys()) {
+      if (key.includes(bpid)) {
+        userSessions.delete(key);
+      }
+    }
+    console.log("User Sessions after delete: ", userSessions)
+    res.status(200).json({ "Success": `Session Deleted Successfully for ${bpid}` });
 
-})
+  } catch (error) {
+    console.log(`Error Occurred while resetting session for ${bpid}: `, error);
+
+    res.status(500).json({ "Error": `Error Occurred while resetting session for ${bpid}` });
+  }
+});
+
 
 app.post("/webhook", async (req, res) => {
   try {
@@ -558,6 +575,7 @@ app.post("/webhook", async (req, res) => {
             },
             body: JSON.stringify({
               contact_id: userPhoneNumber,
+              business_phone_number_id: business_phone_number_id,
               conversations: formattedConversation,
               tenant: 'll',
             }),
@@ -583,12 +601,12 @@ app.post("/webhook", async (req, res) => {
     }catch(error){
       console.log("error occured while emission: ", error)
     }
-      
     const temp_user = message?.text?.body?.startsWith('*/') ? message.text.body.split('*/')[1]?.split(' ')[0] : null;
       if(temp_user){
         try{
           io.emit('temp-user', {
             temp_user: temp_user,
+            phone_number_id: business_phone_number_id,
             contactPhone: userPhoneNumber,
             time: timestamp
           });
@@ -632,8 +650,8 @@ app.post("/webhook", async (req, res) => {
             userPhoneNumber : userPhoneNumber,
             inputVariable : null,
             inputVariableType: null,
-            fallback_msg : response.data.fallback_msg,
-            fallback_count: response.data.fallback_count
+            fallback_msg : response.data.fallback_msg || "please provide correct input",
+            fallback_count: response.data.fallback_count != null ? response.data.fallback_count : 1
           };
           const key = userPhoneNumber + business_phone_number_id
           userSessions.set(key, userSession);

@@ -8,8 +8,8 @@ import session from "express-session";
 import { getAccessToken, getWabaID, getPhoneNumberID, registerAccount, postRegister } from "./login-flow.js";
 import { sendNodeMessage, sendImageMessage, sendButtonMessage, sendTextMessage, sendMessage, replacePlaceholders, addDynamicModelInstance, sendAudioMessage, sendVideoMessage,sendLocationMessage, baseURL } from "./snm.js";
 import NodeCache from 'node-cache';
-
 import FormData from "form-data";
+
 const messageCache = new NodeCache({ stdTTL: 600 });
 
 const AIMode=false;
@@ -91,14 +91,6 @@ export async function updateStatus(status, message_id, business_phone_number_id,
   }
 }
 
-async function sendTemplates(template){
-  const templateData = {
-    type: "template",
-    template: template
-  }
-  return templateData
-}
-
 async function validateInput(inputVariable, message){
   try{
   const prompt = `Question being asked is: ${inputVariable}?\n
@@ -135,7 +127,6 @@ async function validateInput(inputVariable, message){
   return false;
 }
 }
-
 
 app.use(express.json());
 app.use(cors());
@@ -193,25 +184,6 @@ app.get("/imageData/:bpid/:id", async (req, res) => {
   }
 });
 
-app.post("/flowdata", async (req, res) => {
-  adjList=req.body.adjacencyList;
-  flow=req.body.nodes;
-  console.log("rec data: ", req.body);
-
-
-  res.status(200).json({ success: true, message: "flowdata sent successfully" });
-})
-
-app.patch("/toggleAiReplies", async(req,res) =>{
-  try {
-    AI_Replies = !AI_Replies;
-    res.status(200).json({ success: true, message: "Task Done" });
-  } catch (error) {
-    console.error("Error sending Whatsapp message:", error.message);
-    res.status(500).json({ success: false, error: "Failed" });
-  }
-});
-
 app.post("/send-message", async (req, res) => {
   try {
     const { phoneNumbers, message, url, messageType, additionalData, business_phone_number_id, bg_id } = req.body;
@@ -234,34 +206,32 @@ app.post("/send-message", async (req, res) => {
           throw error;
         }
       }
-
-      let formattedConversation = [{ text: message, sender: "bot" }];
-      const saveConversationPromise = fetch(`${baseURL}/whatsapp_convo_post/${formattedPhoneNumber}/?source=whatsapp`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Tenant-Id': 'll'
-        },
-        body: JSON.stringify({
-          contact_id: formattedPhoneNumber,
-          business_phone_number_id: business_phone_number_id,
-          conversations: formattedConversation,
-          tenant: 'll',
-        }),
-      });
+      // let formattedConversation = [{ text: message, sender: "bot" }];
+      // const saveConversationPromise = fetch(`${baseURL}/whatsapp_convo_post/${formattedPhoneNumber}/?source=whatsapp`, {
+      //   method: 'POST',
+      //   headers: {
+      //     'Content-Type': 'application/json',
+      //     'X-Tenant-Id': 'll'
+      //   },
+      //   body: JSON.stringify({
+      //     contact_id: formattedPhoneNumber,
+      //     business_phone_number_id: business_phone_number_id,
+      //     conversations: formattedConversation,
+      //     tenant: 'll',
+      //   }),
+      // });
 
       let sendMessagePromise;
       let fr_flag;
       switch (messageType) {
         case 'text':
-
           sendMessagePromise = sendTextMessage(formattedPhoneNumber, business_phone_number_id, message, access_token, fr_flag = true);
           break;
         case 'image':
           const { imageId, caption } = additionalData;
           console.log(`image ID: ${imageId}, caption: ${caption}`)
           sendMessagePromise = sendImageMessage(formattedPhoneNumber, business_phone_number_id, imageId, caption, access_token, fr_flag = true);
-          formattedConversation.push({ text: caption, sender: "bot" });
+          // formattedConversation.push({ text: caption, sender: "bot" });
           break;
         // case 'button':
         //   const { buttons } = additionalData;
@@ -282,11 +252,8 @@ app.post("/send-message", async (req, res) => {
           throw new Error("Invalid message type");
       }
 
-      const [saveRes, response] = await Promise.all([saveConversationPromise, sendMessagePromise]);
+      const [ response] = await Promise.all([ sendMessagePromise]);
 
-      if (!saveRes.ok) {
-        console.error("Error saving conversation:", await saveRes.text());
-      }
 
       const messageID = response.data?.messages[0]?.id;
       if (bg_id != null && messageID) {
@@ -303,7 +270,6 @@ app.post("/send-message", async (req, res) => {
     res.status(500).json({ success: false, error: "Failed to send WhatsApp message" });
   }
 });
-
 
 async function getMediaID(handle, bpid, access_token) {
   const imageResponse = await axios.get(handle, { responseType: 'arraybuffer' });
@@ -327,7 +293,6 @@ async function getMediaID(handle, bpid, access_token) {
   console.log(response.data);
   return response.data.id;
 }
-
 
 async function setTemplate(templateData, phone, bpid, access_token) {
   try {
@@ -409,7 +374,7 @@ app.post("/send-template", async(req, res) => {
   const { bg_id, template, business_phone_number_id, phoneNumbers } = req.body
   const tenant_id = req.headers['X-Tenant-Id'];
   
-  const name = template.name
+  const templateName = template.name
   console.log(`tenant ID: ${tenant_id}, name: ${name}`)
   try {
     const tenantRes = await axios.get(`${baseURL}/whatsapp_tenant?business_phone_id=${business_phone_number_id}`, {
@@ -419,7 +384,7 @@ app.post("/send-template", async(req, res) => {
     const account_id = tenantRes.data.account_id;
     console.log(`access token: ${access_token}, account ID: ${account_id}`)
     
-    const response  = await axios.get(`https://graph.facebook.com/v16.0/${account_id}/message_templates?name=${name}`, {
+    const response  = await axios.get(`https://graph.facebook.com/v16.0/${account_id}/message_templates?name=${templateName}`, {
       headers: {
         Authorization: `Bearer ${access_token}`
       }
@@ -443,20 +408,20 @@ app.post("/send-template", async(req, res) => {
         }
 
         // Save conversation to backend
-        const formattedConversation = [{ text: template.name, sender: "bot" }];
-        const saveRes = await fetch(`${baseURL}/whatsapp_convo_post/${formattedPhoneNumber}/?source=whatsapp`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'X-Tenant-Id': tenant_id 
-          },
-          body: JSON.stringify({
-            contact_id: formattedPhoneNumber,
-            business_phone_number_id: business_phone_number_id,
-            conversations: formattedConversation,
-            tenant: tenant_id ,
-          }),
-        });
+        // const formattedConversation = [{ text: template.name, sender: "bot" }];
+        // const saveRes = await fetch(`${baseURL}/whatsapp_convo_post/${formattedPhoneNumber}/?source=whatsapp`, {
+        //   method: 'POST',
+        //   headers: {
+        //     'Content-Type': 'application/json',
+        //     'X-Tenant-Id': tenant_id 
+        //   },
+        //   body: JSON.stringify({
+        //     contact_id: formattedPhoneNumber,
+        //     business_phone_number_id: business_phone_number_id,
+        //     conversations: formattedConversation,
+        //     tenant: tenant_id ,
+        //   }),
+        // });
         // if (!saveRes.ok) throw new Error("Failed to save conversation");
       } catch (error) {
         console.error(`Failed to send message to ${phoneNumber}:`, error);
@@ -526,7 +491,6 @@ app.post("/reset-session", async (req, res) => {
   }
 });
 
-
 app.post("/webhook", async (req, res) => {
   try {
     const business_phone_number_id = req.body.entry?.[0].changes?.[0].value?.metadata?.phone_number_id;
@@ -535,12 +499,12 @@ app.post("/webhook", async (req, res) => {
     const userPhoneNumber = contact?.wa_id || null;
     const statuses = req.body.entry?.[0]?.changes[0]?.value?.statuses?.[0];
     
-    const name = contact?.profile?.name || null
-    console.log("Contact: ", name)
-    if(name && userPhoneNumber){
+    const userName = contact?.profile?.name || null
+    console.log("Contact: ", userName)
+    if(userName && userPhoneNumber){
       const contact_data = {
         phone: userPhoneNumber,
-        name: name
+        name: userName
       }
       addContact(business_phone_number_id, contact_data)
     }
@@ -564,8 +528,6 @@ app.post("/webhook", async (req, res) => {
         sender: "user"
       }];
         
-      const now = new Date();
-      const timestamp = now.toLocaleString();
       try {
           fetch(`${baseURL}/whatsapp_convo_post/${userPhoneNumber}/?source=whatsapp`, {
             method: 'POST',
@@ -589,11 +551,15 @@ app.post("/webhook", async (req, res) => {
           type: "text",
           text: { body: message?.text?.body || (message?.interactive ? (message?.interactive?.button_reply?.title || message?.interactive?.list_reply?.title) : null) }
       }
+      
+      const now = Date.now()
+      const timestamp = now.toLocaleString();
       try{
       io.emit('new-message', {
         message: messageData,
         phone_number_id: business_phone_number_id,
         contactPhone: userPhoneNumber,
+        name: userName,
         time: timestamp
       });
       
@@ -635,10 +601,11 @@ app.post("/webhook", async (req, res) => {
           if (!Array.isArray(adjList) || !adjList.every(Array.isArray)) {
             throw new Error("adjList is not an array of arrays");
           }
-
+          
           const startNode = response.data.start !== null ? response.data.start : 0;
           const currNode = startNode 
           userSession = { 
+            lastActivityTime: Date.now(),
             flowData: response.data.flow_data,
             adjList: response.data.adj_list,
             accessToken: response.data.access_token,
@@ -661,6 +628,7 @@ app.post("/webhook", async (req, res) => {
           throw error;
         }
       } else {
+        userSession.lastActivityTime = Date.now()
         if(userSession.currNode != null) userSession.nextNode = userSession.adjList[userSession.currNode]
         else {
           userSession.currNode = userSession.startNode
@@ -702,7 +670,7 @@ app.post("/webhook", async (req, res) => {
           } catch (error) {
             console.error("An error occurred during processing:", error);
             if (!res.headersSent) {
-              res.sendStatus(500); // Or any other error status code based on your use case
+              res.sendStatus(500);
             }
           }
         }
@@ -892,5 +860,4 @@ function clearInactiveSessions() {
   }
 }
 
-// Run the clearInactiveSessions function every hour  
 setInterval(clearInactiveSessions, 60 * 60 * 1000);

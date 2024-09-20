@@ -1,7 +1,8 @@
 import { userSessions, io, updateStatus } from "./server.js";
 import axios from "axios";
 import { BlobServiceClient } from '@azure/storage-blob';
-export const baseURL = "https://backenreal-hgg2d7a0d9fzctgj.eastus-01.azurewebsites.net"
+// export const baseURL = "https://backenreal-hgg2d7a0d9fzctgj.eastus-01.azurewebsites.net"
+export const baseURL = "http://localhost:8000"
 
 export async function sendMessage(phoneNumber, business_phone_number_id, messageData, access_token = null, fr_flag) {
 
@@ -56,13 +57,11 @@ export async function sendMessage(phoneNumber, business_phone_number_id, message
                     }
                     console.log("message data  updated: ", messageData)
                 })
-
-                
             }
             
-            const now = new Date();
+            const now = Date.now()
             const timestamp = now.toLocaleString();
-            if(fr_flag !== true){
+
                 try{
                     console.log("MESSAGE DATA: ", messageData)
                     io.emit('node-message', {
@@ -98,7 +97,6 @@ export async function sendMessage(phoneNumber, business_phone_number_id, message
                 }catch(error){
                     console.log("error occured while emission: ", error)
                 }
-            }
             
 
             await mediaURLPromise

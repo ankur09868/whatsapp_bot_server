@@ -255,7 +255,7 @@ export async function sendNodeMessage(userPhoneNumber, business_phone_number_id)
         console.log(`delayed by ${delay} seconds`)
         setTimeout(() => {
             sendNodeMessage(userPhoneNumber, business_phone_number_id);
-        }, delay  * 1000)
+        }, delay * 1000)
         return;
     }
     if (typeof currNode !== 'undefined' && currNode !== null && adjListParsed) {

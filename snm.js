@@ -265,6 +265,7 @@ export async function sendNodeMessage(userPhoneNumber, business_phone_number_id)
         
         let sendMessagePromise;
         let sendDynamicPromise;
+        console.log("flowlfolwolfowl: ", flow[currNode])
         switch (flow[currNode]?.type) {
             case "Button":
                 const buttons = nextNode

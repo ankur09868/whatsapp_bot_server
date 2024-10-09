@@ -448,7 +448,7 @@ app.post("/send-template", async(req, res) => {
   const tenant_id = req.headers['X-Tenant-Id'];
   
   const templateName = template.name
-  console.log(`tenant ID: ${tenant_id}, name: ${name}`)
+  console.log(`tenant ID: ${tenant_id}`)
   try {
     const tenantRes = await axios.get(`${baseURL}/whatsapp_tenant?business_phone_id=${business_phone_number_id}`, {
       headers: { 'X-Tenant-Id': tenant_id }
@@ -593,7 +593,7 @@ app.post("/webhook", async (req, res) => {
         phone: userPhoneNumber,
         name: userName
       }
-      addContact(business_phone_number_id, contact_data)
+      // addContact(business_phone_number_id, contact_data)
     }
 
     if (message) {
@@ -677,8 +677,10 @@ app.post("/webhook", async (req, res) => {
           const response = await axios.get(`${baseURL}/whatsapp_tenant?business_phone_id=${business_phone_number_id}`,{
             headers: {'X-Tenant-Id': 'll'} 
           });
-          const flowData = response.data.flow_data
-          const adjList = response.data.adj_list
+          const flowData1 = response.data.flow_data
+          let flowData = JSON.parse(flowData1);
+          const adjList1 = response.data.adj_list
+          let adjList = JSON.parse(adjList1)
           console.log("Tenant data received:", response.data);
   
           // Validate the data types
@@ -694,8 +696,8 @@ app.post("/webhook", async (req, res) => {
           userSession = {
             AIMode: false,
             lastActivityTime: Date.now(),
-            flowData: response.data.flow_data,
-            adjList: response.data.adj_list,
+            flowData: flowData,
+            adjList: adjList,
             accessToken: response.data.access_token,
             flowName : response.data.flow_name,
             startNode : startNode,

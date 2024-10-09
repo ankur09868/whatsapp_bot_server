@@ -624,8 +624,10 @@ app.post("/webhook", async (req, res) => {
           const response = await axios.get(`${baseURL}/whatsapp_tenant?business_phone_id=${business_phone_number_id}`,{
             headers: {'X-Tenant-Id': 'll'} 
           });
-          const flowData = response.data.flow_data
-          const adjList = response.data.adj_list
+          const flowData1 = response.data.flow_data
+          let flowData = JSON.parse(flowData1);
+          const adjList1 = response.data.adj_list
+          let adjList = JSON.parse(adjList1)
           console.log("Tenant data received:", response.data);
   
           // Validate the data types

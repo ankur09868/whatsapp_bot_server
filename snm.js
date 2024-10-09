@@ -2,6 +2,7 @@ import { userSessions, io, updateStatus } from "./server.js";
 import axios from "axios";
 import { BlobServiceClient } from '@azure/storage-blob';
 export const baseURL = "https://backenreal-hgg2d7a0d9fzctgj.eastus-01.azurewebsites.net"
+// export const baseURL = "http://localhost:8000"
 
 export async function sendMessage(phoneNumber, business_phone_number_id, messageData, access_token = null, fr_flag) {
 
@@ -56,13 +57,11 @@ export async function sendMessage(phoneNumber, business_phone_number_id, message
                     }
                     console.log("message data  updated: ", messageData)
                 })
-
-                
             }
             
-            const now = new Date();
+            const now = Date.now()
             const timestamp = now.toLocaleString();
-            if(fr_flag !== true){
+
                 try{
                     console.log("MESSAGE DATA: ", messageData)
                     io.emit('node-message', {
@@ -98,7 +97,6 @@ export async function sendMessage(phoneNumber, business_phone_number_id, message
                 }catch(error){
                     console.log("error occured while emission: ", error)
                 }
-            }
             
 
             await mediaURLPromise
@@ -170,7 +168,8 @@ export async function sendImageMessage(phoneNumber, business_phone_number_id, im
     return sendMessage(phoneNumber, business_phone_number_id, messageData, access_token, fr_flag);
 }
   
-export async function sendButtonMessage(buttons, message, phoneNumber, business_phone_number_id, access_token = null, fr_flag = false) {
+export async function sendButtonMessage(buttons, message, phoneNumber, business_phone_number_id,  mediaID = null, access_token = null, fr_flag = false) {
+    console.log("phone number: ", phoneNumber, business_phone_number_id)
     const key = phoneNumber + business_phone_number_id
     console.log("USER SESSIONS: ", userSessions, key)
     const userSession = userSessions.get(key);
@@ -193,6 +192,12 @@ export async function sendButtonMessage(buttons, message, phoneNumber, business_
                 action: { buttons: button_rows }
             }
         }
+        
+        if(mediaID !== null && mediaID !== undefined) {
+            console.log("media id present")
+            messageData.interactive['header'] = { type: 'image', image: {id: mediaID}}
+        }
+
         return sendMessage(phoneNumber, business_phone_number_id, messageData, access_token, fr_flag)
     } catch (error) {
         console.error('Failed to send button message:', error.response ? error.response.data : error.message);
@@ -250,11 +255,9 @@ export async function sendNodeMessage(userPhoneNumber, business_phone_number_id)
         console.log(`delayed by ${delay} seconds`)
         setTimeout(() => {
             sendNodeMessage(userPhoneNumber, business_phone_number_id);
-        }, delay  * 1000)
-        
+        }, delay * 1000)
         return;
     }
-
     if (typeof currNode !== 'undefined' && currNode !== null && adjListParsed) {
         
         const nextNode = adjListParsed[currNode];
@@ -262,6 +265,7 @@ export async function sendNodeMessage(userPhoneNumber, business_phone_number_id)
         
         let sendMessagePromise;
         let sendDynamicPromise;
+        console.log("flowlfolwolfowl: ", flow[currNode])
         switch (flow[currNode]?.type) {
             case "Button":
                 const buttons = nextNode
@@ -279,8 +283,8 @@ export async function sendNodeMessage(userPhoneNumber, business_phone_number_id)
                     var modelName = userSession.flowName
                     sendDynamicPromise = addDynamicModelInstance(modelName, data)
                 }
-                
-                await sendButtonMessage(buttons, node_message, userPhoneNumber,business_phone_number_id);
+                let mediaID = flow[currNode]?.mediaID
+                await sendButtonMessage(buttons, node_message, userPhoneNumber,business_phone_number_id, mediaID );
                 break;
                 
             case "List":
@@ -298,10 +302,10 @@ export async function sendNodeMessage(userPhoneNumber, business_phone_number_id)
                     var modelName = userSession.flowName
                     sendDynamicPromise = addDynamicModelInstance(modelName, data)
                 }
-                
                 await sendListMessage(list, node_message, userPhoneNumber,business_phone_number_id, accessToken);
                 break;
             
+            // text with variable
             case "Text":
 
                 var placeholders = [...node_message.matchAll(/{{\s*[\w]+\s*}}/g)];
@@ -320,6 +324,7 @@ export async function sendNodeMessage(userPhoneNumber, business_phone_number_id)
                 sendMessagePromise = sendInputMessage(userPhoneNumber,business_phone_number_id, node_message);
                 break;
               
+            // text without variable
             case "string":
                 
                 var placeholders = [...node_message.matchAll(/{{\s*[\w]+\s*}}/g)];
@@ -388,7 +393,15 @@ export async function sendNodeMessage(userPhoneNumber, business_phone_number_id)
                 break;
 
             case "AI":
-                await sendTextMessage(userPhoneNumber,business_phone_number_id, node_message);
+                console.log("AI Node")
+                if(node_message) await sendTextMessage(userPhoneNumber,business_phone_number_id, node_message);
+
+                var variable = flow[currNode]?.variable
+                if(variable) {
+                    userSession.inputVariable = variable
+                
+                    console.log("input variable: ", userSession.inputVariable)
+                }
                 userSession.AIMode = true;
                 break;
                 

@@ -1,8 +1,66 @@
-import axios from "axios";
-import FormData from "form-data";
+import express from 'express';
+import multer from 'multer';
+import fs from 'fs';
+import axios from 'axios';
+import path from 'path';
+import { fileURLToPath } from 'url';
+import { dirname } from 'path';
+import { readFile } from 'fs/promises';
 
-const handle = "https://scontent.whatsapp.net/v/t61.29466-34/454703841_550238954012690_3929490088877798474_n.png?ccb=1-7&_nc_sid=8b1bef&_nc_ohc=UsmvMbNBadsQ7kNvgFpBIfK&_nc_ht=scontent.whatsapp.net&edm=AH51TzQEAAAA&oh=01_Q5AaIHO7RA7k986urkKcGgxqpmv5am-LDyAclTc_kuHsbkg7&oe=6710BF98";
-const bpid = 241683569037594;
-const access_token = "EAAVZBobCt7AcBO8trGDsP8t4bTe2mRA7sNdZCQ346G9ZANwsi4CVdKM5MwYwaPlirOHAcpDQ63LoHxPfx81tN9h2SUIHc1LUeEByCzS8eQGH2J7wwe9tqAxZAdwr4SxkXGku2l7imqWY16qemnlOBrjYH3dMjN4gamsTikIROudOL3ScvBzwkuShhth0rR9P";
+async function mediaUploads(mediaID, access_token, user_data) {
+    let headers = { Authorization: `Bearer ${access_token}` };
+    
+    try {
+        // Fetch media metadata
+        let response = await axios.get(`https://graph.facebook.com/v19.0/${mediaID}`, { headers });
+        const mediaURL = response.data.url;
+        const mime_type = response.data.mime_type
+        console.log(mediaURL);
 
-await getMediaID(handle, bpid, access_token);
+        // Fetch the media file
+        response = await axios.get(mediaURL, { headers, responseType: 'arraybuffer' });
+        
+        if(mime_type == "application/pdf"){
+            console.log("processing pdfs")
+        // Create a Blob from the ArrayBuffer
+        const media = new Blob([response.data], { type: 'application/pdf' });
+
+        // Create FormData and append the Blob
+        const formData = new FormData();
+        formData.append('pdf', media, 'file.pdf'); // Provide a default filename
+
+        // Send the FormData with the file to the Python server
+        let postResponse = await axios.post('http://localhost:8000/whatsapp-media-uploads/', formData, {
+            headers: {'X-Tenant-Id': 'three_little_birds', 'user-data': JSON.stringify(user_data)}
+        });
+
+        console.log(postResponse.data);
+        }
+        else if (["image/jpeg", "image/webp"].includes(mime_type)){
+            console.log("processing image")
+            const media = response.data;
+
+            const base64Media = Buffer.from(media).toString('base64');
+            const data = {
+                image_buffer: base64Media
+            }
+            let postResponse = await axios.post('http://localhost:8000/whatsapp-media-uploads/', data ,{
+                headers: {'X-Tenant-Id': 'three_little_birds', 'user-data': JSON.stringify(user_data)}
+            })
+
+            console.log(postResponse.data)
+        }
+
+    } catch (error) {
+        console.error(error);
+    }
+}
+
+const mediaID = 909478364398748;
+const access_token = 'EAAVZBobCt7AcBO8trGDsP8t4bTe2mRA7sNdZCQ346G9ZANwsi4CVdKM5MwYwaPlirOHAcpDQ63LoHxPfx81tN9h2SUIHc1LUeEByCzS8eQGH2J7wwe9tqAxZAdwr4SxkXGku2l7imqWY16qemnlOBrjYH3dMjN4gamsTikIROudOL3ScvBzwkuShhth0rR9P';  // Replace with your actual access token
+const data = {
+    name: "name",
+    phone: 919548265904,
+    doc_name: "doc_name"
+  }
+await mediaUploads(mediaID, access_token, data);

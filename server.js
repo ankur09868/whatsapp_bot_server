@@ -8,8 +8,11 @@ import session from "express-session";
 import { getAccessToken, getWabaID, getPhoneNumberID, registerAccount, postRegister } from "./login-flow.js";
 import { sendNodeMessage, sendImageMessage, sendButtonMessage, sendTextMessage, sendMessage, replacePlaceholders, addDynamicModelInstance, sendAudioMessage, sendVideoMessage,sendLocationMessage, baseURL } from "./snm.js";
 import NodeCache from 'node-cache';
-
 import FormData from "form-data";
+import { travel_ticket_prompt, appointment_prompt } from './PROMPTS.js'
+import { access } from "fs";
+
+
 const messageCache = new NodeCache({ stdTTL: 600 });
 
 const AIMode=false;
@@ -91,14 +94,6 @@ export async function updateStatus(status, message_id, business_phone_number_id,
   }
 }
 
-async function sendTemplates(template){
-  const templateData = {
-    type: "template",
-    template: template
-  }
-  return templateData
-}
-
 async function validateInput(inputVariable, message){
   try{
   const prompt = `Question being asked is: ${inputVariable}?\n
@@ -134,6 +129,75 @@ async function validateInput(inputVariable, message){
   console.error('Error validating input:', error);
   return false;
 }
+}
+
+async function handleMediaUploads(name, phone, doc_name, mediaID, userSession, tenant) {
+  const access_token = userSession.accessToken;
+  const openai_key = process.env.OPENAI_API_KEY;
+  console.log(access_token)
+
+  let headers = { Authorization: `Bearer ${access_token}`, };
+  try {
+      let response = await axios.get(`https://graph.facebook.com/v19.0/${mediaID}`, { headers });
+      const mediaURL = response.data.url;
+      console.log(mediaURL);
+
+      response = await axios.get(mediaURL, { headers, responseType: 'arraybuffer' });
+      const media = response.data;
+
+      const base64Media = Buffer.from(media).toString('base64');
+
+      const payload = {
+          model: 'gpt-4o-mini',
+          messages: [
+              {
+                  role: 'user',
+                  content: [
+                      {
+                          type: 'text',
+                          text: travel_ticket_prompt,
+                      },
+                      {
+                          type: 'image_url',
+                          image_url: {
+                              url: `data:image/jpeg;base64,${base64Media}`,
+                          },
+                      },
+                  ],
+              },
+          ],
+      };
+
+      const openAIHeaders = {
+          Authorization: `Bearer ${openai_key}`,
+          'Content-Type': 'application/json',
+      };
+
+      response = await axios.post('https://api.openai.com/v1/chat/completions', payload, { headers: openAIHeaders });
+
+      let result = response.data.choices[0].message.content
+
+      const startIndex =  result.indexOf('{')
+      const endIndex = result.lastIndexOf('}') + 1;
+
+      const resultJSON = JSON.parse(result.substring(startIndex, endIndex).trim())
+      
+      const data = {
+        name: name,
+        phone: phone,
+        doc_name: doc_name || "default",
+        data: resultJSON,
+        tenant: tenant
+      }
+      console.log(data)
+      response = await axios.post(`${baseURL}/user-data/`, data, {headers: {'X-Tenant-Id': tenant}})
+      console.log(response.data)
+      
+      // const query = `Which hotel should I stay in ${resultJSON.destination}?`
+      
+  } catch (error) {
+      console.error('Error:', error.response ? error.response.data : error.message);
+  }
 }
 
 
@@ -193,25 +257,6 @@ app.get("/imageData/:bpid/:id", async (req, res) => {
   }
 });
 
-app.post("/flowdata", async (req, res) => {
-  adjList=req.body.adjacencyList;
-  flow=req.body.nodes;
-  console.log("rec data: ", req.body);
-
-
-  res.status(200).json({ success: true, message: "flowdata sent successfully" });
-})
-
-app.patch("/toggleAiReplies", async(req,res) =>{
-  try {
-    AI_Replies = !AI_Replies;
-    res.status(200).json({ success: true, message: "Task Done" });
-  } catch (error) {
-    console.error("Error sending Whatsapp message:", error.message);
-    res.status(500).json({ success: false, error: "Failed" });
-  }
-});
-
 app.post("/send-message", async (req, res) => {
   try {
     const { phoneNumbers, message, url, messageType, additionalData, business_phone_number_id, bg_id } = req.body;
@@ -234,34 +279,32 @@ app.post("/send-message", async (req, res) => {
           throw error;
         }
       }
-
-      let formattedConversation = [{ text: message, sender: "bot" }];
-      const saveConversationPromise = fetch(`${baseURL}/whatsapp_convo_post/${formattedPhoneNumber}/?source=whatsapp`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Tenant-Id': 'll'
-        },
-        body: JSON.stringify({
-          contact_id: formattedPhoneNumber,
-          business_phone_number_id: business_phone_number_id,
-          conversations: formattedConversation,
-          tenant: 'll',
-        }),
-      });
+      // let formattedConversation = [{ text: message, sender: "bot" }];
+      // const saveConversationPromise = fetch(`${baseURL}/whatsapp_convo_post/${formattedPhoneNumber}/?source=whatsapp`, {
+      //   method: 'POST',
+      //   headers: {
+      //     'Content-Type': 'application/json',
+      //     'X-Tenant-Id': 'll'
+      //   },
+      //   body: JSON.stringify({
+      //     contact_id: formattedPhoneNumber,
+      //     business_phone_number_id: business_phone_number_id,
+      //     conversations: formattedConversation,
+      //     tenant: 'll',
+      //   }),
+      // });
 
       let sendMessagePromise;
       let fr_flag;
       switch (messageType) {
         case 'text':
-
           sendMessagePromise = sendTextMessage(formattedPhoneNumber, business_phone_number_id, message, access_token, fr_flag = true);
           break;
         case 'image':
           const { imageId, caption } = additionalData;
           console.log(`image ID: ${imageId}, caption: ${caption}`)
           sendMessagePromise = sendImageMessage(formattedPhoneNumber, business_phone_number_id, imageId, caption, access_token, fr_flag = true);
-          formattedConversation.push({ text: caption, sender: "bot" });
+          // formattedConversation.push({ text: caption, sender: "bot" });
           break;
         // case 'button':
         //   const { buttons } = additionalData;
@@ -282,11 +325,8 @@ app.post("/send-message", async (req, res) => {
           throw new Error("Invalid message type");
       }
 
-      const [saveRes, response] = await Promise.all([saveConversationPromise, sendMessagePromise]);
+      const [ response] = await Promise.all([ sendMessagePromise]);
 
-      if (!saveRes.ok) {
-        console.error("Error saving conversation:", await saveRes.text());
-      }
 
       const messageID = response.data?.messages[0]?.id;
       if (bg_id != null && messageID) {
@@ -303,7 +343,6 @@ app.post("/send-message", async (req, res) => {
     res.status(500).json({ success: false, error: "Failed to send WhatsApp message" });
   }
 });
-
 
 async function getMediaID(handle, bpid, access_token) {
   const imageResponse = await axios.get(handle, { responseType: 'arraybuffer' });
@@ -327,7 +366,6 @@ async function getMediaID(handle, bpid, access_token) {
   console.log(response.data);
   return response.data.id;
 }
-
 
 async function setTemplate(templateData, phone, bpid, access_token) {
   try {
@@ -409,8 +447,8 @@ app.post("/send-template", async(req, res) => {
   const { bg_id, template, business_phone_number_id, phoneNumbers } = req.body
   const tenant_id = req.headers['X-Tenant-Id'];
   
-  const name = template.name
-  console.log(`tenant ID: ${tenant_id}, name: ${name}`)
+  const templateName = template.name
+  console.log(`tenant ID: ${tenant_id}`)
   try {
     const tenantRes = await axios.get(`${baseURL}/whatsapp_tenant?business_phone_id=${business_phone_number_id}`, {
       headers: { 'X-Tenant-Id': tenant_id }
@@ -419,7 +457,7 @@ app.post("/send-template", async(req, res) => {
     const account_id = tenantRes.data.account_id;
     console.log(`access token: ${access_token}, account ID: ${account_id}`)
     
-    const response  = await axios.get(`https://graph.facebook.com/v16.0/${account_id}/message_templates?name=${name}`, {
+    const response  = await axios.get(`https://graph.facebook.com/v16.0/${account_id}/message_templates?name=${templateName}`, {
       headers: {
         Authorization: `Bearer ${access_token}`
       }
@@ -443,20 +481,20 @@ app.post("/send-template", async(req, res) => {
         }
 
         // Save conversation to backend
-        const formattedConversation = [{ text: template.name, sender: "bot" }];
-        const saveRes = await fetch(`${baseURL}/whatsapp_convo_post/${formattedPhoneNumber}/?source=whatsapp`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'X-Tenant-Id': tenant_id 
-          },
-          body: JSON.stringify({
-            contact_id: formattedPhoneNumber,
-            business_phone_number_id: business_phone_number_id,
-            conversations: formattedConversation,
-            tenant: tenant_id ,
-          }),
-        });
+        // const formattedConversation = [{ text: template.name, sender: "bot" }];
+        // const saveRes = await fetch(`${baseURL}/whatsapp_convo_post/${formattedPhoneNumber}/?source=whatsapp`, {
+        //   method: 'POST',
+        //   headers: {
+        //     'Content-Type': 'application/json',
+        //     'X-Tenant-Id': tenant_id 
+        //   },
+        //   body: JSON.stringify({
+        //     contact_id: formattedPhoneNumber,
+        //     business_phone_number_id: business_phone_number_id,
+        //     conversations: formattedConversation,
+        //     tenant: tenant_id ,
+        //   }),
+        // });
         // if (!saveRes.ok) throw new Error("Failed to save conversation");
       } catch (error) {
         console.error(`Failed to send message to ${phoneNumber}:`, error);
@@ -499,7 +537,7 @@ async function addContact(business_phone_number_id, c_data) {
     })
 
     const tenant = response.data.tenant
-
+    console.log("received tenant: ", tenant)
     await axios.post(`${baseURL}/contacts_by_tenant/`, c_data, {
       headers: {'X-Tenant-Id': tenant}
     })
@@ -526,7 +564,6 @@ app.post("/reset-session", async (req, res) => {
   }
 });
 
-
 app.post("/webhook", async (req, res) => {
   try {
     const business_phone_number_id = req.body.entry?.[0].changes?.[0].value?.metadata?.phone_number_id;
@@ -534,15 +571,29 @@ app.post("/webhook", async (req, res) => {
     const message = req.body.entry?.[0]?.changes[0]?.value?.messages?.[0];
     const userPhoneNumber = contact?.wa_id || null;
     const statuses = req.body.entry?.[0]?.changes[0]?.value?.statuses?.[0];
-    
-    const name = contact?.profile?.name || null
-    console.log("Contact: ", name)
-    if(name && userPhoneNumber){
+    const userName = contact?.profile?.name || null
+    console.log("Rcvd Req: ",req.body, business_phone_number_id,contact,message,userPhoneNumber, statuses, userName)
+    console.log("Contact: ", userName)
+    let tenant;
+    try{
+      let data = {
+        bpid: business_phone_number_id
+      }
+      var response = await axios.post(`${baseURL}/get-tenant/`, data, {
+        headers: {'X-Tenant-Id': 'll', 'Content-Type': 'application/json'}
+      })
+      console.log("Tenant Response: ", response.data)
+      tenant = response.data.tenant
+    }catch(error){
+      console.error(`Error getting tenant for ${business_phone_number_id}: `, error)
+    }
+
+    if(userName && userPhoneNumber){
       const contact_data = {
         phone: userPhoneNumber,
-        name: name
+        name: userName
       }
-      addContact(business_phone_number_id, contact_data)
+      // addContact(business_phone_number_id, contact_data)
     }
 
     if (message) {
@@ -564,20 +615,18 @@ app.post("/webhook", async (req, res) => {
         sender: "user"
       }];
         
-      const now = new Date();
-      const timestamp = now.toLocaleString();
       try {
           fetch(`${baseURL}/whatsapp_convo_post/${userPhoneNumber}/?source=whatsapp`, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
-              'X-Tenant-Id': 'll'
+              'X-Tenant-Id': tenant
             },
             body: JSON.stringify({
               contact_id: userPhoneNumber,
               business_phone_number_id: business_phone_number_id,
               conversations: formattedConversation,
-              tenant: 'll',
+              tenant: tenant,
             }),
           });
           // if (!saveRes.ok) throw new Error("Failed to save conversation");
@@ -585,23 +634,27 @@ app.post("/webhook", async (req, res) => {
           console.error("Error saving conversation:", error.message);
         }
         
-        const messageData = {
+      const messageData = {
           type: "text",
           text: { body: message?.text?.body || (message?.interactive ? (message?.interactive?.button_reply?.title || message?.interactive?.list_reply?.title) : null) }
       }
-      try{
-      io.emit('new-message', {
-        message: messageData,
-        phone_number_id: business_phone_number_id,
-        contactPhone: userPhoneNumber,
-        time: timestamp
-      });
       
-      console.log("Emitted node message: ", messageData)
-    }catch(error){
-      console.log("error occured while emission: ", error)
-    }
-    const temp_user = message?.text?.body?.startsWith('*/') ? message.text.body.split('*/')[1]?.split(' ')[0] : null;
+      const now = Date.now()
+      const timestamp = now.toLocaleString();
+      try{
+        io.emit('new-message', {
+          message: messageData,
+          phone_number_id: business_phone_number_id,
+          contactPhone: userPhoneNumber,
+          name: userName,
+          time: timestamp
+        });
+      
+        console.log("Emitted node message: ", messageData)
+      }catch(error){
+        console.log("error occured while emission: ", error)
+      }
+      const temp_user = message?.text?.body?.startsWith('*/') ? message.text.body.split('*/')[1]?.split(' ')[0] : null;
       if(temp_user){
         try{
           io.emit('temp-user', {
@@ -637,18 +690,21 @@ app.post("/webhook", async (req, res) => {
           if (!Array.isArray(adjList) || !adjList.every(Array.isArray)) {
             throw new Error("adjList is not an array of arrays");
           }
-
+          
           const startNode = response.data.start !== null ? response.data.start : 0;
           const currNode = startNode 
-          userSession = { 
-            flowData: response.data.flow_data,
-            adjList: response.data.adj_list,
+          userSession = {
+            AIMode: false,
+            lastActivityTime: Date.now(),
+            flowData: flowData,
+            adjList: adjList,
             accessToken: response.data.access_token,
             flowName : response.data.flow_name,
             startNode : startNode,
             currNode: currNode,
             nextNode: adjList[currNode],
             business_number_id: business_phone_number_id,
+            tenant : tenant,
             userPhoneNumber : userPhoneNumber,
             inputVariable : null,
             inputVariableType: null,
@@ -663,6 +719,7 @@ app.post("/webhook", async (req, res) => {
           throw error;
         }
       } else {
+        userSession.lastActivityTime = Date.now()
         if(userSession.currNode != null) userSession.nextNode = userSession.adjList[userSession.currNode]
         else {
           userSession.currNode = userSession.startNode
@@ -670,10 +727,23 @@ app.post("/webhook", async (req, res) => {
         }
         // console.log(`Existing session found for user ${userPhoneNumber}:`, userSession);
       }
-      if (!AIMode) {
+      if (!userSession.AIMode) {
         let sendDynamicPromise;
         console.log("input vr: ", userSession.inputVariable)
         if (userSession.inputVariable !== undefined && userSession.inputVariable !== null && userSession.inputVariable.length > 0){
+          if (message?.type == "image" || message?.type == "document" || message?.type == "video") {
+            console.log("Processing media message:", message?.type);
+            const mediaID = message?.image?.id || message?.document?.id || message?.video?.id;
+            console.log("Media ID:", mediaID);
+            const doc_name = userSession.inputVariable
+            try {
+              console.log("Uploading file", userSession.tenant);
+              await handleMediaUploads(userName, userPhoneNumber, doc_name, mediaID, userSession, tenant);
+            } catch (error) {
+              console.error("Error retrieving media content:", error);
+            }
+            console.log("Webhook processing completed successfully");
+          }
           console.log(`Input Variable: ${userSession.inputVariable}`);
           console.log(`Input Variable Type: ${userSession.inputVariableType}`);
 
@@ -694,7 +764,6 @@ app.post("/webhook", async (req, res) => {
                 phone_no : userPhoneNumber,
                 [userSession.inputVariable] : userSelection
               }
-              userSession.inputVariable = null
               const modelName = userSession.flowName
               sendDynamicPromise = addDynamicModelInstance(modelName , updateData)
 
@@ -704,9 +773,10 @@ app.post("/webhook", async (req, res) => {
           } catch (error) {
             console.error("An error occurred during processing:", error);
             if (!res.headersSent) {
-              res.sendStatus(500); // Or any other error status code based on your use case
+              res.sendStatus(500);
             }
           }
+        userSession.inputVariable = null
         }
         console.log("Processing in non-AI mode");
         if (message?.type === "interactive") {
@@ -735,13 +805,13 @@ app.post("/webhook", async (req, res) => {
             console.error('Error processing interactive message:', error);
           }
         }
-        else if (message?.type === "text") {
-          console.log("Processing text message");
+        else if (message?.type === "text" || message?.type == "image") {
+          console.log("Processing text or image message");
           console.log(userSession.currNode, userSession.startNode)
           const flow = userSession.flowData
           const type = flow[userSession.currNode].type
           if (userSession.currNode != userSession.startNode){
-            if (['Text', 'string', 'audio', 'video', 'location', 'image'].includes(type)) {
+            if (['Text', 'string', 'audio', 'video', 'location', 'image', 'AI'].includes(type)) {
             // console.log(`Storing input for node ${userSession.currNode}:`, message?.text?.body);
             //userSession.inputMap.set(userSession.currNode, message?.text?.body);
             userSession.currNode = userSession.nextNode[0];
@@ -757,50 +827,62 @@ app.post("/webhook", async (req, res) => {
           console.log("Calling sendNodeMessage");
           sendNodeMessage(userPhoneNumber,business_phone_number_id);
         }
-
+        
       } else {
+        if (message?.type == "interactive"){
+          let userSelectionID = message?.interactive?.button_reply?.id || message?.interactive?.list_reply?.id;
+          if (userSelectionID == "Exit AI"){
+            userSession.AIMode = false;
+            console.log("Matched node found. New currNode:", userSession.currNode);
+            userSession.nextNode = userSession.adjList[userSession.currNode];
+            console.log("Updated nextNode:", userSession.nextNode);
+            userSession.currNode = userSession.nextNode[0];
+            console.log("Final currNode:", userSession.currNode);
+            console.log("Calling sendNodeMessage");
+            sendNodeMessage(userPhoneNumber,business_phone_number_id);
+          }
+        }else if(message?.type == "text"){
+          const query = message?.text?.body
+          const data = {query: query, phone: userPhoneNumber}
+          const headers = { 'X-Tenant-Id': tenant }
+
+          response = await axios.post(`${baseURL}/query-faiss/`, data, {headers:  headers})
+
+          let messageText = response.data
+          const messageData = {
+            type: "interactive",
+            interactive: {
+              type: "button",
+              body: { text: messageText },
+              action: {
+                buttons: [
+                  {
+                  type: 'reply',
+                  reply: {
+                    id: "Exit AI",
+                    title: "Exit"
+                  } 
+                  }
+                ]
+              }
+            }
+          }
+          await sendMessage(userPhoneNumber, business_phone_number_id, messageData)
+        }
+        else if (message?.type == "image" || message?.type == "document" || message?.type == "video") {
+          console.log("Processing media message:", message?.type);
+          const mediaID = message?.image?.id || message?.document?.id || message?.video?.id;
+          console.log("Media ID:", mediaID);
+          const doc_name = userSession.inputVariable
+          try {
+            console.log("Uploading file", userSession.tenant);
+            await handleMediaUploads(userName, userPhoneNumber, doc_name, mediaID, userSession, tenant);
+          } catch (error) {
+            console.error("Error retrieving media content:", error);
+          }
+          console.log("Webhook processing completed successfully");
+        }
         console.log("Processing in AI mode");
-      }
-      
-      if (message?.type == "image" || message?.type == "document" || message?.type == "video") {
-        console.log("Processing media message:", message?.type);
-        const mediaID = message?.image?.id || message?.document?.id || message?.video?.id;
-        console.log("Media ID:", mediaID);
-        let mediaURL;
-  
-        try {
-          console.log("Fetching media URL");
-          const response = await axios({
-            method: "GET",
-            url: `https://graph.facebook.com/v19.0/${mediaID}`,
-            headers: {
-              Authorization: `Bearer ${userSession.accessToken}`,
-            },
-          });
-          mediaURL = response.data.url;
-          console.log("Media URL obtained:", mediaURL);
-        } catch (error) {
-          console.error("Error fetching media URL:", error);
-        }
-  
-        try {
-          console.log("Retrieving media content");
-          const response = await axios({
-            method: "GET",
-            url: mediaURL,
-            headers: {
-              Authorization: `Bearer ${userSession.accessToken}`,
-            },
-          });
-          let document_file = response;
-          console.log("Media content retrieved:", document_file);
-          // TODO: Implement handleFileUpload
-          // console.log("Uploading file");
-          // handleFileUpload(document_file);
-        } catch (error) {
-          console.error("Error retrieving media content:", error);
-        }
-        console.log("Webhook processing completed successfully");
       }
     }
     if (statuses) {
@@ -894,5 +976,5 @@ function clearInactiveSessions() {
   }
 }
 
-// Run the clearInactiveSessions function every hour  
 setInterval(clearInactiveSessions, 60 * 60 * 1000);
+// Run the clearInactiveSessions function every hour

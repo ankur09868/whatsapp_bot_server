@@ -977,3 +977,4 @@ function clearInactiveSessions() {
 }
 
 setInterval(clearInactiveSessions, 60 * 60 * 1000);
+// Run the clearInactiveSessions function every hour

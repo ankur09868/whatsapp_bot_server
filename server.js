@@ -367,8 +367,9 @@ async function getMediaID(handle, bpid, access_token) {
   return response.data.id;
 }
 
-async function setTemplate(templateData, phone, bpid, access_token) {
+async function setTemplate(templateData, phone, bpid, access_token, otp) {
   try {
+    console.log("otp rcvd: ", otp)
     const components = templateData?.components;
     const template_name = templateData.name;
     const res_components = [];
@@ -406,7 +407,9 @@ async function setTemplate(templateData, phone, bpid, access_token) {
         const parameters = [];
         
         for (const text of body_text) {
-          let modified_text = await replacePlaceholders(text, null, phone, bpid)
+          let modified_text
+          if(otp) modified_text = otp
+          else modified_text = await replacePlaceholders(text, null, phone, bpid)
 
           parameters.push({
             type: "text",
@@ -448,6 +451,8 @@ app.post("/send-template", async(req, res) => {
   const tenant_id = req.headers['X-Tenant-Id'];
   
   const templateName = template.name
+  // for otps
+  const otp = template?.otp
   console.log(`tenant ID: ${tenant_id}`)
   try {
     const tenantRes = await axios.get(`${baseURL}/whatsapp_tenant?business_phone_id=${business_phone_number_id}`, {
@@ -471,7 +476,7 @@ app.post("/send-template", async(req, res) => {
       try {
         const formattedPhoneNumber = `${phoneNumber}`;
 
-        const messageData = await setTemplate(templateData, phoneNumber, business_phone_number_id, access_token)
+        const messageData = await setTemplate(templateData, phoneNumber, business_phone_number_id, access_token, otp)
 
         const sendMessage_response = await sendMessage(formattedPhoneNumber, business_phone_number_id, messageData, access_token);
         
@@ -566,13 +571,15 @@ app.post("/reset-session", async (req, res) => {
 
 app.post("/webhook", async (req, res) => {
   try {
+    console.log("Received Webhook: ", JSON.stringify(req.body, null, 6))
     const business_phone_number_id = req.body.entry?.[0].changes?.[0].value?.metadata?.phone_number_id;
     const contact = req.body.entry?.[0]?.changes[0]?.value?.contacts?.[0];
     const message = req.body.entry?.[0]?.changes[0]?.value?.messages?.[0];
     const userPhoneNumber = contact?.wa_id || null;
     const statuses = req.body.entry?.[0]?.changes[0]?.value?.statuses?.[0];
     const userName = contact?.profile?.name || null
-    console.log("Rcvd Req: ",req.body, business_phone_number_id,contact,message,userPhoneNumber, statuses, userName)
+    const products = message?.order?.product_items
+    console.log("Rcvd Req: ",req.body, business_phone_number_id,contact,message,userPhoneNumber, JSON.stringify(statuses), userName)
     console.log("Contact: ", userName)
     let tenant;
     try{
@@ -593,7 +600,7 @@ app.post("/webhook", async (req, res) => {
         phone: userPhoneNumber,
         name: userName
       }
-      // addContact(business_phone_number_id, contact_data)
+      addContact(business_phone_number_id, contact_data)
     }
 
     if (message) {
@@ -690,6 +697,17 @@ app.post("/webhook", async (req, res) => {
           if (!Array.isArray(adjList) || !adjList.every(Array.isArray)) {
             throw new Error("adjList is not an array of arrays");
           }
+
+          const catalogResponse = await axios.get(`${baseURL}/catalog`, {
+            headers: {'X-Tenant-Id': 'ai'}
+          });
+          console.log("catalog response: ", catalogResponse.data)
+          let listProduct = [];
+          for (let catalog of catalogResponse.data){
+            const product_id = catalog.product_retailer_id
+            const product_name = catalog.product_name
+            listProduct.push({id: product_id, name: product_name})
+          }
           
           const startNode = response.data.start !== null ? response.data.start : 0;
           const currNode = startNode 
@@ -709,8 +727,10 @@ app.post("/webhook", async (req, res) => {
             inputVariable : null,
             inputVariableType: null,
             fallback_msg : response.data.fallback_msg || "please provide correct input",
-            fallback_count: response.data.fallback_count != null ? response.data.fallback_count : 1
+            fallback_count: response.data.fallback_count != null ? response.data.fallback_count : 1,
+            products : listProduct
           };
+          
           const key = userPhoneNumber + business_phone_number_id
           userSessions.set(key, userSession);
           // console.log(`New session created for user ${userPhoneNumber}:`, userSessions);
@@ -783,6 +803,7 @@ app.post("/webhook", async (req, res) => {
           console.log("Processing interactive message");
           let userSelectionID = message?.interactive?.button_reply?.id || message?.interactive?.list_reply?.id;
           let userSelection = message?.interactive?.button_reply?.title || message?.interactive?.list_reply?.title;
+
           console.log("User selection:", { userSelectionID, userSelection });
           try {
             console.log("NextNode: ", userSession.nextNode)
@@ -801,6 +822,7 @@ app.post("/webhook", async (req, res) => {
                 break; // Exit the loop when the condition is met
               }
             };
+            if(isNaN(userSelectionID)) await sendProduct(userSession, userSelectionID)
           } catch (error) {
             console.error('Error processing interactive message:', error);
           }
@@ -826,6 +848,24 @@ app.post("/webhook", async (req, res) => {
 
           console.log("Calling sendNodeMessage");
           sendNodeMessage(userPhoneNumber,business_phone_number_id);
+        }
+        else if (message?.type =="order"){
+          let totalAmount = 0;
+          const product_list = []
+          console.log("Products: ", products)
+          for (let product of products){
+            console.log("Product: ", product)
+            totalAmount+=product.item_price * product.quantity
+            const product_id = product.product_retailer_id;
+            console.log("product id: ", product_id)
+            const product_name = userSession.products.find(product => product.id === product_id)
+            console.log("product nameeeeee: ", product_name)
+            product_list.push({"product_name": product_name.name, "quantity": product.quantity})
+          }
+          console.log("Total Amount = ", totalAmount)
+          console.log(product_list)
+          await sendBill(totalAmount, product_list, userSession)
+          // await sendProduct(userSession)
         }
         
       } else {
@@ -966,6 +1006,26 @@ io.on('connection', (socket) => {
   });
 });
 
+
+async function sendBill(totalAmount, product_list, userSession) {
+  console.log("PRODUCT LISTTTTTTTTTT: ", product_list)
+  const textMessageData = {
+    type: "text",
+    text: {
+      body: `Thank you for shopping from our store!\n\nYour total order amount: ${totalAmount}\n\nItems you have purchased are:\n\n${product_list.map(item => `Product: *${item.product_name}*, Quantity: *${item.quantity}*`).join('\n\n')}\n\nPlease use the QR below to make the payment!`
+    }
+  }
+  await sendMessage(userSession.userPhoneNumber, userSession.business_number_id, textMessageData, userSession.accessToken )
+  const QRMessageData = {
+    type: "image",
+    image: {
+      id: 2017972652012373,
+      caption: "Scan this QR Code with your payment provider app or just open the image in whatsapp."
+    }
+  }
+  await sendMessage(userSession.userPhoneNumber, userSession.business_number_id, QRMessageData, userSession.accessToken)
+}
+
 function clearInactiveSessions() {
   const inactivityThreshold = 30 * 60 * 1000; // 30 minutes
   const now = Date.now();
@@ -978,3 +1038,28 @@ function clearInactiveSessions() {
 
 setInterval(clearInactiveSessions, 60 * 60 * 1000);
 // Run the clearInactiveSessions function every hour
+
+
+async function sendProduct(userSession, product_id) {
+  console.log("PRODUCTSIDIIDIID: ", product_id)
+  const productMessageData = {
+    type: "interactive",
+    interactive: {
+      type: "product",
+      body: {
+        text: "Buy our product"
+      },
+      footer: {
+        text: "Thanks"
+      },
+      action: {
+        catalog_id: 799995568791485,
+        product_retailer_id: product_id
+      }
+    }
+  }
+  await sendMessage(userSession.userPhoneNumber, userSession.business_number_id, productMessageData, userSession.accessToken )
+  console.log("take my whiskey neeeeeat")
+  userSession.currNode = 6
+  sendNodeMessage(userSession.userPhoneNumber, userSession.business_number_id)
+}

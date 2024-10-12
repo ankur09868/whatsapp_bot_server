@@ -20,21 +20,20 @@ export async function sendMessage(phoneNumber, business_phone_number_id, message
 
     // Use session access token if not provided
     if (access_token == null) access_token = userSession.accessToken;
-
+    console.log(url, access_token)
     try {
         const response = await axios.post(
             url, 
             {
-                messaging_product: "whatsapp",
+                messaging_product: "whatsapp", 
                 recipient_type: "individual",
                 to: phoneNumber,
                 ...messageData
-            }, 
+            },
             {
                 headers: { Authorization: `Bearer ${access_token}` }
             }
         );
-
         // Check if the message was sent successfully
         if (response.data && response.data.messages && response.data.messages.length > 0) {
             console.log('Message sent successfully:', response.data);
@@ -241,7 +240,7 @@ export async function sendNodeMessage(userPhoneNumber, business_phone_number_id)
     const key = userPhoneNumber + business_phone_number_id
     const userSession = userSessions.get(key);
     if (!userSession) {
-        console.error(`No session found for user ${userPhoneNumber}`);
+        console.error(`No session found for user ${userPhoneNumber} and ${business_phone_number_id}`);
         return;
     }
 
@@ -405,6 +404,8 @@ export async function sendNodeMessage(userPhoneNumber, business_phone_number_id)
                 userSession.AIMode = true;
                 break;
                 
+            case "products":
+                await sendProduct_List(userSession)
             default:
                 console.log(`Unknown node type: ${flow[currNode]?.type}`);
         }
@@ -448,42 +449,46 @@ export async function addDynamicModelInstance(modelName, updateData) {
 export async function replacePlaceholders(message, userSession=null, userPhoneNumber=null, business_phone_number_id=null) {
     
     let modifiedMessage = message;
-
+    console.log("message: ", message)
     const placeholders = [...message.matchAll(/{{\s*[\w]+\s*}}/g)];
     if (userSession !== null) {
         var userPhoneNumber = userSession.userPhoneNumber
         var business_phone_number_id = userSession.business_number_id
     }
-    
+    console.log("placeholders: ", placeholders)
     for (const placeholder of placeholders) {
         let key = placeholder[0].slice(2, -2).trim();
-        // const keys = key.split('.')
-        var url = `${baseURL}/contacts-by-phone/${userPhoneNumber}`;
+        console.log("key:", key)
+        if(key in ['id', 'name', 'phone', 'createdOn', 'isActive', 'bg_id', 'bg_name', 'tenant'])
+        {
+            var url = `${baseURL}/contacts-by-phone/${userPhoneNumber}`;
 
-        // if(keys[0]=="contact") url = `${baseURL}/contacts-by-phone/${userPhoneNumber}`
-        // else if(keys[0] == "opportunity") url = `${baseURL}/opportunity-by-phone/${userPhoneNumber}`
-        // else if(keys[0] == "dynamic") url = `${baseURL}/${flowName}/${userPhoneNumber}`
-        const data = {
-            bpid: business_phone_number_id
+            const data = {
+                bpid: business_phone_number_id
+            }
+            const tenant_id_res = await axios.post(`${baseURL}/get-tenant/`, data)
+            const tenant_id = tenant_id_res.data.tenant
+            try {
+                const response = await axios.get(url, {
+                    headers: {
+                        "X-Tenant-Id": tenant_id
+                    }
+                });
+                const responseData = response.data?.[0]
+                console.log("response : " ,responseData)
+                const replacementValue = responseData?.[key] !== undefined ? responseData[key] : '';
+
+                modifiedMessage = modifiedMessage.replace(placeholder[0], replacementValue);
+                
+            } catch (error) {
+                console.error('Error fetching data for placeholder replacement:', error);
+
+            }
         }
-        const tenant_id_res = await axios.post(`${baseURL}/get-tenant/`, data)
-        const tenant_id = tenant_id_res.data.tenant
-        try {
-            const response = await axios.get(url, {
-                headers: {
-                    "X-Tenant-Id": tenant_id
-                }
-            });
-            const responseData = response.data?.[0]
-            console.log("response : " ,responseData)
-            const replacementValue = responseData?.[key] !== undefined ? responseData[key] : '';
-
-            modifiedMessage = modifiedMessage.replace(placeholder[0], replacementValue);
+        else if(key =='otp'){
             
-        } catch (error) {
-            console.error('Error fetching data for placeholder replacement:', error);
-
         }
+        
     }
     console.log(modifiedMessage)
     return modifiedMessage;
@@ -552,4 +557,65 @@ async function checkBlobExists(blockBlobClient){
       }
       throw error;
     }
+}
+
+
+async function sendProduct_List(userSession) {
+    const messageData = {
+      type: "interactive",
+      interactive: 
+      {
+      type: "product_list",
+      header:{
+         type: "text",
+          text: "text-header-content"
+       },
+       body:{
+          text: "text-body-content"
+        },
+       footer:{
+          text:"text-footer-content"
+       },
+       action:{
+          catalog_id:"799995568791485",
+          sections: [
+               {
+               title: "the-section-title",             
+               product_items: [
+                    { product_retailer_id: "kzqkbik9gs" },
+                    { product_retailer_id: "197td0owho" },
+                ]},
+                {
+                title: "the-section-title",
+                product_items: [
+                   { product_retailer_id: "nkx70axqlf" }
+                ]},
+         ]
+       },  
+      }
+    }
+
+    await sendMessage(userSession.userPhoneNumber, userSession.business_number_id, messageData, userSession.accessToken)
+}
+
+async function sendProductList(userSession, message){
+    const products = userSession.products
+    console.log("PRODUCTSSSSSSS: ", products)
+    const rows = products.map((product) => ({
+        id: product.id,
+        title: product.name
+    }))
+    console.log("ROWSSSSS: ", rows)
+    const productListMessageData = {
+        type: "interactive",
+        interactive: {
+            type: "list",
+            body: {text: message},
+            action: {
+                button: "Choose Option",
+                sections: [{ title: "Choose a Product", rows }]
+            }
+        }
+    }
+    await sendMessage(userSession.userPhoneNumber, userSession.business_number_id, productListMessageData, userSession.accessToken)
 }

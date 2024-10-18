@@ -11,6 +11,7 @@ import NodeCache from 'node-cache';
 import FormData from "form-data";
 import { travel_ticket_prompt, appointment_prompt } from './PROMPTS.js'
 import { access } from "fs";
+import { fail } from "assert";
 
 
 const messageCache = new NodeCache({ stdTTL: 600 });
@@ -730,7 +731,7 @@ app.post("/webhook", async (req, res) => {
             fallback_count: response.data.fallback_count != null ? response.data.fallback_count : 1,
             products : listProduct
           };
-          
+
           const key = userPhoneNumber + business_phone_number_id
           userSessions.set(key, userSession);
           // console.log(`New session created for user ${userPhoneNumber}:`, userSessions);
@@ -860,11 +861,29 @@ app.post("/webhook", async (req, res) => {
             console.log("product id: ", product_id)
             const product_name = userSession.products.find(product => product.id === product_id)
             console.log("product nameeeeee: ", product_name)
-            product_list.push({"product_name": product_name.name, "quantity": product.quantity})
+            product_list.push({"id": product_id, "quantity": product.quantity, "product_name": product_name.name})
           }
           console.log("Total Amount = ", totalAmount)
           console.log(product_list)
-          await sendBill(totalAmount, product_list, userSession)
+
+          const response = await axios.post(`${baseURL}/process-order/`, {
+            order: product_list
+          },{
+            headers: {
+              'X-Tenant-Id': userSession.tenant
+            }
+          })
+          if (response.data.status == 'success'){
+            await sendBill(totalAmount, product_list, userSession)
+          }
+          else if (response.data.status == 'failure'){
+            const reason  = response.data.reason
+            var failureMessage;
+            if (reason == 'insufficient_quantity'){
+              failureMessage = "We regret to inform you that your order could not be processed due to insufficient stock availability. We are actively working to replenish our inventory as soon as possible. We apologize for any inconvenience this may have caused."
+              sendTextMessage(userSession.userPhoneNumber, userSession.business_number_id, failureMessage, userSession.accessToken)
+            }
+          }
           // await sendProduct(userSession)
         }
         

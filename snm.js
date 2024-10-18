@@ -1,7 +1,7 @@
 import { userSessions, io, updateStatus } from "./server.js";
 import axios from "axios";
 import { BlobServiceClient } from '@azure/storage-blob';
-export const baseURL = "https://backenreal-hgg2d7a0d9fzctgj.eastus-01.azurewebsites.net"
+export const baseURL = "https://backeng4whatsapp-dxbmgpakhzf9bped.centralindia-01.azurewebsites.net"
 // export const baseURL = "http://localhost:8000"
 
 export async function sendMessage(phoneNumber, business_phone_number_id, messageData, access_token = null, fr_flag) {
@@ -136,6 +136,7 @@ export async function sendVideoMessage(phone, bpid, videoID, access_token, fr_fl
     return sendMessage(phone, bpid, messageData, access_token, fr_flag)
 }
 
+
 export async function sendAudioMessage(phone, bpid, audioID, caption, access_token, fr_flag = false) {
     const audioObject = {}
     if(audioID) audioObject.id = audioID
@@ -191,12 +192,10 @@ export async function sendButtonMessage(buttons, message, phoneNumber, business_
                 action: { buttons: button_rows }
             }
         }
-        
         if(mediaID !== null && mediaID !== undefined) {
             console.log("media id present")
             messageData.interactive['header'] = { type: 'image', image: {id: mediaID}}
         }
-
         return sendMessage(phoneNumber, business_phone_number_id, messageData, access_token, fr_flag)
     } catch (error) {
         console.error('Failed to send button message:', error.response ? error.response.data : error.message);
@@ -234,6 +233,60 @@ export async function sendListMessage(list, message, phoneNumber, business_phone
         }
     };
     return sendMessage(phoneNumber, business_phone_number_id, messageData, access_token, fr_flag);
+}
+
+export async function sendProductMessage(userSession, product_list, catalog_id, header, body, footer){
+    let productMessageData;
+    // single product
+    if (product_list.length == 1){
+        productMessageData = {
+            type: "interactive",
+            interactive: {
+                type: "product",
+                action: {
+                    catalog_id: catalog_id,
+                    product_retailer_id: product_list[0].product_id
+                }
+            }
+        }
+        if(body) productMessageData.interactive['body'] = {text: body}
+        if(footer) productMessageData.interactive['footer'] = {text: footer}
+    }
+    // multiple products
+    else{
+        let sections = []
+        for (let product_section of product_list){
+            let section ={}
+            section['title'] = product_section['section_title']
+            section['product_items'] = []
+            for (let product of product_section['section_data']){
+                console.log("product: ", product)
+                section['product_items'].push({product_retailer_id: product})
+            }
+            sections.push(section)
+        }
+
+        productMessageData = {
+            type: "interactive",
+            interactive: {
+                type: "product_list",
+                header: {
+                    type: "text",
+                    text: header
+                },
+                body: {
+                    text: body
+                },
+                action: {
+                    catalog_id: catalog_id,
+                    sections: sections
+                }
+            }
+        }
+        if(footer) productMessageData.interactive['footer'] = {text: footer}
+    }
+    console.log("Message Data ", JSON.stringify(productMessageData, null, 4))
+    await sendMessage(userSession.userPhoneNumber, userSession.business_number_id, productMessageData, userSession.accessToken)
 }
 
 export async function sendNodeMessage(userPhoneNumber, business_phone_number_id) {
@@ -404,11 +457,18 @@ export async function sendNodeMessage(userPhoneNumber, business_phone_number_id)
                 userSession.AIMode = true;
                 break;
                 
-            case "products":
-                await sendProduct_List(userSession)
+            case "product":
+                const product_list = flow[currNode]?.product
+                const catalog_id = flow[currNode]?.catalog_id
+                const body = flow[currNode]?.body
+                const footer = flow[currNode]?.footer
+                const header = flow[currNode]?.header || "This is Header"
+                await sendProductMessage(userSession, product_list, catalog_id,header, body, footer)
+                break;
+            
             default:
                 console.log(`Unknown node type: ${flow[currNode]?.type}`);
-        }
+            }
         userSession.nextNode = nextNode;
         userSessions.set(userPhoneNumber+business_phone_number_id, userSession);
         await Promise.all([sendMessagePromise, sendDynamicPromise])
@@ -449,7 +509,7 @@ export async function addDynamicModelInstance(modelName, updateData) {
 export async function replacePlaceholders(message, userSession=null, userPhoneNumber=null, business_phone_number_id=null) {
     
     let modifiedMessage = message;
-    console.log("message: ", message)
+    console.log("message: ", message) 
     const placeholders = [...message.matchAll(/{{\s*[\w]+\s*}}/g)];
     if (userSession !== null) {
         var userPhoneNumber = userSession.userPhoneNumber
@@ -560,7 +620,7 @@ async function checkBlobExists(blockBlobClient){
 }
 
 
-async function sendProduct_List(userSession) {
+async function sendProduct_List() {
     const messageData = {
       type: "interactive",
       interactive: 
@@ -568,34 +628,38 @@ async function sendProduct_List(userSession) {
       type: "product_list",
       header:{
          type: "text",
-          text: "text-header-content"
+          text: "TextHeaderContent"
        },
        body:{
-          text: "text-body-content"
+          text: "TextBodyContent"
         },
        footer:{
-          text:"text-footer-content"
+          text:"TextFooterContent"
        },
        action:{
           catalog_id:"799995568791485",
           sections: [
                {
-               title: "the-section-title",             
+               title: "TheSectionTitle",             
                product_items: [
                     { product_retailer_id: "kzqkbik9gs" },
                     { product_retailer_id: "197td0owho" },
                 ]},
                 {
-                title: "the-section-title",
+                title: "TheSectionTitle",
                 product_items: [
                    { product_retailer_id: "nkx70axqlf" }
                 ]},
-         ]
-       },  
+            ]
+        },
       }
     }
 
-    await sendMessage(userSession.userPhoneNumber, userSession.business_number_id, messageData, userSession.accessToken)
+    const phone = 919557223443
+    const bpid = 394345743768990
+    const access_token = "EAAVZBobCt7AcBO02EyyYdLbpJn17HUXqAxQoZBxnhkGWTBrRiqBIZCOccY8peg73jQltdKc0vQF6u3EZA8wwaiGYTOF18ZAFQbLq5OsBCpPNReGCOvJS4MuQLiXt1t6WfkoJ5tnq65ITcygoKhh0eRU0GT9vWZBodvj3COpsYgG40R4XLZABHewbfm7FG6a2MbPy8YamxEDO4qoqZAKxrSpPZCJcL27dkdiGIBSobhILkJJpIPqYJkekIpmdI6V9ZB"
+
+    await sendMessage(phone, bpid, messageData, access_token)
 }
 
 async function sendProductList(userSession, message){
@@ -619,3 +683,69 @@ async function sendProductList(userSession, message){
     }
     await sendMessage(userSession.userPhoneNumber, userSession.business_number_id, productListMessageData, userSession.accessToken)
 }
+
+export async function sendBillMessage(){
+    const messageData = {
+        type: "interactive",
+        interactive: {
+            type: "order_details",
+            body: {
+                text: "This is Body"
+            },
+            action: {
+                name: "review_and_pay",
+                parameters: {
+                    reference_id: "NurenAI",
+                    type: "digital-goods",
+                    currency: "INR",
+                    total_amount: {
+                        offset: 100,
+                        value: 5000
+                    },
+                    payment_settings: [
+                        {
+                        type: "payment_gateway",
+                        payment_gateway: {
+                            type: "razorpay",
+                            configuration_name: "nuren-config"
+                        }
+                    }
+                ],
+                    order: {
+                        status: "pending",
+                        catalog_id : 799995568791485,
+                        items: [
+                            {
+                            retailer_id: "nkx70axqlf",
+                            name: "Product 1",
+                            amount: {
+                                value: 202000,
+                                offset: 100
+                            },
+                            quantity: 1
+                        }
+                    ],
+                        subtotal: {
+                            value: 202000,
+                            offset: 100
+                        },
+                        tax: {
+                            offset: 100,
+                            value: 202000
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    const phone = 919548265904
+    const bpid = 394345743768990
+    const access_token = "EAAVZBobCt7AcBO02EyyYdLbpJn17HUXqAxQoZBxnhkGWTBrRiqBIZCOccY8peg73jQltdKc0vQF6u3EZA8wwaiGYTOF18ZAFQbLq5OsBCpPNReGCOvJS4MuQLiXt1t6WfkoJ5tnq65ITcygoKhh0eRU0GT9vWZBodvj3COpsYgG40R4XLZABHewbfm7FG6a2MbPy8YamxEDO4qoqZAKxrSpPZCJcL27dkdiGIBSobhILkJJpIPqYJkekIpmdI6V9ZB"
+
+
+    await sendMessage(phone, bpid, messageData, access_token)
+}
+
+// await sendBillMessage()
+// await sendProduct_List()

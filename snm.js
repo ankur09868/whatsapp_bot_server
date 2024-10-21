@@ -1,8 +1,8 @@
 import { userSessions, io, updateStatus } from "./server.js";
 import axios from "axios";
 import { BlobServiceClient } from '@azure/storage-blob';
-// export const baseURL = "https://backeng4whatsapp-dxbmgpakhzf9bped.centralindia-01.azurewebsites.net"
-export const baseURL = "http://localhost:8000"
+export const baseURL = "https://backeng4whatsapp-dxbmgpakhzf9bped.centralindia-01.azurewebsites.net"
+// export const baseURL = "http://localhost:8000"
 
 export async function sendMessage(phoneNumber, business_phone_number_id, messageData, access_token = null, fr_flag) {
 
@@ -22,6 +22,7 @@ export async function sendMessage(phoneNumber, business_phone_number_id, message
     if (access_token == null) access_token = userSession.accessToken;
     console.log(url, access_token)
     try {
+        console.log("Senidng Details: ", phoneNumber, access_token, business_phone_number_id)
         const response = await axios.post(
             url, 
             {
@@ -523,10 +524,7 @@ export async function replacePlaceholders(message, userSession=null, userPhoneNu
         {
             var url = `${baseURL}/contacts-by-phone/${userPhoneNumber}`;
 
-            const data = {
-                bpid: business_phone_number_id
-            }
-            const tenant_id_res = await axios.post(`${baseURL}/get-tenant/`, data)
+            const tenant_id_res = await axios.get(`${baseURL}/get-tenant/?bpid=${business_phone_number_id}`)
             const tenant_id = tenant_id_res.data.tenant
             try {
                 const response = await axios.get(url, {
@@ -545,10 +543,6 @@ export async function replacePlaceholders(message, userSession=null, userPhoneNu
 
             }
         }
-        else if(key =='otp'){
-            
-        }
-        
     }
     console.log(modifiedMessage)
     return modifiedMessage;

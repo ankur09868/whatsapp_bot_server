@@ -261,8 +261,7 @@ app.get("/imageData/:bpid/:id", async (req, res) => {
 app.post("/send-message", async (req, res) => {
   try {
     const { phoneNumbers, message, url, messageType, additionalData, business_phone_number_id, bg_id } = req.body;
-    var tenant_id = req.headers['X-Tenant-Id'];
-
+    const tenant_id = req.headers['x-tenant-id'];
     const sendPromises = phoneNumbers.map(async (phoneNumber) => {
       const formattedPhoneNumber = `91${phoneNumber}`;
       const cacheKey = `${business_phone_number_id}_${tenant_id}`;
@@ -270,8 +269,8 @@ app.post("/send-message", async (req, res) => {
       let access_token = messageCache.get(cacheKey);
       if (!access_token) {
         try {
-          const tenantRes = await axios.get(`${baseURL}/whatsapp_tenant?business_phone_id=${business_phone_number_id}`, {
-            headers: { 'X-Tenant-Id': 'll' }
+          const tenantRes = await axios.get(`${baseURL}/whatsapp_tenant/`, {
+            headers: { 'X-Tenant-Id': tenant_id}
           });
           access_token = tenantRes.data.access_token;
           messageCache.set(cacheKey, access_token);
@@ -456,7 +455,7 @@ app.post("/send-template", async(req, res) => {
   const otp = template?.otp
   console.log(`tenant ID: ${tenant_id}`)
   try {
-    const tenantRes = await axios.get(`${baseURL}/whatsapp_tenant?business_phone_id=${business_phone_number_id}`, {
+    const tenantRes = await axios.get(`${baseURL}/whatsapp_tenant/`, {
       headers: { 'X-Tenant-Id': tenant_id }
     });
     const access_token = tenantRes.data.access_token;
@@ -533,17 +532,9 @@ async function executeFallback(userSession){
     }
 }
 
-async function addContact(business_phone_number_id, c_data) {
-  const data = {
-    bpid: business_phone_number_id
-  }
+async function addContact(c_data, tenant) {
   try{
-    const response = await axios.post(`${baseURL}/get-tenant/`, data, {
-      headers: {'X-Tenant-Id': 'll', 'Content-Type': 'application/json'}
-    })
-
-    const tenant = response.data.tenant
-    console.log("received tenant: ", tenant)
+    console.log("add contactt")
     await axios.post(`${baseURL}/contacts_by_tenant/`, c_data, {
       headers: {'X-Tenant-Id': tenant}
     })
@@ -584,11 +575,7 @@ app.post("/webhook", async (req, res) => {
     console.log("Contact: ", userName)
     let tenant;
     try{
-      let data = {
-        bpid: business_phone_number_id
-      }
-      var response = await axios.post(`${baseURL}/get-tenant/`, data, {
-        headers: {'X-Tenant-Id': 'll', 'Content-Type': 'application/json'}
+      var response = await axios.get(`${baseURL}/get-tenant/?bpid=${business_phone_number_id}`, {
       })
       console.log("Tenant Response: ", response.data)
       tenant = response.data.tenant
@@ -601,7 +588,7 @@ app.post("/webhook", async (req, res) => {
         phone: userPhoneNumber,
         name: userName
       }
-      addContact(business_phone_number_id, contact_data)
+      addContact(contact_data, tenant)
     }
 
     if (message) {
@@ -682,14 +669,14 @@ app.post("/webhook", async (req, res) => {
       if (!userSession) {
         console.log(`Creating new session for user ${userPhoneNumber}`);
         try {
-          const response = await axios.get(`${baseURL}/whatsapp_tenant?business_phone_id=${business_phone_number_id}`,{
-            headers: {'X-Tenant-Id': 'll'} 
+          const response = await axios.get(`${baseURL}/whatsapp_tenant/`,{
+            headers: {'X-Tenant-Id': tenant} 
           });
-          const flowData1 = response.data.flow_data
-          let flowData = JSON.parse(flowData1);
-          const adjList1 = response.data.adj_list
-          let adjList = JSON.parse(adjList1)
           console.log("Tenant data received:", response.data);
+          const flowData = response.data.flow_data
+          // let flowData = JSON.parse(flowData1);
+          const adjList = response.data.adj_list
+          // let adjList = JSON.parse(adjList1)
   
           // Validate the data types
           if (!Array.isArray(flowData)) {
@@ -700,7 +687,7 @@ app.post("/webhook", async (req, res) => {
           }
 
           const catalogResponse = await axios.get(`${baseURL}/catalog`, {
-            headers: {'X-Tenant-Id': 'ai'}
+            headers: {'X-Tenant-Id': tenant}
           });
           console.log("catalog response: ", catalogResponse.data)
           let listProduct = [];
@@ -834,6 +821,7 @@ app.post("/webhook", async (req, res) => {
           const flow = userSession.flowData
           const type = flow[userSession.currNode].type
           if (userSession.currNode != userSession.startNode){
+            console.log("TYPEPEPEPEP:", type)
             if (['Text', 'string', 'audio', 'video', 'location', 'image', 'AI'].includes(type)) {
             // console.log(`Storing input for node ${userSession.currNode}:`, message?.text?.body);
             //userSession.inputMap.set(userSession.currNode, message?.text?.body);

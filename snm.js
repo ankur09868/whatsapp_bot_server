@@ -266,7 +266,6 @@ export async function sendProductMessage(userSession, product_list, catalog_id, 
             }
             sections.push(section)
         }
-
         productMessageData = {
             type: "interactive",
             interactive: {

@@ -231,33 +231,6 @@ app.use(session({
   cookie: { secure: true }  // Set to true if you're using HTTPS
 }));
 
-app.get("/imageData/:bpid/:id", async (req, res) => {
-  try {
-    const imageID = req.params.id;  
-    const bpid = req.params.bpid;
-    if (!imageID) {
-      return res.status(400).send("Image ID is required");
-    }
-    let access_token;
-      
-    try {
-      const tenantRes = await axios.get(`${baseURL}/whatsapp_tenant?business_phone_id=${bpid}`, {
-        headers: { 'X-Tenant-Id': 'll' }
-      });
-      access_token = tenantRes.data.access_token;
-    } catch (error) {
-      console.error(`Error fetching tenant data for user ${bpid}:`, error);
-      throw error;
-    }
-    let result = await getImageAndUploadToBlob(imageID, access_token)
-    console.log("blob url: ", result)
-    res.json(result)
-  } catch (error) {
-    console.error("Error fetching image:", error);
-    res.status(500).send("Internal Server Error");
-  }
-});
-
 app.post("/send-message", async (req, res) => {
   try {
     const { phoneNumbers, message, url, messageType, additionalData, business_phone_number_id, bg_id } = req.body;

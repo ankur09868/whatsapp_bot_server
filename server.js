@@ -659,16 +659,16 @@ app.post("/webhook", async (req, res) => {
             throw new Error("adjList is not an array of arrays");
           }
 
-          const catalogResponse = await axios.get(`${baseURL}/catalog`, {
-            headers: {'X-Tenant-Id': tenant}
-          });
-          console.log("catalog response: ", catalogResponse.data)
-          let listProduct = [];
-          for (let catalog of catalogResponse.data){
-            const product_id = catalog.product_retailer_id
-            const product_name = catalog.product_name
-            listProduct.push({id: product_id, name: product_name})
-          }
+          // const catalogResponse = await axios.get(`${baseURL}/catalog`, {
+          //   headers: {'X-Tenant-Id': tenant}
+          // });
+          // console.log("catalog response: ", catalogResponse.data)
+          // let listProduct = [];
+          // for (let catalog of catalogResponse.data){
+          //   const product_id = catalog.product_retailer_id
+          //   const product_name = catalog.product_name
+          //   listProduct.push({id: product_id, name: product_name})
+          // }
           
           const startNode = response.data.start !== null ? response.data.start : 0;
           const currNode = startNode 
@@ -689,7 +689,7 @@ app.post("/webhook", async (req, res) => {
             inputVariableType: null,
             fallback_msg : response.data.fallback_msg || "please provide correct input",
             fallback_count: response.data.fallback_count != null ? response.data.fallback_count : 1,
-            products : listProduct
+            // products : listProduct
           };
 
           const key = userPhoneNumber + business_phone_number_id

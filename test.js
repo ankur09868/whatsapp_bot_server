@@ -30,7 +30,7 @@ async function mediaUploads(mediaID, access_token, user_data) {
         formData.append('pdf', media, 'file.pdf'); // Provide a default filename
 
         // Send the FormData with the file to the Python server
-        let postResponse = await axios.post('http://localhost:8000/whatsapp-media-uploads/', formData, {
+        let postResponse = await axios.post(`/whatsapp-media-uploads/`, formData, {
             headers: {'X-Tenant-Id': 'three_little_birds', 'user-data': JSON.stringify(user_data)}
         });
 

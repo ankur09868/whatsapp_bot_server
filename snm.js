@@ -1,8 +1,8 @@
 import { userSessions, io, updateStatus } from "./server.js";
 import axios from "axios";
 import { BlobServiceClient } from '@azure/storage-blob';
-// export const baseURL = "https://backeng4whatsapp-dxbmgpakhzf9bped.centralindia-01.azurewebsites.net"
-export const baseURL = "http://localhost:8000"
+export const baseURL = "https://backeng4whatsapp-dxbmgpakhzf9bped.centralindia-01.azurewebsites.net"
+//export const baseURL = "http://localhost:8000"
 
 export async function sendMessage(phoneNumber, business_phone_number_id, messageData, access_token = null, fr_flag) {
 

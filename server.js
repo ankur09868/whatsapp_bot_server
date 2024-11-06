@@ -99,19 +99,19 @@ app.post("/send-message", async (req, res) => {
         case 'image':
           const { imageId, caption } = additionalData;
           console.log(`image ID: ${imageId}, caption: ${caption}`)
-          sendMessagePromise = sendImageMessage(formattedPhoneNumber, business_phone_number_id, imageId, caption, access_token, fr_flag = true);
+          sendMessagePromise = sendImageMessage(formattedPhoneNumber, business_phone_number_id, imageId, caption, access_token, tenant_id, fr_flag = true);
           // formattedConversation.push({ text: caption, sender: "bot" });
           break;
         case 'audio':
           const { audioID } = additionalData;
-          sendMessagePromise = sendAudioMessage(formattedPhoneNumber, business_phone_number_id, audioID, access_token, fr_flag = true);
+          sendMessagePromise = sendAudioMessage(formattedPhoneNumber, business_phone_number_id, audioID, access_token,tenant_id, fr_flag = true);
           break;
         case 'video':
           const { videoID } = additionalData;
-          sendMessagePromise = sendVideoMessage(formattedPhoneNumber, business_phone_number_id, videoID, access_token, fr_flag = true);
+          sendMessagePromise = sendVideoMessage(formattedPhoneNumber, business_phone_number_id, videoID, access_token,tenant_id, fr_flag = true);
           break;
         case 'location':
-          sendMessagePromise = sendLocationMessage(formattedPhoneNumber, business_phone_number_id, additionalData, access_token, fr_flag = true);
+          sendMessagePromise = sendLocationMessage(formattedPhoneNumber, business_phone_number_id, additionalData, access_token,tenant_id, fr_flag = true);
           break;
         default:
           throw new Error("Invalid message type");

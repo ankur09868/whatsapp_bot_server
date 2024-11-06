@@ -82,13 +82,13 @@ export async function sendMessage(phoneNumber, business_phone_number_id, message
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json',
-                            'X-Tenant-Id': userSession.tenant,
+                            'X-Tenant-Id': userSession.tenant || tenant,
                         },
                         body: JSON.stringify({
                             contact_id: phoneNumber,
                             business_phone_number_id: business_phone_number_id,
                             conversations: formattedConversation,
-                            tenant: userSession.tenant,
+                            tenant: userSession.tenant || tenant,
                         }),
                     });
 

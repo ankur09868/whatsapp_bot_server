@@ -89,20 +89,6 @@ app.post("/send-message", async (req, res) => {
           throw error;
         }
       }
-      // let formattedConversation = [{ text: message, sender: "bot" }];
-      // const saveConversationPromise = fetch(`${baseURL}/whatsapp_convo_post/${formattedPhoneNumber}/?source=whatsapp`, {
-      //   method: 'POST',
-      //   headers: {
-      //     'Content-Type': 'application/json',
-      //     'X-Tenant-Id': 'll'
-      //   },
-      //   body: JSON.stringify({
-      //     contact_id: formattedPhoneNumber,
-      //     business_phone_number_id: business_phone_number_id,
-      //     conversations: formattedConversation,
-      //     tenant: 'll',
-      //   }),
-      // });
 
       let sendMessagePromise;
       let fr_flag;
@@ -116,10 +102,6 @@ app.post("/send-message", async (req, res) => {
           sendMessagePromise = sendImageMessage(formattedPhoneNumber, business_phone_number_id, imageId, caption, access_token, fr_flag = true);
           // formattedConversation.push({ text: caption, sender: "bot" });
           break;
-        // case 'button':
-        //   const { buttons } = additionalData;
-        //   sendMessagePromise = sendButtonMessage(formattedPhoneNumber, business_phone_number_id, message, buttons, access_token);
-        //   break;
         case 'audio':
           const { audioID } = additionalData;
           sendMessagePromise = sendAudioMessage(formattedPhoneNumber, business_phone_number_id, audioID, access_token, fr_flag = true);
@@ -524,7 +506,7 @@ app.post("/webhook", async (req, res) => {
             var failureMessage;
             if (reason == 'insufficient_quantity'){
               failureMessage = "We regret to inform you that your order could not be processed due to insufficient stock availability. We are actively working to replenish our inventory as soon as possible. We apologize for any inconvenience this may have caused."
-              sendTextMessage(userSession.userPhoneNumber, userSession.business_number_id, failureMessage, userSession.accessToken)
+              sendTextMessage(userSession.userPhoneNumber, userSession.business_number_id, failureMessage, userSession.accessToken, userSession.tenant)
             }
           }
           // await sendProduct(userSession)

@@ -1,116 +1,16 @@
-import { userSessions, io, updateStatus } from "./server.js";
+import { userSessions, io } from "./server.js";
+import {sendMessage} from "./send-message.js"
+
+import { getAccessToken, getWabaID, getPhoneNumberID, registerAccount, postRegister } from "./login-flow.js";
+import  { sendProduct, sendBill, sendBillMessage, sendProductList, sendProduct_List } from "./product.js"
+import { validateInput, updateStatus, replacePlaceholders, addDynamicModelInstance, addContact, executeFallback } from "./misc.js"
+import { getMediaID, handleMediaUploads, checkBlobExists, getImageAndUploadToBlob } from "./handle-media.js"
+
+
 import axios from "axios";
 import { BlobServiceClient } from '@azure/storage-blob';
-// export const baseURL = "https://backeng4whatsapp-dxbmgpakhzf9bped.centralindia-01.azurewebsites.net"
-export const baseURL = "http://localhost:8000"
-
-export async function sendMessage(phoneNumber, business_phone_number_id, messageData, access_token = null, fr_flag) {
-
-    const key = phoneNumber + business_phone_number_id;
-    const userSession = userSessions.get(key);
-
-    if (!userSession && access_token == null) {
-        console.error("User session not found and no access token provided.");
-        return { success: false, error: "User session or access token missing." };
-    }
-
-    const url = `https://graph.facebook.com/v18.0/${business_phone_number_id}/messages`;
-    console.log('Sending message to:', phoneNumber);
-    console.log('Message Data:', JSON.stringify(messageData, null, 3));
-
-    // Use session access token if not provided
-    if (access_token == null) access_token = userSession.accessToken;
-    console.log(url, access_token)
-    try {
-        console.log("Senidng Details: ", phoneNumber, access_token, business_phone_number_id)
-        const response = await axios.post(
-            url, 
-            {
-                messaging_product: "whatsapp", 
-                recipient_type: "individual",
-                to: phoneNumber,
-                ...messageData
-            },
-            {
-                headers: { Authorization: `Bearer ${access_token}` }
-            }
-        );
-        // Check if the message was sent successfully
-        if (response.data && response.data.messages && response.data.messages.length > 0) {
-            console.log('Message sent successfully:', response.data);
-            const messageID = response.data.messages[0].id;
-            const status = "sent";
-
-            // Update status
-            updateStatus(status, messageID, business_phone_number_id, phoneNumber);
-
-            let mediaURLPromise = Promise.resolve(null);
-            const mediaID = messageData?.video?.id || messageData?.audio?.id || messageData?.image?.id
-            if (mediaID != undefined){
-                mediaURLPromise = await getImageAndUploadToBlob(mediaID, access_token).then(mediaURL => {
-                    if (messageData?.video?.id) {
-                        messageData.video.id = mediaURL;
-                    } else if (messageData?.audio?.id) {
-                        messageData.audio.id = mediaURL;
-                    } else if (messageData?.image?.id) {
-                        messageData.image.id = mediaURL;
-                    }
-                    console.log("message data  updated: ", messageData)
-                })
-            }
-            
-            const now = Date.now()
-            const timestamp = now.toLocaleString();
-
-                try{
-                    console.log("MESSAGE DATA: ", messageData)
-                    io.emit('node-message', {
-                        message: messageData,
-                        phone_number_id: business_phone_number_id,
-                        contactPhone: phoneNumber,
-                        time: timestamp
-                    });
-                    console.log("Emitted  Node Message: ", messageData)
-                    let formattedConversation = [{ text: messageData, sender: "bot" }];
-
-                    try {
-                        const saveRes = fetch(`${baseURL}/whatsapp_convo_post/${phoneNumber}/?source=whatsapp`, {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'X-Tenant-Id': 'll',
-                        },
-                        body: JSON.stringify({
-                            contact_id: phoneNumber,
-                            business_phone_number_id: business_phone_number_id,
-                            conversations: formattedConversation,
-                            tenant: 'll',
-                        }),
-                    });
-
-                // if (!saveRes.ok) throw new Error("Failed to save conversation");
-                console.log("Conversation saved successfully");
-
-            } catch (error) {
-                console.error("Error saving conversation:", error.message);
-            }
-                }catch(error){
-                    console.log("error occured while emission: ", error)
-                }
-            
-
-            await mediaURLPromise
-            return { success: true, data: response.data };
-
-        } else {
-            throw new Error("Message not sent");
-        }
-
-    } catch (error) {
-        console.error('Failed to send message:', error.response ? error.response.data : error.message);
-        return { success: false, error: error.response ? error.response.data : error.message };
-    }
-}
+export const baseURL = "https://backeng4whatsapp-dxbmgpakhzf9bped.centralindia-01.azurewebsites.net"
+// export const baseURL = "http://localhost:8000"
 
 export async function sendLocationMessage(phone, bpid, body, access_token, fr_flag = false) {
     const { latitude, longitude, name, address } = body
@@ -137,7 +37,6 @@ export async function sendVideoMessage(phone, bpid, videoID, access_token, fr_fl
     return sendMessage(phone, bpid, messageData, access_token, fr_flag)
 }
 
-
 export async function sendAudioMessage(phone, bpid, audioID, caption, access_token, fr_flag = false) {
     const audioObject = {}
     if(audioID) audioObject.id = audioID
@@ -149,12 +48,12 @@ export async function sendAudioMessage(phone, bpid, audioID, caption, access_tok
   return sendMessage(phone, bpid, messageData, access_token, fr_flag)
 }
   
-export async function sendTextMessage(userPhoneNumber, business_phone_number_id,message, access_token = null, fr_flag = false){
+export async function sendTextMessage(userPhoneNumber, business_phone_number_id,message, access_token = null, tenant_id=null ,fr_flag = false){
     const messageData = {
         type: "text",
         text: { body: message }
     }
-    return sendMessage(userPhoneNumber, business_phone_number_id, messageData, access_token, fr_flag)
+    return sendMessage(userPhoneNumber, business_phone_number_id, messageData, access_token, fr_flag, tenant_id)
 } 
  
 export async function sendImageMessage(phoneNumber, business_phone_number_id, imageID, caption, access_token = null, fr_flag= false) {
@@ -333,7 +232,7 @@ export async function sendNodeMessage(userPhoneNumber, business_phone_number_id)
                     console.log("input variable: ", userSession.inputVariable)
                     var data = {phone_no : BigInt(userPhoneNumber).toString()}
                     var modelName = userSession.flowName
-                    sendDynamicPromise = addDynamicModelInstance(modelName, data)
+                    sendDynamicPromise = addDynamicModelInstance(modelName, data, userSession.tenant)
                 }
                 let mediaID = flow[currNode]?.mediaID
                 await sendButtonMessage(buttons, node_message, userPhoneNumber,business_phone_number_id, mediaID );
@@ -352,7 +251,7 @@ export async function sendNodeMessage(userPhoneNumber, business_phone_number_id)
                     console.log("input variable: ", userSession.inputVariable)
                     var data = {phone_no : BigInt(userPhoneNumber).toString()}
                     var modelName = userSession.flowName
-                    sendDynamicPromise = addDynamicModelInstance(modelName, data)
+                    sendDynamicPromise = addDynamicModelInstance(modelName, data, userSession.tenant)
                 }
                 await sendListMessage(list, node_message, userPhoneNumber,business_phone_number_id, accessToken);
                 break;
@@ -370,7 +269,7 @@ export async function sendNodeMessage(userPhoneNumber, business_phone_number_id)
                     console.log("input variable: ", userSession.inputVariable)
                     var data = {phone_no : BigInt(userPhoneNumber).toString()}
                     var modelName = userSession.flowName
-                    sendDynamicPromise = addDynamicModelInstance(modelName, data)
+                    sendDynamicPromise = addDynamicModelInstance(modelName, data, userSession.tenant)
                 }
 
                 sendMessagePromise = sendInputMessage(userPhoneNumber,business_phone_number_id, node_message);
@@ -480,265 +379,81 @@ export async function sendNodeMessage(userPhoneNumber, business_phone_number_id)
     
 }
 
-export async function addDynamicModelInstance(modelName, updateData) {
-    const url = `${baseURL}/dynamic-model-data/${modelName}/`;
-    const data = updateData;
-    console.log("DATAAAAAAAAAAAAAAAAAAAAAAA: ", data)
-    try {
-        const response = await axios.post(url, data, {
-            headers: {
-                'Content-Type': 'application/json',
-                'X-Tenant-Id': 'll'
-            },
+export async function setTemplate(templateData, phone, bpid, access_token, otp) {
+try {
+    console.log("otp rcvd: ", otp)
+    const components = templateData?.components;
+    const template_name = templateData.name;
+    const res_components = [];
+
+    for (const component of components) {
+    if (component.type === "HEADER") {
+        const header_handle = component?.example?.header_handle || [];
+        const header_text = component?.example?.header_text || [];
+        const parameters = [];
+
+        for (const handle of header_handle) {
+        const mediaID = await getMediaID(handle, bpid, access_token)
+        parameters.push({
+            type: "image",
+            image: { id: mediaID }
         });
-        console.log('Data updated successfully:', response.data);
-        return response.data;
-    } catch (error) {
-        if (error.response) {
-            console.error(`Failed to add dynamic model instance: ${error.response.status}, ${error.response.data}`);
-        } else if (error.request) {
-            console.error('No response received:', error.request);
-        } else {
-            console.error('Error in setting up the request:', error.message);
         }
-        console.error('Config details:', error.config);
-        return null;
-    }
-}
-
-export async function replacePlaceholders(message, userSession=null, userPhoneNumber=null, business_phone_number_id=null) {
-    
-    let modifiedMessage = message;
-    console.log("message: ", message) 
-    const placeholders = [...message.matchAll(/{{\s*[\w]+\s*}}/g)];
-    if (userSession !== null) {
-        var userPhoneNumber = userSession.userPhoneNumber
-        var business_phone_number_id = userSession.business_number_id
-    }
-    console.log("placeholders: ", placeholders)
-    for (const placeholder of placeholders) {
-        let key = placeholder[0].slice(2, -2).trim();
-        console.log("key:", key)
-        if(key in ['id', 'name', 'phone', 'createdOn', 'isActive', 'bg_id', 'bg_name', 'tenant'])
-        {
-            var url = `${baseURL}/contacts-by-phone/${userPhoneNumber}`;
-
-            const tenant_id_res = await axios.get(`${baseURL}/get-tenant/?bpid=${business_phone_number_id}`)
-            const tenant_id = tenant_id_res.data.tenant
-            try {
-                const response = await axios.get(url, {
-                    headers: {
-                        "X-Tenant-Id": tenant_id
-                    }
-                });
-                const responseData = response.data?.[0]
-                console.log("response : " ,responseData)
-                const replacementValue = responseData?.[key] !== undefined ? responseData[key] : '';
-
-                modifiedMessage = modifiedMessage.replace(placeholder[0], replacementValue);
-                
-            } catch (error) {
-                console.error('Error fetching data for placeholder replacement:', error);
-
-            }
+        for (const text of header_text) {
+        let modified_text = await replacePlaceholders(text, null, phone, bpid)
+        parameters.push({
+            type: "text",
+            text: modified_text
+        });
         }
+        if(parameters.length> 0){
+        const header_component = {
+        type: "header",
+        parameters: parameters
+        };
+        res_components.push(header_component);
     }
-    console.log(modifiedMessage)
-    return modifiedMessage;
-}
+    }
+    else if (component.type === "BODY") {
+        const body_text = component?.example?.body_text[0] || [];
+        const parameters = [];
+        
+        for (const text of body_text) {
+        let modified_text
+        if(otp) modified_text = otp
+        else modified_text = await replacePlaceholders(text, null, phone, bpid)
 
-
-async function getImageAndUploadToBlob(imageID, access_token) {
-    try {
-      const account = "pdffornurenai";
-      const sas = "sv=2022-11-02&ss=bfqt&srt=co&sp=rwdlacupiytfx&se=2025-06-01T16:13:31Z&st=2024-06-01T08:13:31Z&spr=https&sig=8s7IAdQ3%2B7zneCVJcKw8o98wjXa12VnKNdylgv02Udk%3D";
-      const containerName = 'pdf';
-  
-      const blobServiceClient = new BlobServiceClient(`https://${account}.blob.core.windows.net/?${sas}`);
-      const containerClient = blobServiceClient.getContainerClient(containerName);
-      
-      // const fileExtension = contentType.split('/').pop();
-      const newFileName = `image_${imageID}`;
-  
-      const blockBlobClient = containerClient.getBlockBlobClient(newFileName);
-      const exists = await checkBlobExists(blockBlobClient);
-      if (exists == false){
-        console.log("blob doesnt exist")
-        const url = `https://graph.facebook.com/v16.0/${imageID}`;
-        const response = await axios.get(url, {
-          headers: { "Authorization": `Bearer ${access_token}` }
+        parameters.push({
+            type: "text",
+            text: modified_text
         });
-  
-        const imageURL = response.data?.url;
-        if (!imageURL) {
-          throw new Error('Image URL not found');
         }
-  
-        console.log("Image URL: ", imageURL);
-  
-        const imageResponse = await axios.get(imageURL, {
-          headers: { "Authorization": `Bearer ${access_token}` },
-          responseType: 'arraybuffer'
-        });
-  
-        const imageBuffer = imageResponse.data;
-        const contentType = imageResponse.headers['content-type'];
-  
-        const uploadBlobResponse = await blockBlobClient.uploadData(imageBuffer, {
-          blobHTTPHeaders: {
-            blobContentType: contentType,
-          },
-        });
-  
-        console.log(`Uploaded image ${newFileName} successfully, request ID: ${uploadBlobResponse.requestId}`);
-      }
-      return blockBlobClient.url;
-  
-    } catch (error) {
-      console.error('Error:', error);
-      throw error;
+        if(parameters.length > 0){
+        const body_component = {
+        type: "body",
+        parameters: parameters
+        };
+        res_components.push(body_component);
     }
-}
-
-async function checkBlobExists(blockBlobClient){
-    try{
-      const response = await blockBlobClient.getProperties();
-      return response !== null;
-    } catch (error){
-      if (error.statusCode === 404){
-        return false;
-      }
-      throw error;
+    } else {
+        console.warn(`Unknown component type: ${component.type}`);
     }
-}
+    }
 
-
-async function sendProduct_List() {
     const messageData = {
-      type: "interactive",
-      interactive: 
-      {
-      type: "product_list",
-      header:{
-         type: "text",
-          text: "TextHeaderContent"
-       },
-       body:{
-          text: "TextBodyContent"
+    type: "template",
+    template: {
+        name: template_name,
+        language: {
+        code: "en_US"
         },
-       footer:{
-          text:"TextFooterContent"
-       },
-       action:{
-          catalog_id:"799995568791485",
-          sections: [
-               {
-               title: "TheSectionTitle",             
-               product_items: [
-                    { product_retailer_id: "kzqkbik9gs" },
-                    { product_retailer_id: "197td0owho" },
-                ]},
-                {
-                title: "TheSectionTitle",
-                product_items: [
-                   { product_retailer_id: "nkx70axqlf" }
-                ]},
-            ]
-        },
-      }
+        components: res_components
     }
+    };
 
-    const phone = 919557223443
-    const bpid = 394345743768990
-    const access_token = "EAAVZBobCt7AcBO02EyyYdLbpJn17HUXqAxQoZBxnhkGWTBrRiqBIZCOccY8peg73jQltdKc0vQF6u3EZA8wwaiGYTOF18ZAFQbLq5OsBCpPNReGCOvJS4MuQLiXt1t6WfkoJ5tnq65ITcygoKhh0eRU0GT9vWZBodvj3COpsYgG40R4XLZABHewbfm7FG6a2MbPy8YamxEDO4qoqZAKxrSpPZCJcL27dkdiGIBSobhILkJJpIPqYJkekIpmdI6V9ZB"
-
-    await sendMessage(phone, bpid, messageData, access_token)
+    return messageData;
+} catch (error) {
+    console.error("Error in setTemplate function:", error);
+    throw error; // Rethrow the error to handle it further up the call stack if needed
 }
-
-async function sendProductList(userSession, message){
-    const products = userSession.products
-    console.log("PRODUCTSSSSSSS: ", products)
-    const rows = products.map((product) => ({
-        id: product.id,
-        title: product.name
-    }))
-    console.log("ROWSSSSS: ", rows)
-    const productListMessageData = {
-        type: "interactive",
-        interactive: {
-            type: "list",
-            body: {text: message},
-            action: {
-                button: "Choose Option",
-                sections: [{ title: "Choose a Product", rows }]
-            }
-        }
-    }
-    await sendMessage(userSession.userPhoneNumber, userSession.business_number_id, productListMessageData, userSession.accessToken)
 }
-
-export async function sendBillMessage(){
-    const messageData = {
-        type: "interactive",
-        interactive: {
-            type: "order_details",
-            body: {
-                text: "This is Body"
-            },
-            action: {
-                name: "review_and_pay",
-                parameters: {
-                    reference_id: "NurenAI",
-                    type: "digital-goods",
-                    currency: "INR",
-                    total_amount: {
-                        offset: 100,
-                        value: 5000
-                    },
-                    payment_settings: [
-                        {
-                        type: "payment_gateway",
-                        payment_gateway: {
-                            type: "razorpay",
-                            configuration_name: "nuren-config"
-                        }
-                    }
-                ],
-                    order: {
-                        status: "pending",
-                        catalog_id : 799995568791485,
-                        items: [
-                            {
-                            retailer_id: "nkx70axqlf",
-                            name: "Product 1",
-                            amount: {
-                                value: 202000,
-                                offset: 100
-                            },
-                            quantity: 1
-                        }
-                    ],
-                        subtotal: {
-                            value: 202000,
-                            offset: 100
-                        },
-                        tax: {
-                            offset: 100,
-                            value: 202000
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    const phone = 919548265904
-    const bpid = 394345743768990
-    const access_token = "EAAVZBobCt7AcBO02EyyYdLbpJn17HUXqAxQoZBxnhkGWTBrRiqBIZCOccY8peg73jQltdKc0vQF6u3EZA8wwaiGYTOF18ZAFQbLq5OsBCpPNReGCOvJS4MuQLiXt1t6WfkoJ5tnq65ITcygoKhh0eRU0GT9vWZBodvj3COpsYgG40R4XLZABHewbfm7FG6a2MbPy8YamxEDO4qoqZAKxrSpPZCJcL27dkdiGIBSobhILkJJpIPqYJkekIpmdI6V9ZB"
-
-
-    await sendMessage(phone, bpid, messageData, access_token)
-}
-
-// await sendBillMessage()
-// await sendProduct_List()

@@ -1,5 +1,12 @@
 import axios from "axios";
 
+import { setTemplate, sendNodeMessage, sendProductMessage, sendListMessage, sendInputMessage, sendButtonMessage, sendImageMessage, sendTextMessage, sendAudioMessage, sendVideoMessage, sendLocationMessage, baseURL} from "./snm.js"
+import { sendMessage  } from "./send-message.js"; 
+import  { sendProduct, sendBill, sendBillMessage, sendProductList, sendProduct_List } from "./product.js"
+import { validateInput, updateStatus, replacePlaceholders, addDynamicModelInstance, addContact, executeFallback } from "./misc.js"
+import { getMediaID, handleMediaUploads, checkBlobExists, getImageAndUploadToBlob } from "./handle-media.js"
+
+
 export async function getAccessToken(auth_code) {
     const client_id = '1546607802575879'; 
     const client_secret = '1cc11e828571e071c91f56da993bb60b'; 
@@ -52,7 +59,6 @@ export async function getWabaID(access_token) {
       throw error;
     }
 }
-
 
 export async function getPhoneNumberID(access_token, waba_id) {
 

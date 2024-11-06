@@ -3,20 +3,22 @@ import axios from "axios";
 import { createServer } from "http";
 import { Server } from "socket.io";
 import cors from 'cors';
-import dotenv from 'dotenv';
 import session from "express-session";
+
 import { getAccessToken, getWabaID, getPhoneNumberID, registerAccount, postRegister } from "./login-flow.js";
-import { sendNodeMessage, sendImageMessage, sendButtonMessage, sendTextMessage, sendMessage, replacePlaceholders, addDynamicModelInstance, sendAudioMessage, sendVideoMessage,sendLocationMessage, baseURL } from "./snm.js";
+import { setTemplate, sendNodeMessage, sendProductMessage, sendListMessage, sendInputMessage, sendButtonMessage, sendImageMessage, sendTextMessage, sendAudioMessage, sendVideoMessage, sendLocationMessage, baseURL} from "./snm.js"
+import { sendMessage  } from "./send-message.js"; 
+import  { sendProduct, sendBill, sendBillMessage, sendProductList, sendProduct_List } from "./product.js"
+import { validateInput, updateStatus, replacePlaceholders, addDynamicModelInstance, addContact, executeFallback, getTenantFromBpid, saveMessage } from "./misc.js"
+import { getMediaID, handleMediaUploads, checkBlobExists, getImageAndUploadToBlob } from "./handle-media.js"
+
 import NodeCache from 'node-cache';
 import FormData from "form-data";
-import { travel_ticket_prompt, appointment_prompt } from './PROMPTS.js'
-import { access } from "fs";
-import { fail } from "assert";
+import { travel_ticket_prompt } from './PROMPTS.js'
 
 
 const messageCache = new NodeCache({ stdTTL: 600 });
 
-const AIMode=false;
 const WEBHOOK_VERIFY_TOKEN = "COOL";
 const PORT = 8080;
 const app = express();
@@ -35,171 +37,6 @@ export let userSessions = new Map();
 httpServer.listen(PORT, () => {
   console.log(`Server is listening on port: ${PORT}`);
 });
-
-export async function updateStatus(status, message_id, business_phone_number_id, user_phone, broadcastGroup_id) {
-  let isRead = false;
-  let isDelivered = false;
-  let isSent = false;
-  let isReplied = false;
-  let isFailed = false;
-
-  try {
-    if (status === "replied"){
-      isReplied = true;
-      isRead = true;
-      isDelivered = true;
-      isSent = true;
-    }else if (status === "read") {
-      isRead = true;
-      isDelivered = true;
-      isSent = true;
-    } else if (status === "delivered") {
-      isDelivered = true;
-      isSent = true;
-    } else if (status === "sent") {
-      isSent = true;
-    } else if (status === "failed"){
-      isRead = false;
-      isDelivered = false;
-      isSent = false;
-      isReplied = false;
-      isFailed = true;
-    }
-
-    // Prepare data to send
-    const data = {
-      business_phone_number_id: business_phone_number_id,
-      is_failed: isFailed,
-      is_replied: isReplied,
-      is_read: isRead,
-      is_delivered: isDelivered,
-      is_sent: isSent,
-      user_phone: user_phone,
-      message_id: message_id,
-      bg_id : broadcastGroup_id
-    };
-    
-    // console.log("Sending request with data:", data);
-
-    // Send POST request with JSON payload
-    const response = await axios.post(`${baseURL}/set-status/`, data, {
-      headers: { 
-        "X-Tenant-Id": "ll", 
-        "Content-Type": "application/json" 
-      }
-    });
-
-    console.log("Response received:", response.data);
-  } catch (error) {
-    console.error("Error updating status:", error.response ? error.response.data : error.message);
-  }
-}
-
-async function validateInput(inputVariable, message){
-  try{
-  const prompt = `Question being asked is: ${inputVariable}?\n
-  Response being given is: ${message}\n
-  Does the response answer the question? reply in yes or no. nothing else `
-
-  const api_key = process.env.OPENAI_API_KEY;
-
-  const data = {
-    model: "gpt-4o-mini",
-    messages : [
-      {
-        role: "system",
-        content: "you are a helpful assisstant who replies in yes or no only"
-      },
-      {
-        role: "user",
-        content: prompt
-      }
-    ]
-  }
-  const response = await axios.post('https://api.openai.com/v1/chat/completions',data, {
-    headers: {
-      'Authorization': `Bearer ${api_key}`,
-      'Content-Type': 'application/json',
-    }
-  });
-
-  const validationResult = response.data.choices[0].message.content;
-  console.log("Validation Result: ", validationResult)
-  return validationResult
-} catch (error) {
-  console.error('Error validating input:', error);
-  return false;
-}
-}
-
-async function handleMediaUploads(name, phone, doc_name, mediaID, userSession, tenant) {
-  const access_token = userSession.accessToken;
-  const openai_key = process.env.OPENAI_API_KEY;
-  console.log(access_token)
-
-  let headers = { Authorization: `Bearer ${access_token}`, };
-  try {
-      let response = await axios.get(`https://graph.facebook.com/v19.0/${mediaID}`, { headers });
-      const mediaURL = response.data.url;
-      console.log(mediaURL);
-
-      response = await axios.get(mediaURL, { headers, responseType: 'arraybuffer' });
-      const media = response.data;
-
-      const base64Media = Buffer.from(media).toString('base64');
-
-      const payload = {
-          model: 'gpt-4o-mini',
-          messages: [
-              {
-                  role: 'user',
-                  content: [
-                      {
-                          type: 'text',
-                          text: travel_ticket_prompt,
-                      },
-                      {
-                          type: 'image_url',
-                          image_url: {
-                              url: `data:image/jpeg;base64,${base64Media}`,
-                          },
-                      },
-                  ],
-              },
-          ],
-      };
-
-      const openAIHeaders = {
-          Authorization: `Bearer ${openai_key}`,
-          'Content-Type': 'application/json',
-      };
-
-      response = await axios.post('https://api.openai.com/v1/chat/completions', payload, { headers: openAIHeaders });
-
-      let result = response.data.choices[0].message.content
-
-      const startIndex =  result.indexOf('{')
-      const endIndex = result.lastIndexOf('}') + 1;
-
-      const resultJSON = JSON.parse(result.substring(startIndex, endIndex).trim())
-      
-      const data = {
-        name: name,
-        phone: phone,
-        doc_name: doc_name || "default",
-        data: resultJSON,
-        tenant: tenant
-      }
-      console.log(data)
-      response = await axios.post(`${baseURL}/user-data/`, data, {headers: {'X-Tenant-Id': tenant}})
-      console.log(response.data)
-      
-      // const query = `Which hotel should I stay in ${resultJSON.destination}?`
-      
-  } catch (error) {
-      console.error('Error:', error.response ? error.response.data : error.message);
-  }
-}
 
 
 app.use(express.json());
@@ -271,7 +108,7 @@ app.post("/send-message", async (req, res) => {
       let fr_flag;
       switch (messageType) {
         case 'text':
-          sendMessagePromise = sendTextMessage(formattedPhoneNumber, business_phone_number_id, message, access_token, fr_flag = true);
+          sendMessagePromise = sendTextMessage(formattedPhoneNumber, business_phone_number_id, message, access_token, tenant_id, fr_flag = true);
           break;
         case 'image':
           const { imageId, caption } = additionalData;
@@ -317,111 +154,9 @@ app.post("/send-message", async (req, res) => {
   }
 });
 
-async function getMediaID(handle, bpid, access_token) {
-  const imageResponse = await axios.get(handle, { responseType: 'arraybuffer' });
-  
-  const formData = new FormData();
-  formData.append('file', Buffer.from(imageResponse.data), 'image.jpeg');
-  formData.append('type', 'image/jpeg');
-  formData.append('messaging_product', 'whatsapp');
-
-  const response = await axios.post(
-    `https://graph.facebook.com/v20.0/${bpid}/media`,
-    formData,
-    {
-      headers: {
-        Authorization: `Bearer ${access_token}`,
-        ...formData.getHeaders() 
-      }
-    }
-  );
-  
-  console.log(response.data);
-  return response.data.id;
-}
-
-async function setTemplate(templateData, phone, bpid, access_token, otp) {
-  try {
-    console.log("otp rcvd: ", otp)
-    const components = templateData?.components;
-    const template_name = templateData.name;
-    const res_components = [];
-
-    for (const component of components) {
-      if (component.type === "HEADER") {
-        const header_handle = component?.example?.header_handle || [];
-        const header_text = component?.example?.header_text || [];
-        const parameters = [];
-
-        for (const handle of header_handle) {
-          const mediaID = await getMediaID(handle, bpid, access_token)
-          parameters.push({
-            type: "image",
-            image: { id: mediaID }
-          });
-        }
-        for (const text of header_text) {
-          let modified_text = await replacePlaceholders(text, null, phone, bpid)
-          parameters.push({
-            type: "text",
-            text: modified_text
-          });
-        }
-        if(parameters.length> 0){
-        const header_component = {
-          type: "header",
-          parameters: parameters
-        };
-        res_components.push(header_component);
-      }
-      }
-      else if (component.type === "BODY") {
-        const body_text = component?.example?.body_text[0] || [];
-        const parameters = [];
-        
-        for (const text of body_text) {
-          let modified_text
-          if(otp) modified_text = otp
-          else modified_text = await replacePlaceholders(text, null, phone, bpid)
-
-          parameters.push({
-            type: "text",
-            text: modified_text
-          });
-        }
-        if(parameters.length > 0){
-        const body_component = {
-          type: "body",
-          parameters: parameters
-        };
-        res_components.push(body_component);
-      }
-      } else {
-        console.warn(`Unknown component type: ${component.type}`);
-      }
-    }
-
-    const messageData = {
-      type: "template",
-      template: {
-        name: template_name,
-        language: {
-          code: "en_US"
-        },
-        components: res_components
-      }
-    };
-
-    return messageData;
-  } catch (error) {
-    console.error("Error in setTemplate function:", error);
-    throw error; // Rethrow the error to handle it further up the call stack if needed
-  }
-}
-
 app.post("/send-template", async(req, res) => {
   const { bg_id, template, business_phone_number_id, phoneNumbers } = req.body
-  const tenant_id = req.headers['X-Tenant-Id'];
+  const tenant_id = req.headers['x-tenant-id'];
   
   const templateName = template.name
   // for otps
@@ -431,8 +166,9 @@ app.post("/send-template", async(req, res) => {
     const tenantRes = await axios.get(`${baseURL}/whatsapp_tenant/`, {
       headers: { 'X-Tenant-Id': tenant_id }
     });
+    console.log("TENANT RES: ", tenantRes)
     const access_token = tenantRes.data.access_token;
-    const account_id = tenantRes.data.account_id;
+    const account_id = tenantRes.data.business_account_id;
     console.log(`access token: ${access_token}, account ID: ${account_id}`)
     
     const response  = await axios.get(`https://graph.facebook.com/v16.0/${account_id}/message_templates?name=${templateName}`, {
@@ -486,36 +222,6 @@ app.post("/send-template", async(req, res) => {
   }
 });
 
-async function executeFallback(userSession){
-  console.log("Entering Fallback")
-  var fallback_count = userSession.fallback_count
-  const userPhoneNumber = userSession.userPhoneNumber
-  const business_phone_number_id = userSession.business_number_id
-  if(fallback_count > 0){
-    console.log("Fallback Count: ", fallback_count)
-    const fallback_msg = userSession.fallback_msg
-    const access_token = userSession.accessToken
-    const response = await sendTextMessage(userPhoneNumber, business_phone_number_id, fallback_msg, access_token)
-    fallback_count=fallback_count - 1;
-    userSession.fallback_count = fallback_count
-  }
-  else{
-    userSessions.delete(userPhoneNumber+business_phone_number_id)
-    console.log("restarting user session for user: ", userPhoneNumber)
-    }
-}
-
-async function addContact(c_data, tenant) {
-  try{
-    console.log("add contactt")
-    await axios.post(`${baseURL}/contacts_by_tenant/`, c_data, {
-      headers: {'X-Tenant-Id': tenant}
-    })
-  }catch (error){
-    console.error('Error Occured: ', error.message)
-  }
-}
-
 app.post("/reset-session", async (req, res) => {
   try {
     const bpid = req.body.business_phone_number_id;
@@ -546,102 +252,24 @@ app.post("/webhook", async (req, res) => {
     const products = message?.order?.product_items
     console.log("Rcvd Req: ",req.body, business_phone_number_id,contact,message,userPhoneNumber, JSON.stringify(statuses), userName)
     console.log("Contact: ", userName)
-    let tenant;
-    try{
-      var response = await axios.get(`${baseURL}/get-tenant/?bpid=${business_phone_number_id}`, {
-      })
-      console.log("Tenant Response: ", response.data)
-      tenant = response.data.tenant
-    }catch(error){
-      console.error(`Error getting tenant for ${business_phone_number_id}: `, error)
-    }
 
-    if(userName && userPhoneNumber){
-      const contact_data = {
-        phone: userPhoneNumber,
-        name: userName
-      }
-      addContact(contact_data, tenant)
-    }
-
+    // for handling messages
     if (message) {
-      const repliedTo = message?.context?.id || null
       console.log("Extracted data:", {
         business_phone_number_id,
         contact,
         message,
         userPhoneNumber
       });
-      if (repliedTo !== null) {
-        console.log("updating status: ", repliedTo)
-        updateStatus("replied", repliedTo)
-      }
-      console.log("Emitting new message event");
-      
-      let formattedConversation = [{
-        text: message?.text?.body || (message?.interactive ? (message?.interactive?.button_reply?.title || message?.interactive?.list_reply?.title) : null),
-        sender: "user"
-      }];
-        
-      try {
-          fetch(`${baseURL}/whatsapp_convo_post/${userPhoneNumber}/?source=whatsapp`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'X-Tenant-Id': tenant
-            },
-            body: JSON.stringify({
-              contact_id: userPhoneNumber,
-              business_phone_number_id: business_phone_number_id,
-              conversations: formattedConversation,
-              tenant: tenant,
-            }),
-          });
-          // if (!saveRes.ok) throw new Error("Failed to save conversation");
-        } catch (error) {
-          console.error("Error saving conversation:", error.message);
-        }
-        
-      const messageData = {
-          type: "text",
-          text: { body: message?.text?.body || (message?.interactive ? (message?.interactive?.button_reply?.title || message?.interactive?.list_reply?.title) : null) }
-      }
-      
-      const now = Date.now()
-      const timestamp = now.toLocaleString();
-      try{
-        io.emit('new-message', {
-          message: messageData,
-          phone_number_id: business_phone_number_id,
-          contactPhone: userPhoneNumber,
-          name: userName,
-          time: timestamp
-        });
-      
-        console.log("Emitted node message: ", messageData)
-      }catch(error){
-        console.log("error occured while emission: ", error)
-      }
-      const temp_user = message?.text?.body?.startsWith('*/') ? message.text.body.split('*/')[1]?.split(' ')[0] : null;
-      if(temp_user){
-        try{
-          io.emit('temp-user', {
-            temp_user: temp_user,
-            phone_number_id: business_phone_number_id,
-            contactPhone: userPhoneNumber,
-            time: timestamp
-          });
-          
-          console.log("Emitted temp_user message: ", messageData)
-        }catch(error){
-          console.log("error occured while emission of temp_user: ", error)
-        }
-      }
+
       // Retrieve or create user session
       let userSession = userSessions.get(userPhoneNumber+business_phone_number_id);
       if (!userSession) {
         console.log(`Creating new session for user ${userPhoneNumber}`);
         try {
+          
+          // get tenant from bpid
+          const tenant = await getTenantFromBpid(business_phone_number_id)
           const response = await axios.get(`${baseURL}/whatsapp_tenant/`,{
             headers: {'X-Tenant-Id': tenant} 
           });
@@ -659,16 +287,6 @@ app.post("/webhook", async (req, res) => {
             throw new Error("adjList is not an array of arrays");
           }
 
-          // const catalogResponse = await axios.get(`${baseURL}/catalog`, {
-          //   headers: {'X-Tenant-Id': tenant}
-          // });
-          // console.log("catalog response: ", catalogResponse.data)
-          // let listProduct = [];
-          // for (let catalog of catalogResponse.data){
-          //   const product_id = catalog.product_retailer_id
-          //   const product_name = catalog.product_name
-          //   listProduct.push({id: product_id, name: product_name})
-          // }
           
           const startNode = response.data.start !== null ? response.data.start : 0;
           const currNode = startNode 
@@ -682,19 +300,18 @@ app.post("/webhook", async (req, res) => {
             startNode : startNode,
             currNode: currNode,
             nextNode: adjList[currNode],
-            business_number_id: business_phone_number_id,
-            tenant : tenant,
+            business_number_id: response.data.business_phone_number_id,
+            tenant : response.data.tenant,
             userPhoneNumber : userPhoneNumber,
+            userName: userName,
             inputVariable : null,
             inputVariableType: null,
             fallback_msg : response.data.fallback_msg || "please provide correct input",
             fallback_count: response.data.fallback_count != null ? response.data.fallback_count : 1,
-            // products : listProduct
           };
 
           const key = userPhoneNumber + business_phone_number_id
           userSessions.set(key, userSession);
-          // console.log(`New session created for user ${userPhoneNumber}:`, userSessions);
         } catch (error) {
           console.error(`Error fetching tenant data for user ${userPhoneNumber}:`, error);
           throw error;
@@ -706,8 +323,72 @@ app.post("/webhook", async (req, res) => {
           userSession.currNode = userSession.startNode
           userSession.nextNode = userSession.adjList[userSession.currNode]
         }
-        // console.log(`Existing session found for user ${userPhoneNumber}:`, userSession);
       }
+
+      // add contact 
+      if(userName && userPhoneNumber){
+        const contact_data = {
+          phone: userSession.userPhoneNumber,
+          name: userSession.userName
+        }
+        addContact(contact_data, userSession.tenant)
+      }
+
+      // updating status 
+      const repliedTo = message?.context?.id || null
+      if (repliedTo !== null) {
+        console.log("updating status: ", repliedTo)
+        updateStatus("replied", repliedTo)
+      }
+
+      // saving message to backend
+      let formattedConversation = [{
+        text: message?.text?.body || (message?.interactive ? (message?.interactive?.button_reply?.title || message?.interactive?.list_reply?.title) : null),
+        sender: "user"
+      }];
+      saveMessage(userSession.userPhoneNumber, userSession.business_number_id, formattedConversation, userSession.tenant)
+
+      
+      // emitting to frontend
+      const now = Date.now()
+      const timestamp = now.toLocaleString();
+      const messageData = {
+        type: "text",
+        text: { body: message?.text?.body || (message?.interactive ? (message?.interactive?.button_reply?.title || message?.interactive?.list_reply?.title) : null) }
+      }
+      console.log("Emitting new message event");
+      try{
+        io.emit('new-message', {
+          message: messageData,
+          phone_number_id: userSession.business_number_id,
+          contactPhone: userSession.userPhoneNumber,
+          name: userName,
+          time: timestamp
+        });
+        console.log("Emitted node message: ", messageData)
+      }catch(error){
+        console.log("error occured while emission: ", error)
+      }
+
+      // emitting temp user to frontend
+      const temp_user = message?.text?.body?.startsWith('*/') ? message.text.body.split('*/')[1]?.split(' ')[0] : null;
+      if(temp_user){
+        try{
+          io.emit('temp-user', {
+            temp_user: temp_user,
+            phone_number_id: userSession.business_number_id,
+            contactPhone: userPhoneNumber,
+            time: timestamp
+          });
+          
+          console.log("Emitted temp_user message: ", messageData)
+        }catch(error){
+          console.log("error occured while emission of temp_user: ", error)
+        }
+      }
+
+
+      
       if (!userSession.AIMode) {
         let sendDynamicPromise;
         console.log("input vr: ", userSession.inputVariable)
@@ -746,7 +427,8 @@ app.post("/webhook", async (req, res) => {
                 [userSession.inputVariable] : userSelection
               }
               const modelName = userSession.flowName
-              sendDynamicPromise = addDynamicModelInstance(modelName , updateData)
+              
+              sendDynamicPromise = addDynamicModelInstance(modelName , updateData, userSession.tenant)
 
               console.log(`Updated model instance with data: ${JSON.stringify(updateData)}`);
               console.log(`Input Variable after update: ${userSession.inputVariable}`);
@@ -905,6 +587,8 @@ app.post("/webhook", async (req, res) => {
         console.log("Processing in AI mode");
       }
     }
+
+    // for status update
     if (statuses) {
       // console.log("Webhook received:", JSON.stringify(req.body, null, 2));
       const phoneNumber = statuses?.recipient_id
@@ -987,25 +671,6 @@ io.on('connection', (socket) => {
 });
 
 
-async function sendBill(totalAmount, product_list, userSession) {
-  console.log("PRODUCT LISTTTTTTTTTT: ", product_list)
-  const textMessageData = {
-    type: "text",
-    text: {
-      body: `Thank you for shopping from our store!\n\nYour total order amount: ${totalAmount}\n\nItems you have purchased are:\n\n${product_list.map(item => `Product: *${item.product_name}*, Quantity: *${item.quantity}*`).join('\n\n')}\n\nPlease use the QR below to make the payment!`
-    }
-  }
-  await sendMessage(userSession.userPhoneNumber, userSession.business_number_id, textMessageData, userSession.accessToken )
-  const QRMessageData = {
-    type: "image",
-    image: {
-      id: 2017972652012373,
-      caption: "Scan this QR Code with your payment provider app or just open the image in whatsapp."
-    }
-  }
-  await sendMessage(userSession.userPhoneNumber, userSession.business_number_id, QRMessageData, userSession.accessToken)
-}
-
 function clearInactiveSessions() {
   const inactivityThreshold = 30 * 60 * 1000; // 30 minutes
   const now = Date.now();
@@ -1018,28 +683,3 @@ function clearInactiveSessions() {
 
 setInterval(clearInactiveSessions, 60 * 60 * 1000);
 // Run the clearInactiveSessions function every hour
-
-
-async function sendProduct(userSession, product_id) {
-  console.log("PRODUCTSIDIIDIID: ", product_id)
-  const productMessageData = {
-    type: "interactive",
-    interactive: {
-      type: "product",
-      body: {
-        text: "Buy our product"
-      },
-      footer: {
-        text: "Thanks"
-      },
-      action: {
-        catalog_id: 799995568791485,
-        product_retailer_id: product_id
-      }
-    }
-  }
-  await sendMessage(userSession.userPhoneNumber, userSession.business_number_id, productMessageData, userSession.accessToken )
-  console.log("take my whiskey neeeeeat")
-  userSession.currNode = 6
-  sendNodeMessage(userSession.userPhoneNumber, userSession.business_number_id)
-}

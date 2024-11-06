@@ -66,7 +66,7 @@ export async function sendMessage(phoneNumber, business_phone_number_id, message
             const timestamp = now.toLocaleString();
 
                 try{
-                    console.log("MESSAGE DATA: ", messageData)
+                    console.log("MESSAGE DATA: ", JSON.stringify(messageData, null, 4))
                     io.emit('node-message', {
                         message: messageData,
                         phone_number_id: business_phone_number_id,

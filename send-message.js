@@ -77,23 +77,23 @@ export async function sendMessage(phoneNumber, business_phone_number_id, message
                     let formattedConversation = [{ text: messageData, sender: "bot" }];
 
                     try {
-                        console.log("USER SESSSSSS: ", userSession)
+                        console.log("Savong convo data: ", phoneNumber, business_phone_number_id, formattedConversation ,tenant)
                         const saveRes = fetch(`${baseURL}/whatsapp_convo_post/${phoneNumber}/?source=whatsapp`, {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json',
-                            'X-Tenant-Id': tenant,
+                            'X-Tenant-Id': userSession.tenant,
                         },
                         body: JSON.stringify({
                             contact_id: phoneNumber,
                             business_phone_number_id: business_phone_number_id,
                             conversations: formattedConversation,
-                            tenant: tenant,
+                            tenant: userSession.tenant,
                         }),
                     });
 
-                // if (!saveRes.ok) throw new Error("Failed to save conversation");
-                console.log("Conversation saved successfully");
+                if (!saveRes.ok) throw new Error("Failed to save conversation");
+                // console.log("Conversation saved successfully");
 
             } catch (error) {
                 console.error("Error saving conversation:", error.message);

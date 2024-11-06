@@ -282,7 +282,7 @@ export async function sendNodeMessage(userPhoneNumber, business_phone_number_id)
                 if(placeholders.length > 0) node_message = await replacePlaceholders(node_message, userSession)
                 
                 
-                await sendTextMessage(userPhoneNumber,business_phone_number_id, node_message);
+                await sendTextMessage(userPhoneNumber,business_phone_number_id, node_message, );
                 console.log(nextNode[0])
                 userSession.currNode = nextNode[0] !==undefined ? nextNode[0] : null;
                 console.log("string currNode: ", userSession.currNode)

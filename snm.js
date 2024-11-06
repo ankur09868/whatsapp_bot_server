@@ -145,7 +145,7 @@ export async function sendProductMessage(userSession, product_list, catalog_id, 
                 type: "product",
                 action: {
                     catalog_id: catalog_id,
-                    product_retailer_id: product_list[0].product_id
+                    product_retailer_id: product_list[0]
                 }
             }
         }
@@ -155,14 +155,16 @@ export async function sendProductMessage(userSession, product_list, catalog_id, 
     // multiple products
     else{
         let sections = []
-        let section ={}
-        section['title'] = "This is Title"
         for (let product of product_list){
+            let section ={}
+            section['title'] = "This is Title"
             section['product_items'] = []
             console.log("product: ", product)
             section['product_items'].push({product_retailer_id: product})
+            console.log("SEction: ", section)
             sections.push(section)
         }
+        console.log("sections: ", JSON.stringify(sections, null, 4))
         productMessageData = {
             type: "interactive",
             interactive: {

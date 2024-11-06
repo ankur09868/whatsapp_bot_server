@@ -368,8 +368,6 @@ app.post("/webhook", async (req, res) => {
           console.log("error occured while emission of temp_user: ", error)
         }
       }
-
-
       
       if (!userSession.AIMode) {
         let sendDynamicPromise;
@@ -528,9 +526,9 @@ app.post("/webhook", async (req, res) => {
         }else if(message?.type == "text"){
           const query = message?.text?.body
           const data = {query: query, phone: userPhoneNumber}
-          const headers = { 'X-Tenant-Id': tenant }
+          const headers = { 'X-Tenant-Id': userSession.tenant }
 
-          response = await axios.post(`${baseURL}/query-faiss/`, data, {headers:  headers})
+          const response = await axios.post(`${baseURL}/query-faiss/`, data, {headers:  headers})
 
           let messageText = response.data
           const messageData = {

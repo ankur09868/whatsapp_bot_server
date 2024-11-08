@@ -72,6 +72,7 @@ app.post("/send-message", async (req, res) => {
   try {
     const { phoneNumbers, message, url, messageType, additionalData, business_phone_number_id, bg_id } = req.body;
     const tenant_id = req.headers['x-tenant-id'];
+    console.log("Rcvd tenant id: ", tenant_id)
     const sendPromises = phoneNumbers.map(async (phoneNumber) => {
       const formattedPhoneNumber = `91${phoneNumber}`;
       const cacheKey = `${business_phone_number_id}_${tenant_id}`;
@@ -256,9 +257,9 @@ app.post("/webhook", async (req, res) => {
             headers: {'X-Tenant-Id': tenant} 
           });
           console.log("Tenant data received:", response.data);
-          const flowData = response.data.flow_data
+          const flowData = response.data.whatsapp_data.flow_data
           // let flowData = JSON.parse(flowData1);
-          const adjList = response.data.adj_list
+          const adjList = response.data.whatsapp_data.adj_list
           // let adjList = JSON.parse(adjList1)
   
           // Validate the data types
@@ -270,26 +271,27 @@ app.post("/webhook", async (req, res) => {
           }
 
           
-          const startNode = response.data.start !== null ? response.data.start : 0;
+          const startNode = response.data.whatsapp_data.start !== null ? response.data.whatsapp_data.start : 0;
           const currNode = startNode 
           userSession = {
             AIMode: false,
             lastActivityTime: Date.now(),
             flowData: flowData,
             adjList: adjList,
-            accessToken: response.data.access_token,
-            flowName : response.data.flow_name,
+            accessToken: response.data.whatsapp_data.access_token,
+            flowName : response.data.whatsapp_data.flow_name,
             startNode : startNode,
             currNode: currNode,
             nextNode: adjList[currNode],
-            business_number_id: response.data.business_phone_number_id,
-            tenant : response.data.tenant,
+            business_number_id: response.data.whatsapp_data.business_phone_number_id,
+            tenant : response.data.whatsapp_data.tenant,
             userPhoneNumber : userPhoneNumber,
             userName: userName,
             inputVariable : null,
             inputVariableType: null,
-            fallback_msg : response.data.fallback_msg || "please provide correct input",
-            fallback_count: response.data.fallback_count != null ? response.data.fallback_count : 1,
+            fallback_msg : response.data.whatsapp_data.fallback_msg || "please provide correct input",
+            fallback_count: response.data.whatsapp_data.fallback_count != null ? response.data.fallback_count : 1,
+            products: response.data.catalog_data
           };
 
           const key = userPhoneNumber + business_phone_number_id
@@ -482,9 +484,9 @@ app.post("/webhook", async (req, res) => {
             totalAmount+=product.item_price * product.quantity
             const product_id = product.product_retailer_id;
             console.log("product id: ", product_id)
-            const product_name = userSession.products.find(product => product.id === product_id)
+            const product_name = userSession.products.find(product_c => product_c.product_id === product_id)
             console.log("product nameeeeee: ", product_name)
-            product_list.push({"id": product_id, "quantity": product.quantity, "product_name": product_name.name})
+            product_list.push({"id": product_id, "quantity": product.quantity, "product_name": product_name.title})
           }
           console.log("Total Amount = ", totalAmount)
           console.log(product_list)

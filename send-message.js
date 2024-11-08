@@ -82,17 +82,17 @@ export async function sendMessage(phoneNumber, business_phone_number_id, message
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json',
-                            'X-Tenant-Id': userSession.tenant || tenant,
+                            'X-Tenant-Id': tenant || userSession?.tenant,
                         },
                         body: JSON.stringify({
                             contact_id: phoneNumber,
                             business_phone_number_id: business_phone_number_id,
                             conversations: formattedConversation,
-                            tenant: userSession.tenant || tenant,
+                            tenant: tenant || userSession?.tenant,
                         }),
                     });
 
-                if (!saveRes.ok) throw new Error("Failed to save conversation");
+                // if (!saveRes.ok) throw new Error("Failed to save conversation");
                 // console.log("Conversation saved successfully");
 
             } catch (error) {

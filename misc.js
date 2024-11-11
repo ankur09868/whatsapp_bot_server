@@ -103,7 +103,7 @@ export async function replacePlaceholders(message, userSession=null, userPhoneNu
     return modifiedMessage;
 }
 
-export async function updateStatus(status, message_id, business_phone_number_id, user_phone, broadcastGroup_id) {
+export async function  updateStatus(status, message_id, business_phone_number_id, user_phone, broadcastGroup_id) {
 let isRead = false;
 let isDelivered = false;
 let isSent = false;
@@ -116,7 +116,7 @@ try {
     isRead = true;
     isDelivered = true;
     isSent = true;
-    }else if (status === "read") {
+    } else if (status === "read") {
     isRead = true;
     isDelivered = true;
     isSent = true;
@@ -135,15 +135,15 @@ try {
 
     // Prepare data to send
     const data = {
-    business_phone_number_id: business_phone_number_id,
-    is_failed: isFailed,
-    is_replied: isReplied,
-    is_read: isRead,
-    is_delivered: isDelivered,
-    is_sent: isSent,
-    user_phone: user_phone,
-    message_id: message_id,
-    bg_id : broadcastGroup_id
+        business_phone_number_id: business_phone_number_id,
+        is_failed: isFailed,
+        is_replied: isReplied,
+        is_read: isRead,
+        is_delivered: isDelivered,
+        is_sent: isSent,
+        user_phone: user_phone,
+        message_id: message_id,
+        bg_id : broadcastGroup_id
     };
     
     // console.log("Sending request with data:", data);
@@ -203,7 +203,7 @@ export async function getTenantFromBpid(bpid) {
     try{
         var response = await axios.get(`${baseURL}/get-tenant/?bpid=${bpid}`, {
         })
-        console.log("Tenant Response: ", response.data)
+        // console.log("Tenant Response: ", response.data)
         const tenant = response.data.tenant
         return tenant
     }catch(error){

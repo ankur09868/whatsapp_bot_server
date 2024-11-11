@@ -83,8 +83,9 @@ app.post("/send-message", async (req, res) => {
           const tenantRes = await axios.get(`${baseURL}/whatsapp_tenant/`, {
             headers: { 'X-Tenant-Id': tenant_id}
           });
-          access_token = tenantRes.data.access_token;
+          access_token = tenantRes.data.whatsapp_data.access_token;
           messageCache.set(cacheKey, access_token);
+
         } catch (error) {
           console.error(`Error fetching tenant data for user ${business_phone_number_id}:`, error);
           throw error;
@@ -233,7 +234,7 @@ app.post("/webhook", async (req, res) => {
     const statuses = req.body.entry?.[0]?.changes[0]?.value?.statuses?.[0];
     const userName = contact?.profile?.name || null
     const products = message?.order?.product_items
-    console.log("Rcvd Req: ",req.body, business_phone_number_id,contact,message,userPhoneNumber, JSON.stringify(statuses), userName)
+    // console.log("Rcvd Req: ",req.body, business_phone_number_id,contact,message,userPhoneNumber, JSON.stringify(statuses), userName)
     console.log("Contact: ", userName)
 
     // for handling messages
@@ -252,14 +253,20 @@ app.post("/webhook", async (req, res) => {
         try {
           
           // get tenant from bpid
-          const tenant = await getTenantFromBpid(business_phone_number_id)
+          // const tenant = getTenantFromBpid(business_phone_number_id)
+          // console.log("Tenant: ", tenant)
+          let responseData = messageCache.get(business_phone_number_id)
+          if(!responseData){
           const response = await axios.get(`${baseURL}/whatsapp_tenant/`,{
-            headers: {'X-Tenant-Id': tenant} 
+            headers: {'bpid': business_phone_number_id}
           });
-          console.log("Tenant data received:", response.data);
-          const flowData = response.data.whatsapp_data.flow_data
+          responseData = response.data
+          messageCache.set(business_phone_number_id, responseData)
+        }
+          console.log("Tenant data received:", responseData);
+          const flowData = responseData.whatsapp_data.flow_data
           // let flowData = JSON.parse(flowData1);
-          const adjList = response.data.whatsapp_data.adj_list
+          const adjList = responseData.whatsapp_data.adj_list
           // let adjList = JSON.parse(adjList1)
   
           // Validate the data types
@@ -271,27 +278,27 @@ app.post("/webhook", async (req, res) => {
           }
 
           
-          const startNode = response.data.whatsapp_data.start !== null ? response.data.whatsapp_data.start : 0;
+          const startNode = responseData.whatsapp_data.start !== null ? responseData.whatsapp_data.start : 0;
           const currNode = startNode 
           userSession = {
             AIMode: false,
             lastActivityTime: Date.now(),
             flowData: flowData,
             adjList: adjList,
-            accessToken: response.data.whatsapp_data.access_token,
-            flowName : response.data.whatsapp_data.flow_name,
+            accessToken: responseData.whatsapp_data.access_token,
+            flowName : responseData.whatsapp_data.flow_name,
             startNode : startNode,
             currNode: currNode,
             nextNode: adjList[currNode],
-            business_number_id: response.data.whatsapp_data.business_phone_number_id,
-            tenant : response.data.whatsapp_data.tenant,
+            business_number_id: responseData.whatsapp_data.business_phone_number_id,
+            tenant : responseData.whatsapp_data.tenant,
             userPhoneNumber : userPhoneNumber,
             userName: userName,
             inputVariable : null,
             inputVariableType: null,
-            fallback_msg : response.data.whatsapp_data.fallback_msg || "please provide correct input",
-            fallback_count: response.data.whatsapp_data.fallback_count != null ? response.data.fallback_count : 1,
-            products: response.data.catalog_data
+            fallback_msg : responseData.whatsapp_data.fallback_msg || "please provide correct input",
+            fallback_count: responseData.whatsapp_data.fallback_count != null ? responseData.fallback_count : 1,
+            products: responseData.catalog_data
           };
 
           const key = userPhoneNumber + business_phone_number_id
@@ -318,7 +325,7 @@ app.post("/webhook", async (req, res) => {
         addContact(contact_data, userSession.tenant)
       }
 
-      // updating status 
+      // updating status if replied
       const repliedTo = message?.context?.id || null
       if (repliedTo !== null) {
         console.log("updating status: ", repliedTo)
@@ -333,9 +340,27 @@ app.post("/webhook", async (req, res) => {
       saveMessage(userSession.userPhoneNumber, userSession.business_number_id, formattedConversation, userSession.tenant)
 
       
-      // emitting to frontend
       const now = Date.now()
       const timestamp = now.toLocaleString();
+
+      // emitting temp user to frontend
+      const temp_user = message?.text?.body?.startsWith('*/') ? message.text.body.split('*/')[1]?.split(' ')[0] : null;
+      if(temp_user){
+        try{
+          io.emit('temp-user', {
+            temp_user: temp_user,
+            phone_number_id: userSession.business_number_id,
+            contactPhone: userPhoneNumber,
+            time: timestamp
+          });
+          
+          console.log("Emitted temp_user message: ", temp_user)
+        }catch(error){
+          console.log("error occured while emission of temp_user: ", error)
+        }
+      }
+
+      // emitting to frontend
       const messageData = {
         type: "text",
         text: { body: message?.text?.body || (message?.interactive ? (message?.interactive?.button_reply?.title || message?.interactive?.list_reply?.title) : null) }
@@ -349,29 +374,15 @@ app.post("/webhook", async (req, res) => {
           name: userName,
           time: timestamp
         });
-        console.log("Emitted node message: ", messageData)
+        console.log("Emitted new message: ", messageData)
       }catch(error){
         console.log("error occured while emission: ", error)
       }
 
-      // emitting temp user to frontend
-      const temp_user = message?.text?.body?.startsWith('*/') ? message.text.body.split('*/')[1]?.split(' ')[0] : null;
-      if(temp_user){
-        try{
-          io.emit('temp-user', {
-            temp_user: temp_user,
-            phone_number_id: userSession.business_number_id,
-            contactPhone: userPhoneNumber,
-            time: timestamp
-          });
-          
-          console.log("Emitted temp_user message: ", messageData)
-        }catch(error){
-          console.log("error occured while emission of temp_user: ", error)
-        }
-      }
+
       
       if (!userSession.AIMode) {
+        console.log("Processing in non-AI mode");
         let sendDynamicPromise;
         console.log("input vr: ", userSession.inputVariable)
         if (userSession.inputVariable !== undefined && userSession.inputVariable !== null && userSession.inputVariable.length > 0){
@@ -392,7 +403,7 @@ app.post("/webhook", async (req, res) => {
           console.log(`Input Variable Type: ${userSession.inputVariableType}`);
 
           try{
-            let userSelection = message?.interactive?.button_reply?.title || message?.interactive?.list_reply?.title || message?.text?.body;
+            // let userSelection = message?.interactive?.button_reply?.title || message?.interactive?.list_reply?.title || message?.text?.body;
           
             // var validateResponse = await validateInput(userSession.inputVariable, userSelection)
             //TODO: fallback condiiton
@@ -423,7 +434,6 @@ app.post("/webhook", async (req, res) => {
           }
         userSession.inputVariable = null
         }
-        console.log("Processing in non-AI mode");
         if (message?.type === "interactive") {
           console.log("Processing interactive message");
           let userSelectionID = message?.interactive?.button_reply?.id || message?.interactive?.list_reply?.id;
@@ -551,7 +561,7 @@ app.post("/webhook", async (req, res) => {
               }
             }
           }
-          await sendMessage(userPhoneNumber, business_phone_number_id, messageData)
+          sendMessage(userPhoneNumber, business_phone_number_id, messageData)
         }
         else if (message?.type == "image" || message?.type == "document" || message?.type == "video") {
           console.log("Processing media message:", message?.type);

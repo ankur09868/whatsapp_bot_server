@@ -207,11 +207,13 @@ app.post("/send-template", async(req, res) => {
 });
 
 app.post("/reset-session", async (req, res) => {
-  try {
+  
     const bpid = req.body.business_phone_number_id;
+  try {
     for (let key of userSessions.keys()) {
       if (key.includes(bpid)) {
         userSessions.delete(key);
+        messageCache.del(bpid);
       }
     }
     console.log("User Sessions after delete: ", userSessions)

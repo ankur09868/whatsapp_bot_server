@@ -151,8 +151,8 @@ app.post("/send-template", async(req, res) => {
       headers: { 'X-Tenant-Id': tenant_id }
     });
     console.log("TENANT RES: ", tenantRes)
-    const access_token = tenantRes.data.access_token;
-    const account_id = tenantRes.data.business_account_id;
+    const access_token = tenantRes.data.whatsapp_data.access_token;
+    const account_id = tenantRes.data.whatsapp_data.business_account_id;
     console.log(`access token: ${access_token}, account ID: ${account_id}`)
     
     const response  = await axios.get(`https://graph.facebook.com/v16.0/${account_id}/message_templates?name=${templateName}`, {

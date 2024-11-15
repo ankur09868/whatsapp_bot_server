@@ -139,7 +139,6 @@ try {
 }
 }
 
-import FormData from 'form-data';
 
 export async function getMediaID(handle, bpid, access_token) {
   try {

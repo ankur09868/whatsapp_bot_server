@@ -4,6 +4,8 @@ import { userSessions, io } from "./server.js";
 import axios from "axios";
 import { BlobServiceClient } from '@azure/storage-blob';
 
+import FormData from 'form-data';
+
 export async function getImageAndUploadToBlob(imageID, access_token) {
     try {
       const account = "pdffornurenai";

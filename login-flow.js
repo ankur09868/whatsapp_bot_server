@@ -1,6 +1,6 @@
 import axios from "axios";
 
-import { setTemplate, sendNodeMessage, sendProductMessage, sendListMessage, sendInputMessage, sendButtonMessage, sendImageMessage, sendTextMessage, sendAudioMessage, sendVideoMessage, sendLocationMessage, baseURL} from "./snm.js"
+import { setTemplate, sendNodeMessage, sendProductMessage, sendListMessage, sendInputMessage, sendButtonMessage, sendImageMessage, sendTextMessage, sendAudioMessage, sendVideoMessage, sendLocationMessage, fastURL, djangoURL} from "./snm.js"
 import { sendMessage  } from "./send-message.js"; 
 import  { sendProduct, sendBill, sendBillMessage, sendProductList, sendProduct_List } from "./product.js"
 import { validateInput, updateStatus, replacePlaceholders, addDynamicModelInstance, addContact, executeFallback } from "./misc.js"

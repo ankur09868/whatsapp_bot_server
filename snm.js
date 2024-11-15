@@ -12,7 +12,7 @@ import { BlobServiceClient } from '@azure/storage-blob';
 export const djangoURL = "https://backeng4whatsapp-dxbmgpakhzf9bped.centralindia-01.azurewebsites.net"
 // export const fastURL = "http://localhost:8000"
 // export const djangoURL = "http://localhost:8001"
-export const fastURL = "https://8twdg37p-8000.inc1.devtunnels.ms"
+export const fastURL = "fastapione-gue2c5ecc9c4b8hy.centralindia-01.azurewebsites.net"
 
 export async function sendLocationMessage(phone, bpid, body, access_token=null,tenant_id=null, fr_flag = false) {
     const { latitude, longitude, name, address } = body

@@ -6,7 +6,7 @@ import cors from 'cors';
 import session from "express-session";
 
 import { getAccessToken, getWabaID, getPhoneNumberID, registerAccount, postRegister } from "./login-flow.js";
-import { setTemplate, sendNodeMessage, sendProductMessage, sendListMessage, sendInputMessage, sendButtonMessage, sendImageMessage, sendTextMessage, sendAudioMessage, sendVideoMessage, sendLocationMessage, baseURL} from "./snm.js"
+import { setTemplate, sendNodeMessage, sendProductMessage, sendListMessage, sendInputMessage, sendButtonMessage, sendImageMessage, sendTextMessage, sendAudioMessage, sendVideoMessage, sendLocationMessage, fastURL, djangoURL} from "./snm.js"
 import { sendMessage  } from "./send-message.js"; 
 import  { sendProduct, sendBill, sendBillMessage, sendProductList, sendProduct_List } from "./product.js"
 import { validateInput, updateStatus, replacePlaceholders, addDynamicModelInstance, addContact, executeFallback, getTenantFromBpid, saveMessage } from "./misc.js"
@@ -80,7 +80,7 @@ app.post("/send-message", async (req, res) => {
       let access_token = messageCache.get(cacheKey);
       if (!access_token) {
         try {
-          const tenantRes = await axios.get(`${baseURL}/whatsapp_tenant/`, {
+          const tenantRes = await axios.get(`${fastURL}/whatsapp_tenant/`, {
             headers: { 'X-Tenant-Id': tenant_id}
           });
           access_token = tenantRes.data.whatsapp_data.access_token;
@@ -147,12 +147,12 @@ app.post("/send-template", async(req, res) => {
   const otp = template?.otp
   console.log(`tenant ID: ${tenant_id}`)
   try {
-    const tenantRes = await axios.get(`${baseURL}/whatsapp_tenant/`, {
+    const tenantRes = await axios.get(`${fastURL}/whatsapp_tenant/`, {
       headers: { 'X-Tenant-Id': tenant_id }
     });
     console.log("TENANT RES: ", tenantRes)
-    const access_token = tenantRes.data.access_token;
-    const account_id = tenantRes.data.business_account_id;
+    const access_token = tenantRes.data.whatsapp_data[0].access_token;
+    const account_id = tenantRes.data.whatsapp_data[0].business_account_id;
     console.log(`access token: ${access_token}, account ID: ${account_id}`)
     
     const response  = await axios.get(`https://graph.facebook.com/v16.0/${account_id}/message_templates?name=${templateName}`, {
@@ -207,14 +207,17 @@ app.post("/send-template", async(req, res) => {
 });
 
 app.post("/reset-session", async (req, res) => {
+  
+  const bpid = req.body.business_phone_number_id;
   try {
-    const bpid = req.body.business_phone_number_id;
     for (let key of userSessions.keys()) {
       if (key.includes(bpid)) {
         userSessions.delete(key);
+        messageCache.del(bpid);
       }
     }
     console.log("User Sessions after delete: ", userSessions)
+    // console.log("Message Cache after delete: ", messageCache)
     res.status(200).json({ "Success": `Session Deleted Successfully for ${bpid}` });
 
   } catch (error) {
@@ -226,7 +229,7 @@ app.post("/reset-session", async (req, res) => {
 
 app.post("/webhook", async (req, res) => {
   try {
-    console.log("Received Webhook: ", JSON.stringify(req.body, null, 6))
+    // console.log("Received Webhook: ", JSON.stringify(req.body, null, 6))
     const business_phone_number_id = req.body.entry?.[0].changes?.[0].value?.metadata?.phone_number_id;
     const contact = req.body.entry?.[0]?.changes[0]?.value?.contacts?.[0];
     const message = req.body.entry?.[0]?.changes[0]?.value?.messages?.[0];
@@ -257,47 +260,48 @@ app.post("/webhook", async (req, res) => {
           // console.log("Tenant: ", tenant)
           let responseData = messageCache.get(business_phone_number_id)
           if(!responseData){
-          const response = await axios.get(`${baseURL}/whatsapp_tenant/`,{
+          const response = await axios.get(`${fastURL}/whatsapp_tenant`,{
             headers: {'bpid': business_phone_number_id}
           });
           responseData = response.data
           messageCache.set(business_phone_number_id, responseData)
         }
           console.log("Tenant data received:", responseData);
-          const flowData = responseData.whatsapp_data.flow_data
+          const flowData = responseData.whatsapp_data[0].flow_data
           // let flowData = JSON.parse(flowData1);
-          const adjList = responseData.whatsapp_data.adj_list
+          const adjList = responseData.whatsapp_data[0].adj_list
           // let adjList = JSON.parse(adjList1)
-  
+        
+          // console.log("BOBOBOBOBO: ", adjList, flowData)
           // Validate the data types
-          if (!Array.isArray(flowData)) {
-            throw new Error("flowData is not an array");
-          }
-          if (!Array.isArray(adjList) || !adjList.every(Array.isArray)) {
-            throw new Error("adjList is not an array of arrays");
-          }
+          // if (!Array.isArray(flowData)) {
+          //   throw new Error("flowData is not an array");
+          // }
+          // if (!Array.isArray(adjList) || !adjList.every(Array.isArray)) {
+          //   throw new Error("adjList is not an array of arrays");
+          // }
 
           
-          const startNode = responseData.whatsapp_data.start !== null ? responseData.whatsapp_data.start : 0;
+          const startNode = responseData.whatsapp_data[0].start !== null ? responseData.whatsapp_data[0].start : 0;
           const currNode = startNode 
           userSession = {
             AIMode: false,
             lastActivityTime: Date.now(),
             flowData: flowData,
             adjList: adjList,
-            accessToken: responseData.whatsapp_data.access_token,
-            flowName : responseData.whatsapp_data.flow_name,
+            accessToken: responseData.whatsapp_data[0].access_token,
+            flowName : responseData.whatsapp_data[0].flow_name,
             startNode : startNode,
             currNode: currNode,
             nextNode: adjList[currNode],
-            business_number_id: responseData.whatsapp_data.business_phone_number_id,
-            tenant : responseData.whatsapp_data.tenant,
+            business_number_id: responseData.whatsapp_data[0].business_phone_number_id,
+            tenant : responseData.whatsapp_data[0].tenant_id,
             userPhoneNumber : userPhoneNumber,
             userName: userName,
             inputVariable : null,
             inputVariableType: null,
-            fallback_msg : responseData.whatsapp_data.fallback_msg || "please provide correct input",
-            fallback_count: responseData.whatsapp_data.fallback_count != null ? responseData.fallback_count : 1,
+            fallback_msg : responseData.whatsapp_data[0].fallback_msg || "please provide correct input",
+            fallback_count: responseData.whatsapp_data[0].fallback_count != null ? responseData.fallback_count : 1,
             products: responseData.catalog_data
           };
 
@@ -501,7 +505,7 @@ app.post("/webhook", async (req, res) => {
           console.log("Total Amount = ", totalAmount)
           console.log(product_list)
 
-          const response = await axios.post(`${baseURL}/process-order/`, {
+          const response = await axios.post(`${djangoURL}/process-order/`, {
             order: product_list
           },{
             headers: {
@@ -540,7 +544,7 @@ app.post("/webhook", async (req, res) => {
           const data = {query: query, phone: userPhoneNumber}
           const headers = { 'X-Tenant-Id': userSession.tenant }
 
-          const response = await axios.post(`${baseURL}/query-faiss/`, data, {headers:  headers})
+          const response = await axios.post(`${djangoURL}/query-faiss/`, data, {headers:  headers})
 
           let messageText = response.data
           const messageData = {
@@ -637,7 +641,7 @@ app.post("/login-flow", async (req, res) => {
     const register_response = registerAccount(business_phone_number_id, access_token)
     const postRegister_response = postRegister(access_token, waba_id)
     
-    const response = axios.post(`${baseURL}/insert-data/`, {
+    const response = axios.post(`${djangoURL}/insert-data/`, {
       business_phone_number_id : business_phone_number_id,
       access_token : access_token,
       accountID : waba_id,

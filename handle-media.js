@@ -1,5 +1,5 @@
 import { getAccessToken, getWabaID, getPhoneNumberID, registerAccount, postRegister } from "./login-flow.js";
-import { setTemplate, sendNodeMessage, sendProductMessage, sendListMessage, sendInputMessage, sendButtonMessage, sendImageMessage, sendTextMessage, sendAudioMessage, sendVideoMessage, sendLocationMessage, baseURL } from "./snm.js";
+import { setTemplate, sendNodeMessage, sendProductMessage, sendListMessage, sendInputMessage, sendButtonMessage, sendImageMessage, sendTextMessage, sendAudioMessage, sendVideoMessage, sendLocationMessage, fastURL, djangoURL } from "./snm.js";
 import { userSessions, io } from "./server.js";
 import axios from "axios";
 import { BlobServiceClient } from '@azure/storage-blob';
@@ -127,7 +127,7 @@ try {
         tenant: tenant
     }
     console.log(data)
-    response = await axios.post(`${baseURL}/user-data/`, data, {headers: {'X-Tenant-Id': tenant}})
+    response = await axios.post(`${djangoURL}/user-data/`, data, {headers: {'X-Tenant-Id': tenant}})
     console.log(response.data)
     
     // const query = `Which hotel should I stay in ${resultJSON.destination}?`
@@ -137,27 +137,46 @@ try {
 }
 }
 
+import FormData from 'form-data';
+
 export async function getMediaID(handle, bpid, access_token) {
-const imageResponse = await axios.get(handle, { responseType: 'arraybuffer' });
+  try {
+    console.log("HANDLE: ", handle, bpid, access_token);
 
-const formData = new FormData();
-formData.append('file', Buffer.from(imageResponse.data), 'image.jpeg');
-formData.append('type', 'image/jpeg');
-formData.append('messaging_product', 'whatsapp');
+    // Fetch the image as an arraybuffer
+    const imageResponse = await axios.get(handle, { responseType: 'arraybuffer' });
+    console.log("Image response received.");
 
-const response = await axios.post(
-    `https://graph.facebook.com/v20.0/${bpid}/media`,
-    formData,
-    {
-    headers: {
-        Authorization: `Bearer ${access_token}`,
-        ...formData.getHeaders() 
-    }
-    }
-);
+    // Create FormData instance
+    const formData = new FormData();
+    
+    // Append the image buffer with filename and MIME type
+    formData.append('file', Buffer.from(imageResponse.data), {
+      filename: 'image.jpeg',      // specify a name for the file
+      contentType: 'image/jpeg',   // specify the MIME type
+    });
+    formData.append('type', 'image/jpeg');
+    formData.append('messaging_product', 'whatsapp');
 
-console.log(response.data);
-return response.data.id;
+    // Send the request to Facebook Graph API to upload media
+    const response = await axios.post(
+      `https://graph.facebook.com/v20.0/${bpid}/media`,
+      formData,
+      {
+        headers: {
+          Authorization: `Bearer ${access_token}`,
+          ...formData.getHeaders(), // Important: includes the correct Content-Type for multipart/form-data
+        }
+      }
+    );
+
+    console.log("Media ID Response: ", response.data);
+    return response.data.id;
+
+  } catch (error) {
+    console.error("Error in getMediaID:", error.response ? error.response.data : error.message);
+    throw error;
+  }
 }
 
 

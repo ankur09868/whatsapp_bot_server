@@ -1,5 +1,5 @@
 import { getAccessToken, getWabaID, getPhoneNumberID, registerAccount, postRegister } from "./login-flow.js";
-import { setTemplate, sendNodeMessage, sendProductMessage, sendListMessage, sendInputMessage, sendButtonMessage, sendImageMessage, sendTextMessage, sendAudioMessage, sendVideoMessage, sendLocationMessage, baseURL} from "./snm.js"
+import { setTemplate, sendNodeMessage, sendProductMessage, sendListMessage, sendInputMessage, sendButtonMessage, sendImageMessage, sendTextMessage, sendAudioMessage, sendVideoMessage, sendLocationMessage, fastURL, djangoURL} from "./snm.js"
 import { sendMessage  } from "./send-message.js"; 
 import  { sendProduct, sendBill, sendBillMessage, sendProductList, sendProduct_List } from "./product.js"
 import { getMediaID, handleMediaUploads, checkBlobExists, getImageAndUploadToBlob } from "./handle-media.js"
@@ -28,16 +28,16 @@ else{
 export async function addContact(c_data, tenant) {
     try{
         console.log("add contactt", c_data, tenant)
-        await axios.post(`${baseURL}/contacts_by_tenant/`, c_data, {
+        await axios.post(`${djangoURL}/contacts_by_tenant/`, c_data, {
         headers: {'X-Tenant-Id': tenant}
         })
     }catch (error){
-        console.error('Error Occured: ', error.message)
+        console.error('Error Occured while adding contact: ', error.message)
     }
 }
 
 export async function addDynamicModelInstance(modelName, updateData, tenant) {
-    const url = `${baseURL}/dynamic-model-data/${modelName}/`;
+    const url = `${djangoURL}/dynamic-model-data/${modelName}/`;
     const data = updateData;
     console.log("DATAAAAAAAAAAAAAAAAAAAAAAA: ", data)
     try {
@@ -77,9 +77,9 @@ export async function replacePlaceholders(message, userSession=null, userPhoneNu
         console.log("key:", key)
         if(key in ['id', 'name', 'phone', 'createdOn', 'isActive', 'bg_id', 'bg_name', 'tenant'])
         {
-            var url = `${baseURL}/contacts-by-phone/${userPhoneNumber}`;
+            var url = `${djangoURL}/contacts-by-phone/${userPhoneNumber}`;
 
-            const tenant_id_res = await axios.get(`${baseURL}/get-tenant/?bpid=${business_phone_number_id}`)
+            const tenant_id_res = await axios.get(`${djangoURL}/get-tenant/?bpid=${business_phone_number_id}`)
             const tenant_id = tenant_id_res.data.tenant
             try {
                 const response = await axios.get(url, {
@@ -149,7 +149,7 @@ try {
     // console.log("Sending request with data:", data);
 
     // Send POST request with JSON payload
-    const response = await axios.post(`${baseURL}/set-status/`, data, {
+    const response = await axios.post(`${djangoURL}/set-status/`, data, {
     headers: { 
         "X-Tenant-Id": "ll", 
         "Content-Type": "application/json" 
@@ -201,7 +201,7 @@ return false;
 
 export async function getTenantFromBpid(bpid) {
     try{
-        var response = await axios.get(`${baseURL}/get-tenant/?bpid=${bpid}`, {
+        var response = await axios.get(`${djangoURL}/get-tenant/?bpid=${bpid}`, {
         })
         // console.log("Tenant Response: ", response.data)
         const tenant = response.data.tenant
@@ -213,7 +213,7 @@ export async function getTenantFromBpid(bpid) {
 
 export async function saveMessage(userPhoneNumber, business_phone_number_id, formattedConversation, tenant) {
     try {
-        fetch(`${baseURL}/whatsapp_convo_post/${userPhoneNumber}/?source=whatsapp`, {
+        fetch(`${djangoURL}/whatsapp_convo_post/${userPhoneNumber}/?source=whatsapp`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',

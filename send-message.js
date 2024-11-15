@@ -1,5 +1,5 @@
 import { getAccessToken, getWabaID, getPhoneNumberID, registerAccount, postRegister } from "./login-flow.js";
-import { setTemplate, sendNodeMessage, sendProductMessage, sendListMessage, sendInputMessage, sendButtonMessage, sendImageMessage, sendTextMessage, sendAudioMessage, sendVideoMessage, sendLocationMessage, baseURL} from "./snm.js"
+import { setTemplate, sendNodeMessage, sendProductMessage, sendListMessage, sendInputMessage, sendButtonMessage, sendImageMessage, sendTextMessage, sendAudioMessage, sendVideoMessage, sendLocationMessage, fastURL, djangoURL} from "./snm.js"
 import  { sendProduct, sendBill, sendBillMessage, sendProductList, sendProduct_List } from "./product.js"
 import { validateInput, updateStatus, replacePlaceholders, addDynamicModelInstance, addContact, executeFallback } from "./misc.js"
 import { getMediaID, handleMediaUploads, checkBlobExists, getImageAndUploadToBlob } from "./handle-media.js"
@@ -78,7 +78,7 @@ export async function sendMessage(phoneNumber, business_phone_number_id, message
 
                     try {
                         console.log("Savong convo data: ", phoneNumber, business_phone_number_id, formattedConversation ,tenant)
-                        const saveRes = fetch(`${baseURL}/whatsapp_convo_post/${phoneNumber}/?source=whatsapp`, {
+                        const saveRes = fetch(`${djangoURL}/whatsapp_convo_post/${phoneNumber}/?source=whatsapp`, {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json',

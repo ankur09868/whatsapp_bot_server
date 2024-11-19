@@ -23,11 +23,11 @@ const WEBHOOK_VERIFY_TOKEN = "COOL";
 const PORT = 8080;
 const app = express();
 const httpServer = createServer(app);
-const allowedOrigins = ['http://localhost:8080', 'http://localhost:5174', 'http://localhost:5173', 'https://whatsappbotserver.azurewebsites.net','https://whatsapp.nuren.ai/'];
+const allowedOrigins = ['http://localhost:8080', 'http://localhost:5174', 'http://localhost:5173', 'https://whatsappbotserver.azurewebsites.net','https://nuren.ai/'];
 
 export const io = new Server(httpServer, {
   cors: {
-    origin: ['http://localhost:5174', 'http://localhost:8080', 'http://localhost:5173', 'https://whatsappbotserver.azurewebsites.net','https://whatsapp.nuren.ai/'],
+    origin: ['http://localhost:5174', 'http://localhost:8080', 'http://localhost:5173', 'https://whatsappbotserver.azurewebsites.net','https://nuren.ai/'],
     methods: ['GET', 'POST']
   }
 });

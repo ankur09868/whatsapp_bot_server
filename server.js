@@ -139,7 +139,7 @@ app.post("/send-message", async (req, res) => {
 });
 
 app.post("/send-template", async(req, res) => {
-  const { bg_id, template, business_phone_number_id, phoneNumbers } = req.body
+  const { bg_id, bg_name,template, business_phone_number_id, phoneNumbers } = req.body
   const tenant_id = req.headers['x-tenant-id'];
   
   const templateName = template.name
@@ -175,7 +175,11 @@ app.post("/send-template", async(req, res) => {
         
         const messageID = sendMessage_response.data?.messages[0]?.id;
         if (bg_id != null) {
-          updateStatus(null, messageID, null, null, bg_id);
+          const broadcastGroup = {
+            id: bg_id,
+            name: bg_name
+          }
+          updateStatus(null, messageID, null, null, broadcastGroup);
         }
 
         // Save conversation to backend

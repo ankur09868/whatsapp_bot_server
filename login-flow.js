@@ -24,7 +24,7 @@ export async function getAccessToken(auth_code) {
         throw new Error(`Error: ${data.error.message}`);
       }
     } catch (error) {
-      console.error('Failed to retrieve access token:', error);
+      console.error('Failed to retrieve access token:', JSON.stringify(error));
       throw error;
     }
 }

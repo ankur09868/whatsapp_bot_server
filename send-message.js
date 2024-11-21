@@ -19,6 +19,10 @@ export async function sendMessage(phoneNumber, business_phone_number_id, message
 
     const url = `https://graph.facebook.com/v18.0/${business_phone_number_id}/messages`;
     console.log('Sending message to:', phoneNumber);
+
+    phoneNumber = String(phoneNumber).trim();
+    if(phoneNumber.length == 10) phoneNumber = `91${phoneNumber}`
+    
     console.log('Message Data:', JSON.stringify(messageData, null, 3));
 
     // Use session access token if not provided

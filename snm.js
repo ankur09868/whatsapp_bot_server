@@ -1,14 +1,9 @@
-import { userSessions, io } from "./server.js";
+import { userSessions } from "./server.js";
 import {sendMessage} from "./send-message.js"
 
-import { getAccessToken, getWabaID, getPhoneNumberID, registerAccount, postRegister } from "./login-flow.js";
-import  { sendProduct, sendBill, sendBillMessage, sendProductList, sendProduct_List } from "./product.js"
-import { validateInput, updateStatus, replacePlaceholders, addDynamicModelInstance, addContact, executeFallback } from "./misc.js"
-import { getMediaID, handleMediaUploads, checkBlobExists, getImageAndUploadToBlob } from "./handle-media.js"
+import { replacePlaceholders, addDynamicModelInstance, addContact, executeFallback } from "./misc.js"
+import { getMediaID } from "./handle-media.js"
 
-
-import axios from "axios";
-import { BlobServiceClient } from '@azure/storage-blob';
 
 export const fastURL = "https://fastapione-gue2c5ecc9c4b8hy.centralindia-01.azurewebsites.net"
 export const djangoURL = "https://backeng4whatsapp-dxbmgpakhzf9bped.centralindia-01.azurewebsites.net"
@@ -75,9 +70,9 @@ export async function sendImageMessage(phoneNumber, business_phone_number_id, im
 export async function sendButtonMessage(buttons, message, phoneNumber, business_phone_number_id,  mediaID = null, access_token = null,tenant_id=null, fr_flag = false) {
     console.log("phone number: ", phoneNumber, business_phone_number_id)
     const key = phoneNumber + business_phone_number_id
-    console.log("USER SESSIONS: ", userSessions, key)
+    // console.log("USER SESSIONS: ", userSessions, key)
     const userSession = userSessions.get(key);
-    console.log("USER SESSION: ", userSession)
+    // console.log("USER SESSION: ", userSession)
     const flow = userSession.flowData
     try {
         let button_rows = buttons.map(buttonNode => ({
@@ -117,7 +112,7 @@ export async function sendInputMessage(userPhoneNumber, business_phone_number_id
 
 export async function sendListMessage(list, message, phoneNumber, business_phone_number_id, access_token =  null,tenant_id=null, fr_flag = false) {
     const key = phoneNumber + business_phone_number_id
-    console.log("USER SESSIONS: ",  userSessions, key)
+    // console.log("USER SESSIONS: ",  userSessions, key)
     const userSession = userSessions.get(key);
     const flow = userSession.flowData
   

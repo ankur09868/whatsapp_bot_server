@@ -27,7 +27,7 @@ else{
 
 export async function addContact(c_data, tenant) {
     try{
-        console.log("add contactt", c_data, tenant)
+        // console.log("add contactt", c_data, tenant)
         await axios.post(`${djangoURL}/contacts_by_tenant/`, c_data, {
         headers: {'X-Tenant-Id': tenant}
         })
@@ -39,7 +39,7 @@ export async function addContact(c_data, tenant) {
 export async function addDynamicModelInstance(modelName, updateData, tenant) {
     const url = `${djangoURL}/dynamic-model-data/${modelName}/`;
     const data = updateData;
-    console.log("DATAAAAAAAAAAAAAAAAAAAAAAA: ", data)
+    // console.log("DATAAAAAAAAAAAAAAAAAAAAAAA: ", data)
     try {
         const response = await axios.post(url, data, {
             headers: {
@@ -103,7 +103,7 @@ export async function replacePlaceholders(message, userSession=null, userPhoneNu
     return modifiedMessage;
 }
 
-export async function  updateStatus(status, message_id, business_phone_number_id, user_phone, broadcastGroup) {
+export async function  updateStatus(status, message_id, business_phone_number_id, user_phone, broadcastGroup, tenant) {
 let isRead = false;
 let isDelivered = false;
 let isSent = false;
@@ -143,16 +143,16 @@ try {
         is_sent: isSent,
         user_phone: user_phone,
         message_id: message_id,
-        bg_id : broadcastGroup.id,
-        bg_name : broadcastGroup.name
+        bg_id : broadcastGroup?.id,
+        bg_name : broadcastGroup?.name
     };
-    
+    // console.log("Tenant Sent: ", tenant)
     // console.log("Sending request with data:", data);
 
     // Send POST request with JSON payload
     const response = await axios.post(`${djangoURL}/set-status/`, data, {
     headers: { 
-        "X-Tenant-Id": "ll", 
+        "X-Tenant-Id": tenant, 
         "Content-Type": "application/json" 
     }
     });
@@ -214,19 +214,22 @@ export async function getTenantFromBpid(bpid) {
 
 export async function saveMessage(userPhoneNumber, business_phone_number_id, formattedConversation, tenant) {
     try {
-        fetch(`${djangoURL}/whatsapp_convo_post/${userPhoneNumber}/?source=whatsapp`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'X-Tenant-Id': tenant
-          },
-          body: JSON.stringify({
+        
+        const body = {
             contact_id: userPhoneNumber,
             business_phone_number_id: business_phone_number_id,
             conversations: formattedConversation,
-            tenant: tenant,
-          }),
-        });
+            tenant: tenant
+        }
+
+        axios.post(`${djangoURL}/whatsapp_convo_post/${userPhoneNumber}/?source=whatsapp`,body,
+            {
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Tenant-Id': tenant
+                }
+            }
+        );
         // if (!saveRes.ok) throw new Error("Failed to save conversation");
       } catch (error) {
         console.error("Error saving conversation (save message):", error.message);

@@ -1,20 +1,18 @@
 import express from "express";
 import axios from "axios";
-import { createServer } from "http";
-import { Server } from "socket.io";
+import NodeCache from 'node-cache';
 import cors from 'cors';
 import session from "express-session";
+import { createServer } from "http";
+import { Server } from "socket.io";
 
 import { getAccessToken, getWabaID, getPhoneNumberID, registerAccount, postRegister } from "./login-flow.js";
-import { setTemplate, sendNodeMessage, sendProductMessage, sendListMessage, sendInputMessage, sendButtonMessage, sendImageMessage, sendTextMessage, sendAudioMessage, sendVideoMessage, sendLocationMessage, fastURL, djangoURL} from "./snm.js"
+import { setTemplate, sendNodeMessage, sendImageMessage, sendTextMessage, sendAudioMessage, sendVideoMessage, sendLocationMessage, fastURL, djangoURL} from "./snm.js"
 import { sendMessage  } from "./send-message.js"; 
-import  { sendProduct, sendBill, sendBillMessage, sendProductList, sendProduct_List } from "./product.js"
-import { validateInput, updateStatus, replacePlaceholders, addDynamicModelInstance, addContact, executeFallback, getTenantFromBpid, saveMessage } from "./misc.js"
-import { getMediaID, handleMediaUploads, checkBlobExists, getImageAndUploadToBlob } from "./handle-media.js"
+import  { sendProduct, sendBill} from "./product.js"
+import { updateStatus, addDynamicModelInstance, addContact, executeFallback, saveMessage } from "./misc.js"
+import { handleMediaUploads } from "./handle-media.js"
 
-import NodeCache from 'node-cache';
-import FormData from "form-data";
-import { travel_ticket_prompt } from './PROMPTS.js'
 
 
 const messageCache = new NodeCache({ stdTTL: 600 });
@@ -124,7 +122,7 @@ app.post("/send-message", async (req, res) => {
 
       const messageID = response.data?.messages[0]?.id;
       if (bg_id != null && messageID) {
-        updateStatus(null, messageID, null, null, bg_id).catch(console.error);
+        // updateStatus(null, messageID, business_phone_number_id, null, bg_id, tenant_id).catch(console.error);
       }
 
       return { phoneNumber: formattedPhoneNumber, messageID, success: true };
@@ -179,7 +177,7 @@ app.post("/send-template", async(req, res) => {
             id: bg_id,
             name: bg_name
           }
-          updateStatus(null, messageID, null, null, broadcastGroup);
+          // updateStatus(null, messageID, business_phone_number_id, null, broadcastGroup, tenant_id);
         }
 
         // Save conversation to backend
@@ -242,7 +240,7 @@ app.post("/webhook", async (req, res) => {
     const userName = contact?.profile?.name || null
     const products = message?.order?.product_items
     // console.log("Rcvd Req: ",req.body, business_phone_number_id,contact,message,userPhoneNumber, JSON.stringify(statuses), userName)
-    console.log("Contact: ", userName)
+    // console.log("Contact: ", userName)
 
     // for handling messages
     if (message) {
@@ -258,32 +256,18 @@ app.post("/webhook", async (req, res) => {
       if (!userSession) {
         console.log(`Creating new session for user ${userPhoneNumber}`);
         try {
-          
-          // get tenant from bpid
-          // const tenant = getTenantFromBpid(business_phone_number_id)
-          // console.log("Tenant: ", tenant)
           let responseData = messageCache.get(business_phone_number_id)
           if(!responseData){
-          const response = await axios.get(`${fastURL}/whatsapp_tenant`,{
+          const whatsappTenantPromise = axios.get(`${fastURL}/whatsapp_tenant`,{
             headers: {'bpid': business_phone_number_id}
           });
+          const response = await whatsappTenantPromise
           responseData = response.data
           messageCache.set(business_phone_number_id, responseData)
         }
           console.log("Tenant data received:", responseData);
           const flowData = responseData.whatsapp_data[0].flow_data
-          // let flowData = JSON.parse(flowData1);
           const adjList = responseData.whatsapp_data[0].adj_list
-          // let adjList = JSON.parse(adjList1)
-        
-          // console.log("BOBOBOBOBO: ", adjList, flowData)
-          // Validate the data types
-          // if (!Array.isArray(flowData)) {
-          //   throw new Error("flowData is not an array");
-          // }
-          // if (!Array.isArray(adjList) || !adjList.every(Array.isArray)) {
-          //   throw new Error("adjList is not an array of arrays");
-          // }
 
           
           const startNode = responseData.whatsapp_data[0].start !== null ? responseData.whatsapp_data[0].start : 0;
@@ -620,7 +604,7 @@ app.get("/webhook", (req, res) => {
   }
 });
   
-app.get("/", (req, res) => {
+app.get("/", (res) => {
   res.send(`<pre>Nothing to see here.
   Checkout README.md to start.</pre>`);
 });
@@ -691,4 +675,3 @@ function clearInactiveSessions() {
 }
 
 setInterval(clearInactiveSessions, 60 * 60 * 1000);
-// Run the clearInactiveSessions function every hour

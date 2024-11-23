@@ -625,9 +625,12 @@ app.get("/", (req, res) => {
   Checkout README.md to start.</pre>`);
 });
 
-app.post("/login-flow", async (req, res) => {
+app.post("/login-flow/:tenant_id", async (req, res) => {
   try {
-    const tenant_id = req.headers['X-Tenant-Id']
+    const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+    const tenant_id = req.params.tenant_id;
+    console.log("Tenant ID: ", tenant_id)
     const authCode = req.body.code;
     console.log("authCode: ", authCode)
 
@@ -642,8 +645,14 @@ app.post("/login-flow", async (req, res) => {
     const business_phone_number_id = await getPhoneNumberID(access_token, waba_id);
     console.log("bipd: ", business_phone_number_id)
 
-    const register_response = registerAccount(business_phone_number_id, access_token)
-    const postRegister_response = postRegister(access_token, waba_id)
+
+    await delay(5000);
+
+    
+    const register_response = await registerAccount(business_phone_number_id, access_token)
+
+
+    const postRegister_response = await postRegister(access_token, waba_id)
     
     const response = axios.post(`${djangoURL}/insert-data/`, {
       business_phone_number_id : business_phone_number_id,

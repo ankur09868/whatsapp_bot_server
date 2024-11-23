@@ -89,9 +89,10 @@ export async function registerAccount(business_phone_number_id, access_token){
   const url = `https://graph.facebook.com/v19.0/${business_phone_number_id}/register`;
   console.log(url);
   const body = {
-    "messaging_product": "whatsapp"
+    "messaging_product": "whatsapp",
+    "pin": "123456"
   };
-  console.log("Request Body:", body); // Log the body
+  console.log("Request Body:", body);
 
   try {
     const response = await axios.post(url, body, {

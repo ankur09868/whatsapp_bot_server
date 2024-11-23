@@ -22,7 +22,7 @@ export async function sendMessage(phoneNumber, business_phone_number_id, message
 
     phoneNumber = String(phoneNumber).trim();
     if(phoneNumber.length == 10) phoneNumber = `91${phoneNumber}`
-    
+
     console.log('Message Data:', JSON.stringify(messageData, null, 3));
 
     // Use session access token if not provided
@@ -65,6 +65,8 @@ export async function sendMessage(phoneNumber, business_phone_number_id, message
                     console.log("message data  updated: ", messageData)
                 })
             }
+
+            // if(messageData?.interactive?.type == 'product')
             
             const now = Date.now()
             const timestamp = now.toLocaleString();
@@ -118,4 +120,24 @@ export async function sendMessage(phoneNumber, business_phone_number_id, message
         console.error('Failed to send message:', error.response ? error.response.data : error.message);
         return { success: false, error: error.response ? error.response.data : error.message };
     }
+}
+
+async function formatProductMessage(messageData, tenant_id){
+
+    if(messageData.interactive.type == "product"){
+        const action = messageData.interactive.action
+        const product_id = action.product_retailer_id
+        const productData = await axios.get(`${fastURL}/catalog/${product_id}`, {
+            headers: {'X-Tenant-Id': tenant_id}
+        })
+
+        const product_details = {
+            image_link: productData.image_link,
+            quantity: productData.quantity,
+            title: productData.title,
+            price: productData.price
+        }
+        action.product_details = product_details
+    }
+    return messageData
 }

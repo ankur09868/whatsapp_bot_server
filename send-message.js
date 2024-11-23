@@ -1,8 +1,7 @@
-import { getAccessToken, getWabaID, getPhoneNumberID, registerAccount, postRegister } from "./login-flow.js";
-import { setTemplate, sendNodeMessage, sendProductMessage, sendListMessage, sendInputMessage, sendButtonMessage, sendImageMessage, sendTextMessage, sendAudioMessage, sendVideoMessage, sendLocationMessage, fastURL, djangoURL} from "./snm.js"
-import  { sendProduct, sendBill, sendBillMessage, sendProductList, sendProduct_List } from "./product.js"
-import { validateInput, updateStatus, replacePlaceholders, addDynamicModelInstance, addContact, executeFallback } from "./misc.js"
-import { getMediaID, handleMediaUploads, checkBlobExists, getImageAndUploadToBlob } from "./handle-media.js"
+import { fastURL, djangoURL} from "./snm.js"
+
+import { updateStatus } from "./misc.js"
+import { getImageAndUploadToBlob } from "./handle-media.js"
 import { userSessions, io } from "./server.js";
 import axios from "axios";
 
@@ -27,6 +26,7 @@ export async function sendMessage(phoneNumber, business_phone_number_id, message
 
     // Use session access token if not provided
     if (access_token == null) access_token = userSession.accessToken;
+    if (tenant == null) tenant = userSession.tenant
     console.log(url, access_token)
     try {
         console.log("Senidng Details: ", phoneNumber, access_token, business_phone_number_id)
@@ -49,7 +49,8 @@ export async function sendMessage(phoneNumber, business_phone_number_id, message
             const status = "sent";
 
             // Update status
-            updateStatus(status, messageID, business_phone_number_id, phoneNumber);
+            console.log("Tenant sent in send-message: ", tenant)
+            updateStatus(status, messageID, business_phone_number_id, phoneNumber, null, tenant);
 
             let mediaURLPromise = Promise.resolve(null);
             const mediaID = messageData?.video?.id || messageData?.audio?.id || messageData?.image?.id

@@ -72,7 +72,12 @@ app.post("/send-message", async (req, res) => {
     const tenant_id = req.headers['x-tenant-id'];
     console.log("Rcvd tenant id: ", tenant_id)
     const sendPromises = phoneNumbers.map(async (phoneNumber) => {
-      const formattedPhoneNumber = `91${phoneNumber}`;
+      let formattedPhoneNumber;
+      if (phoneNumber.length === 10) {
+        formattedPhoneNumber = `91${phoneNumber}`;
+      } else {
+        formattedPhoneNumber = phoneNumber; // Keep it as is if the length is not 10
+      }
       const cacheKey = `${business_phone_number_id}_${tenant_id}`;
       
       let access_token = messageCache.get(cacheKey);
@@ -81,7 +86,7 @@ app.post("/send-message", async (req, res) => {
           const tenantRes = await axios.get(`${fastURL}/whatsapp_tenant/`, {
             headers: { 'X-Tenant-Id': tenant_id}
           });
-          access_token = tenantRes.data.whatsapp_data.access_token;
+          access_token = tenantRes.data.whatsapp_data[0].access_token;
           messageCache.set(cacheKey, access_token);
 
         } catch (error) {

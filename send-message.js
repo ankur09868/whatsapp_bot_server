@@ -50,7 +50,7 @@ export async function sendMessage(phoneNumber, business_phone_number_id, message
 
             // Update status
             console.log("Tenant sent in send-message: ", tenant)
-            updateStatus(status, messageID, business_phone_number_id, phoneNumber, null, tenant);
+            // updateStatus(status, messageID, business_phone_number_id, phoneNumber, null, tenant);
 
             let mediaURLPromise = Promise.resolve(null);
             const mediaID = messageData?.video?.id || messageData?.audio?.id || messageData?.image?.id

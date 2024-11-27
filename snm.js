@@ -48,6 +48,7 @@ export async function sendAudioMessage(phone, bpid, audioID, caption, access_tok
 }
   
 export async function sendTextMessage(userPhoneNumber, business_phone_number_id,message, access_token = null, tenant_id=null ,fr_flag = false){
+    console.log("cCess:token: ", access_token)
     const messageData = {
         type: "text",
         text: { body: message }

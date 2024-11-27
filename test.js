@@ -1,66 +1,74 @@
-import express from 'express';
-import multer from 'multer';
-import fs from 'fs';
-import axios from 'axios';
-import path from 'path';
-import { fileURLToPath } from 'url';
-import { dirname } from 'path';
-import { readFile } from 'fs/promises';
+class Stack {
+    constructor() {
+        this.items = []; // Internal array to store stack elements
+    }
 
-async function mediaUploads(mediaID, access_token, user_data) {
-    let headers = { Authorization: `Bearer ${access_token}` };
-    
-    try {
-        // Fetch media metadata
-        let response = await axios.get(`https://graph.facebook.com/v19.0/${mediaID}`, { headers });
-        const mediaURL = response.data.url;
-        const mime_type = response.data.mime_type
-        console.log(mediaURL);
+    // Push an element onto the stack
+    push(element) {
+        this.items.push(element);
+    }
 
-        // Fetch the media file
-        response = await axios.get(mediaURL, { headers, responseType: 'arraybuffer' });
-        
-        if(mime_type == "application/pdf"){
-            console.log("processing pdfs")
-        // Create a Blob from the ArrayBuffer
-        const media = new Blob([response.data], { type: 'application/pdf' });
-
-        // Create FormData and append the Blob
-        const formData = new FormData();
-        formData.append('pdf', media, 'file.pdf'); // Provide a default filename
-
-        // Send the FormData with the file to the Python server
-        let postResponse = await axios.post(`/whatsapp-media-uploads/`, formData, {
-            headers: {'X-Tenant-Id': 'three_little_birds', 'user-data': JSON.stringify(user_data)}
-        });
-
-        console.log(postResponse.data);
+    // Pop an element from the stack
+    pop() {
+        if (this.isEmpty()) {
+            return "Stack is empty";
         }
-        else if (["image/jpeg", "image/webp"].includes(mime_type)){
-            console.log("processing image")
-            const media = response.data;
+        return this.items.pop();
+    }
 
-            const base64Media = Buffer.from(media).toString('base64');
-            const data = {
-                image_buffer: base64Media
-            }
-            let postResponse = await axios.post('http://localhost:8000/whatsapp-media-uploads/', data ,{
-                headers: {'X-Tenant-Id': 'three_little_birds', 'user-data': JSON.stringify(user_data)}
-            })
-
-            console.log(postResponse.data)
+    // Peek at the top element without removing it
+    peek() {
+        if (this.isEmpty()) {
+            return "Stack is empty";
         }
+        return this.items[this.items.length - 1];
+    }
 
-    } catch (error) {
-        console.error(error);
+    // Check if the stack is empty
+    isEmpty() {
+        return this.items.length === 0;
+    }
+
+    // Get the size of the stack
+    size() {
+        return this.items.length;
+    }
+
+    // Clear the stack
+    clear() {
+        this.items = [];
     }
 }
 
-const mediaID = 909478364398748;
-const access_token = 'EAAVZBobCt7AcBO8trGDsP8t4bTe2mRA7sNdZCQ346G9ZANwsi4CVdKM5MwYwaPlirOHAcpDQ63LoHxPfx81tN9h2SUIHc1LUeEByCzS8eQGH2J7wwe9tqAxZAdwr4SxkXGku2l7imqWY16qemnlOBrjYH3dMjN4gamsTikIROudOL3ScvBzwkuShhth0rR9P';  // Replace with your actual access token
-const data = {
-    name: "name",
-    phone: 919548265904,
-    doc_name: "doc_name"
-  }
-await mediaUploads(mediaID, access_token, data);
+const text = "{'type': 'text', 'text':\"Im 'Don'\"}"
+
+async function fixText(text){
+    const stack = new Stack()
+    let fixedJson = ""
+    let str=""
+    for(let i=0;i<text.length;i++){
+        const char = text.charAt(i) // char: {'type': 'text', 'text': 'hey'
+        if(char == "'" || char == '"'){
+            
+            if(stack.isEmpty()) {
+                stack.push(char) // stack: 
+            }else{
+                if(stack.peek() == char){
+                    str+=char //
+                    fixedJson += str.replace(/"/g, '\\"').replace(/'/g, '"') // {"type": "text", "text": "hey"
+                    str="" //
+                    stack.pop() //stack: 
+                    continue;
+                }
+            }
+        }
+        str += char //str: 
+        console.log(str)
+    }
+    if (str) fixedJson += str
+    return `${fixedJson}`
+}
+
+console.log(text)
+const fixedText = await fixText(text)
+console.log(JSON.parse(fixedText))

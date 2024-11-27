@@ -72,7 +72,13 @@ app.post("/send-message", async (req, res) => {
     const tenant_id = req.headers['x-tenant-id'];
     console.log("Rcvd tenant id: ", tenant_id)
     const sendPromises = phoneNumbers.map(async (phoneNumber) => {
-      const formattedPhoneNumber = `91${phoneNumber}`;
+      
+      let formattedPhoneNumber;
+      if (phoneNumber.length === 10) {
+        formattedPhoneNumber = `91${phoneNumber}`;
+      } else {
+        formattedPhoneNumber = phoneNumber; // Keep it as is if the length is not 10
+      }
       const cacheKey = `${business_phone_number_id}_${tenant_id}`;
       
       let access_token = messageCache.get(cacheKey);
@@ -81,7 +87,7 @@ app.post("/send-message", async (req, res) => {
           const tenantRes = await axios.get(`${fastURL}/whatsapp_tenant/`, {
             headers: { 'X-Tenant-Id': tenant_id}
           });
-          access_token = tenantRes.data.whatsapp_data.access_token;
+          access_token = tenantRes.data.whatsapp_data[0].access_token;
           messageCache.set(cacheKey, access_token);
 
         } catch (error) {
@@ -169,16 +175,19 @@ app.post("/send-template", async(req, res) => {
 
         const messageData = await setTemplate(templateData, phoneNumber, business_phone_number_id, access_token, otp)
 
-        const sendMessage_response = await sendMessage(formattedPhoneNumber, business_phone_number_id, messageData, access_token);
-        
+        const sendMessage_response = await sendMessage(formattedPhoneNumber, business_phone_number_id, messageData, access_token, null, tenant_id);
+        console.log("send message response: ", sendMessage_response)
         const messageID = sendMessage_response.data?.messages[0]?.id;
-        if (bg_id != null) {
-          const broadcastGroup = {
-            id: bg_id,
-            name: bg_name
-          }
-          // updateStatus(null, messageID, business_phone_number_id, null, broadcastGroup, tenant_id);
+        if(messageID){
+            const broadcastGroup = {
+              id: bg_id || null,
+              name: bg_name || null,
+              template_name: templateData?.name || null
+            }
+          updateStatus("sent", messageID, business_phone_number_id, phoneNumber, broadcastGroup, tenant_id);
         }
+        console.log(messageID)
+
 
         // Save conversation to backend
         // const formattedConversation = [{ text: template.name, sender: "bot" }];
@@ -535,11 +544,12 @@ app.post("/webhook", async (req, res) => {
           const response = await axios.post(`${djangoURL}/query-faiss/`, data, {headers:  headers})
 
           let messageText = response.data
+          const fixedMessageText = messageText.replace(/"/g, "'");
           const messageData = {
             type: "interactive",
             interactive: {
               type: "button",
-              body: { text: messageText },
+              body: { text: fixedMessageText },
               action: {
                 buttons: [
                   {
@@ -582,6 +592,12 @@ app.post("/webhook", async (req, res) => {
       
       updateStatus(status, id)
       console.log(status, id)
+      if (status == "failed"){
+        const error = statuses?.errors[0]
+        console.log("Message failed: ", error)
+        io.emit('failed-response', error)
+        // res.status(400).json(error)
+      }
     }
     res.sendStatus(200);
   }
@@ -604,7 +620,7 @@ app.get("/webhook", (req, res) => {
   }
 });
   
-app.get("/", (res) => {
+app.get("/", (req, res) => {
   res.send(`<pre>Nothing to see here.
   Checkout README.md to start.</pre>`);
 });
@@ -662,6 +678,8 @@ io.on('connection', (socket) => {
     console.log('user disconnected');
   });
 });
+
+
 
 
 function clearInactiveSessions() {

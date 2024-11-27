@@ -144,7 +144,8 @@ try {
         user_phone: user_phone,
         message_id: message_id,
         bg_id : broadcastGroup?.id,
-        bg_name : broadcastGroup?.name
+        bg_name : broadcastGroup?.name,
+        template_name : broadcastGroup?.template_name
     };
     // console.log("Tenant Sent: ", tenant)
     // console.log("Sending request with data:", data);

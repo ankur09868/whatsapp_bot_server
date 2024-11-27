@@ -176,7 +176,8 @@ app.post("/send-template", async(req, res) => {
         const messageData = await setTemplate(templateData, phoneNumber, business_phone_number_id, access_token, otp)
 
         const sendMessage_response = await sendMessage(formattedPhoneNumber, business_phone_number_id, messageData, access_token, null, tenant_id);
-        console.log("send message response: ", sendMessage_response)
+        // console.log("send message response: ", sendMessage_response)
+       
         const messageID = sendMessage_response.data?.messages[0]?.id;
         if(messageID){
             const broadcastGroup = {

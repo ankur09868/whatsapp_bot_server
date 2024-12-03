@@ -8,14 +8,14 @@ import { Server } from "socket.io";
 
 import { getAccessToken, getWabaID, getPhoneNumberID, registerAccount, postRegister } from "./login-flow.js";
 import { setTemplate, sendNodeMessage, sendImageMessage, sendTextMessage, sendAudioMessage, sendVideoMessage, sendLocationMessage, fastURL, djangoURL} from "./snm.js"
-import { sendMessage  } from "./send-message.js"; 
+import { sendMessage, sendMessageTemplate  } from "./send-message.js"; 
 import  { sendProduct, sendBill} from "./product.js"
 import { updateStatus, addDynamicModelInstance, addContact, executeFallback, saveMessage } from "./misc.js"
 import { handleMediaUploads } from "./handle-media.js"
+import {Worker, workerData} from "worker_threads"
 
 
-
-const messageCache = new NodeCache({ stdTTL: 600 });
+export const messageCache = new NodeCache({ stdTTL: 600 });
 
 const WEBHOOK_VERIFY_TOKEN = "COOL";
 const PORT = 8080;
@@ -142,84 +142,157 @@ app.post("/send-message", async (req, res) => {
   }
 });
 
-app.post("/send-template", async(req, res) => {
-  const { bg_id, bg_name,template, business_phone_number_id, phoneNumbers } = req.body
-  const tenant_id = req.headers['x-tenant-id'];
-  
-  const templateName = template.name
-  // for otps
-  const otp = template?.otp
-  console.log(`tenant ID: ${tenant_id}`)
-  try {
-    const tenantRes = await axios.get(`${fastURL}/whatsapp_tenant/`, {
-      headers: { 'X-Tenant-Id': tenant_id }
-    });
-    console.log("TENANT RES: ", tenantRes)
-    const access_token = tenantRes.data.whatsapp_data[0].access_token;
-    const account_id = tenantRes.data.whatsapp_data[0].business_account_id;
-    console.log(`access token: ${access_token}, account ID: ${account_id}`)
-    
-    const response  = await axios.get(`https://graph.facebook.com/v16.0/${account_id}/message_templates?name=${templateName}`, {
-      headers: {
-        Authorization: `Bearer ${access_token}`
-      }
-    })
-    const templateData = response.data.data[0]
-    console.log(`result: ${JSON.stringify(response.data, null, 3)}, template data: ${JSON.stringify(templateData, null, 3)}`)
-    
-    // console.log(`message data: ${JSON.stringify(messageData, null, 3)}`)
+app.post("/use-worker", async (req, res) => {
+  const worker = new Worker('./worker2.js', {workerData: req.body});
+worker.on('message', (result) => {
+console.log('square of 5 is :', result);
+})
+worker.on("error", (msg) => {
+    console.log(msg);
+ });
+console.log('hurreyy')
+})
 
-    for (const phoneNumber of phoneNumbers) {
+
+const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
+
+app.post("/send-template", async (req, res) => {
+  const { bg_id, bg_name, template, business_phone_number_id, phoneNumbers } = req.body;
+  const tenant_id = req.headers["x-tenant-id"];
+
+  const templateName = template.name;
+  const otp = template?.otp;
+
+try {
+    let responseData = messageCache.get(business_phone_number_id);
+
+    // Fetch tenant data if not available in cache
+    if (!responseData) {
       try {
-        const formattedPhoneNumber = `${phoneNumber}`;
-
-        const messageData = await setTemplate(templateData, phoneNumber, business_phone_number_id, access_token, otp)
-
-        const sendMessage_response = await sendMessage(formattedPhoneNumber, business_phone_number_id, messageData, access_token, null, tenant_id);
-        // console.log("send message response: ", sendMessage_response)
-       
-        const messageID = sendMessage_response.data?.messages[0]?.id;
-        if(messageID){
-            const broadcastGroup = {
-              id: bg_id || null,
-              name: bg_name || null,
-              template_name: templateData?.name || null
-            }
-          updateStatus("sent", messageID, business_phone_number_id, phoneNumber, broadcastGroup, tenant_id);
-        }
-        console.log(messageID)
-
-
-        // Save conversation to backend
-        // const formattedConversation = [{ text: template.name, sender: "bot" }];
-        // const saveRes = await fetch(`${baseURL}/whatsapp_convo_post/${formattedPhoneNumber}/?source=whatsapp`, {
-        //   method: 'POST',
-        //   headers: {
-        //     'Content-Type': 'application/json',
-        //     'X-Tenant-Id': tenant_id 
-        //   },
-        //   body: JSON.stringify({
-        //     contact_id: formattedPhoneNumber,
-        //     business_phone_number_id: business_phone_number_id,
-        //     conversations: formattedConversation,
-        //     tenant: tenant_id ,
-        //   }),
-        // });
-        // if (!saveRes.ok) throw new Error("Failed to save conversation");
+        const response = await axios.get(`${fastURL}/whatsapp_tenant`, {
+          headers: { bpid: business_phone_number_id },
+        });
+        responseData = response.data;
+        messageCache.set(business_phone_number_id, responseData);
       } catch (error) {
-        console.error(`Failed to send message to ${phoneNumber}:`, error);
+        console.error(`Error fetching tenant data: ${error.message}`);
+        throw new Error("Failed to fetch tenant data.");
       }
     }
 
-    res.status(200).json({ success: true, message: "WhatsApp message(s) sent successfully"});
+    const access_token = responseData?.whatsapp_data[0]?.access_token;
+    const account_id = responseData?.whatsapp_data[0]?.business_account_id;
+
+    if (!access_token || !account_id) {
+      throw new Error("Invalid tenant data. Missing access token or account ID.");
+    }
+
+    const cacheKey = `${account_id}_${templateName}`;
+    let graphResponse = messageCache.get(cacheKey);
+
+    // Fetch template data if not available in cache
+    if (!graphResponse) {
+      try {
+        const response = await axios.get(
+          `https://graph.facebook.com/v16.0/${account_id}/message_templates?name=${templateName}`,
+          { headers: { Authorization: `Bearer ${access_token}` } }
+        );
+        graphResponse = response.data;
+        messageCache.set(cacheKey, graphResponse);
+      } catch (error) {
+        console.error(`Error fetching template: ${error.message}`);
+        throw new Error("Failed to fetch template data from the API.");
+      }
+    }
+
+    if (!graphResponse?.data || graphResponse.data.length === 0) {
+      throw new Error("Template not found.");
+    }
+
+    const templateData = graphResponse.data[0];
+
+    // Batch processing of phone numbers to limit requests to 80 per second
+    const batchSize = 80;
+    const results = [];
+    for (let i = 0; i < phoneNumbers.length; i += batchSize) {
+      const batch = phoneNumbers.slice(i, i + batchSize);
+
+      const batchResults = await Promise.allSettled(
+        batch.map(async (phoneNumber) => {
+          try {
+            // Generate message data
+            const messageData = await setTemplate(
+              templateData,
+              phoneNumber,
+              business_phone_number_id,
+              access_token,
+              otp
+            );
+
+            console.log("Message Data: ", messageData);
+        
+            // Send message template
+            const sendMessageResponse = await sendMessageTemplate(
+              phoneNumber,
+              business_phone_number_id,
+              messageData,
+              access_token,
+              null,
+              tenant_id
+            );
+        
+            const messageID = sendMessageResponse.data?.messages[0]?.id;
+        
+            if (messageID) {
+              const broadcastGroup = {
+                id: bg_id || null,
+                name: bg_name || null,
+                template_name: templateData?.name || null,
+              };
+              
+              // Update status
+              updateStatus(
+                "sent",
+                messageID,
+                business_phone_number_id,
+                phoneNumber,
+                broadcastGroup,
+                tenant_id,
+                Date.now()
+              );
+            }
+        
+            return { phoneNumber, status: "success", messageID };
+          } catch (error) {
+            console.error(`Failed to send message to ${phoneNumber}: ${error.message}`);
+            return { phoneNumber, status: "failed", error: error.message };
+          }
+        })
+      );
+
+      // Add batch results to the main results array
+      results.push(...batchResults);
+
+      // Wait for 1 second before sending the next batch to ensure we don't exceed 80 requests per second
+      if (i + batchSize < phoneNumbers.length) {
+        console.log(`Waiting for 1 second before sending the next batch...`);
+        await delay(1000); // 1 second delay between batches
+      }
+    }
+
+    // Log the results of message sending
+    console.log("Message Sending Results:", JSON.stringify(results, null, 2));
+
+    res.status(200).json({ success: true, results });
   } catch (error) {
-    console.error("Error sending WhatsApp message::::", error.message);
-    res.status(500).json({ success: false, error: "Failed to send WhatsApp message" });
+    console.error("Error sending WhatsApp message:", error.message);
+    res.status(500).json({ success: false, error: "Failed to send WhatsApp message." });
   }
+
 });
 
 app.post("/reset-session", async (req, res) => {
-  
   const bpid = req.body.business_phone_number_id;
   try {
     for (let key of userSessions.keys()) {
@@ -252,14 +325,10 @@ app.post("/webhook", async (req, res) => {
     // console.log("Rcvd Req: ",req.body, business_phone_number_id,contact,message,userPhoneNumber, JSON.stringify(statuses), userName)
     // console.log("Contact: ", userName)
 
-    // for handling messages
     if (message) {
-      console.log("Extracted data:", {
-        business_phone_number_id,
-        contact,
-        message,
-        userPhoneNumber
-      });
+      
+      if(userPhoneNumber) axios.patch(`${djangoURL}/update-last-seen/${userPhoneNumber}/replied`, {}, {headers: {'X-Tenant-Id': 'ai'}})
+      console.log("Extracted data:", {business_phone_number_id,contact,message,userPhoneNumber});
 
       // Retrieve or create user session
       let userSession = userSessions.get(userPhoneNumber+business_phone_number_id);
@@ -331,7 +400,7 @@ app.post("/webhook", async (req, res) => {
       const repliedTo = message?.context?.id || null
       if (repliedTo !== null) {
         console.log("updating status: ", repliedTo)
-        updateStatus("replied", repliedTo)
+        updateStatus("replied", repliedTo, null, null, null, null, Date.now())
       }
 
       // saving message to backend
@@ -401,6 +470,7 @@ app.post("/webhook", async (req, res) => {
             }
             console.log("Webhook processing completed successfully");
           }
+
           console.log(`Input Variable: ${userSession.inputVariable}`);
           console.log(`Input Variable Type: ${userSession.inputVariableType}`);
 
@@ -590,8 +660,8 @@ app.post("/webhook", async (req, res) => {
       const status = statuses?.status
       const id = statuses?.id
       const business_phone_number_id = req.body.entry?.[0].changes?.[0].value?.metadata?.phone_number_id;
-      
-      updateStatus(status, id)
+
+      updateStatus(status, id, null, null, null, null, Date.now())
       console.log(status, id)
       if (status == "failed"){
         const error = statuses?.errors[0]
@@ -599,7 +669,16 @@ app.post("/webhook", async (req, res) => {
         io.emit('failed-response', error)
         // res.status(400).json(error)
       }
+      if(status == "delivered"){
+        axios.patch(`${djangoURL}/update-last-seen/${phoneNumber}/delivered`, {}, {headers: {'X-Tenant-Id': 'ai'}})
+      }
+      if(status == "read"){
+        axios.patch(`${djangoURL}/update-last-seen/${phoneNumber}/read`, {}, {headers: {'X-Tenant-Id': 'ai'}})
+      
+      }
+      
     }
+    
     res.sendStatus(200);
   }
   catch (error) {

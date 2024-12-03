@@ -1,4 +1,4 @@
-import { userSessions } from "./server.js";
+import { userSessions, messageCache } from "./server.js";
 import {sendMessage} from "./send-message.js"
 
 import { replacePlaceholders, addDynamicModelInstance, addContact, executeFallback } from "./misc.js"
@@ -380,10 +380,14 @@ export async function sendNodeMessage(userPhoneNumber, business_phone_number_id)
 }
 
 export async function setTemplate(templateData, phone, bpid, access_token, otp) {
+
 try {
     console.log("otp rcvd: ", otp)
     const components = templateData?.components;
     const template_name = templateData.name;
+    const cacheKey = `${template_name}_${phone}_${bpid}_${otp}`
+    let messageData = messageCache.get(cacheKey)
+    if(!messageData){
     const res_components = [];
 
     for (const component of components) {
@@ -440,7 +444,7 @@ try {
     }
     }
 
-    const messageData = {
+    messageData = {
     type: "template",
     template: {
         name: template_name,
@@ -449,6 +453,8 @@ try {
         },
         components: res_components
     }
+    }
+    messageCache.set(cacheKey, messageData)
     };
 
     return messageData;

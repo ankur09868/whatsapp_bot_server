@@ -136,8 +136,7 @@ export async function sendMessageTemplate(phoneNumber, business_phone_number_id,
                 messaging_product: "whatsapp", 
                 recipient_type: "individual",
                 to: phoneNumber,
-                type: "text",
-                text: {body: "hi"}
+                ...messageData
             },
             {
                 headers: { Authorization: `Bearer ${access_token}` }

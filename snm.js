@@ -5,11 +5,11 @@ import { replacePlaceholders, addDynamicModelInstance, addContact, executeFallba
 import { getMediaID } from "./handle-media.js"
 
 
-// export const fastURL = "https://fastapione-gue2c5ecc9c4b8hy.centralindia-01.azurewebsites.net"
-// export const djangoURL = "https://backeng4whatsapp-dxbmgpakhzf9bped.centralindia-01.azurewebsites.net"
+export const fastURL = "https://fastapione-gue2c5ecc9c4b8hy.centralindia-01.azurewebsites.net"
+export const djangoURL = "https://backeng4whatsapp-dxbmgpakhzf9bped.centralindia-01.azurewebsites.net"
 
-export const fastURL = "http://localhost:8000"
-export const djangoURL = "http://localhost:8001"
+// export const fastURL = "http://localhost:8000"
+// export const djangoURL = "http://localhost:8001"
 
 export async function sendLocationMessage(phone, bpid, body, access_token=null,tenant_id=null, fr_flag = false) {
     const { latitude, longitude, name, address } = body

@@ -1,6 +1,6 @@
 import { getAccessToken, getWabaID, getPhoneNumberID, registerAccount, postRegister } from "./login-flow.js";
 import { setTemplate, sendNodeMessage, sendProductMessage, sendListMessage, sendInputMessage, sendButtonMessage, sendImageMessage, sendTextMessage, sendAudioMessage, sendVideoMessage, sendLocationMessage, fastURL, djangoURL } from "./snm.js";
-import { userSessions, io } from "./server.js";
+import { userSessions, io, messageCache } from "./server.js";
 import axios from "axios";
 import { BlobServiceClient } from '@azure/storage-blob';
 
@@ -143,10 +143,14 @@ try {
 export async function getMediaID(handle, bpid, access_token) {
   try {
     console.log("HANDLE: ", handle, bpid, access_token);
+    const cacheKey = `${handle}_${bpid}_${access_token}`
+    let mediaID = messageCache.get(cacheKey)
 
+    if(!mediaID){
     // Fetch the image as an arraybuffer
     const imageResponse = await axios.get(handle, { responseType: 'arraybuffer' });
     console.log("Image response received.");
+    
 
     // Create FormData instance
     const formData = new FormData();
@@ -172,7 +176,13 @@ export async function getMediaID(handle, bpid, access_token) {
     );
 
     console.log("Media ID Response: ", response.data);
-    return response.data.id;
+
+    mediaID = response.data.id;
+    messageCache.set(cacheKey, response.data.id)
+  }
+
+  return mediaID
+
 
   } catch (error) {
     console.error("Error in getMediaID:", error.response ? error.response.data : error.message);

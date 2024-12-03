@@ -103,7 +103,7 @@ export async function replacePlaceholders(message, userSession=null, userPhoneNu
     return modifiedMessage;
 }
 
-export async function  updateStatus(status, message_id, business_phone_number_id, user_phone, broadcastGroup, tenant) {
+export async function  updateStatus(status, message_id, business_phone_number_id, user_phone, broadcastGroup, tenant, timestamp) {
 let isRead = false;
 let isDelivered = false;
 let isSent = false;
@@ -145,7 +145,8 @@ try {
         message_id: message_id,
         bg_id : broadcastGroup?.id,
         bg_name : broadcastGroup?.name,
-        template_name : broadcastGroup?.template_name
+        template_name : broadcastGroup?.template_name,
+        timestamp: timestamp
     };
     // console.log("Tenant Sent: ", tenant)
     // console.log("Sending request with data:", data);

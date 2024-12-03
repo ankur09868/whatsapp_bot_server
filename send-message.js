@@ -30,7 +30,7 @@ export async function sendMessage(phoneNumber, business_phone_number_id, message
     console.log(url, access_token)
     try {
         console.log("Senidng Details: ", phoneNumber, access_token, business_phone_number_id)
-        const response = await axios.post(
+        const response =await axios.post(
             url, 
             {
                 messaging_product: "whatsapp", 
@@ -84,20 +84,23 @@ export async function sendMessage(phoneNumber, business_phone_number_id, message
                     let formattedConversation = [{ text: messageData, sender: "bot" }];
 
                     try {
-                        console.log("Savong convo data: ", phoneNumber, business_phone_number_id, formattedConversation ,tenant)
-                        const saveRes = fetch(`${djangoURL}/whatsapp_convo_post/${phoneNumber}/?source=whatsapp`, {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'X-Tenant-Id': tenant || userSession?.tenant,
-                        },
-                        body: JSON.stringify({
-                            contact_id: phoneNumber,
-                            business_phone_number_id: business_phone_number_id,
-                            conversations: formattedConversation,
-                            tenant: tenant || userSession?.tenant,
-                        }),
-                    });
+                        console.log("Saving convo data: ", phoneNumber, business_phone_number_id, formattedConversation ,tenant)
+                        const saveRes = axios.post(
+                            `${djangoURL}/whatsapp_convo_post/${phoneNumber}/?source=whatsapp`, 
+                            {
+                              contact_id: phoneNumber,
+                              business_phone_number_id: business_phone_number_id,
+                              conversations: formattedConversation,
+                              tenant: tenant || userSession?.tenant,
+                            }, 
+                            {
+                              headers: {
+                                'Content-Type': 'application/json',
+                                'X-Tenant-Id': tenant || userSession?.tenant,
+                              },
+                            }
+                          );
+                          
 
                 // if (!saveRes.ok) throw new Error("Failed to save conversation");
                 // console.log("Conversation saved successfully");
@@ -123,8 +126,52 @@ export async function sendMessage(phoneNumber, business_phone_number_id, message
     }
 }
 
-async function formatProductMessage(messageData, tenant_id){
+export async function sendMessageTemplate(phoneNumber, business_phone_number_id, messageData, access_token = null, fr_flag, tenant) {
+    const url = `https://graph.facebook.com/v18.0/${business_phone_number_id}/messages`;
 
+    try {
+        const response = axios.post(
+            url, 
+            {
+                messaging_product: "whatsapp", 
+                recipient_type: "individual",
+                to: phoneNumber,
+                type: "text",
+                text: {body: "hi"}
+            },
+            {
+                headers: { Authorization: `Bearer ${access_token}` }
+            }
+        );
+        // Optionally log or process the response
+        console.log('Message sent successfully:', response.data);
+
+        return { success: true, data: response.data };
+
+    } catch (error) {
+        // Log the error details
+        if (error.response) {
+            // The request was made, and the server responded with a status code outside 2xx
+            console.error('Response Error:', error.response.data);
+        } else if (error.request) {
+            // The request was made but no response was received
+            console.error('No Response Error:', error.request);
+        } else {
+            // Some other error occurred in setting up the request
+            console.error('Setup Error:', error.message);
+        }
+
+        // Return the error details to the caller
+        return { 
+            success: false, 
+            error: error.response ? error.response.data : error.message 
+        };
+    }
+}
+
+
+
+async function formatProductMessage(messageData, tenant_id){
     if(messageData.interactive.type == "product"){
         const action = messageData.interactive.action
         const product_id = action.product_retailer_id

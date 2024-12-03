@@ -1,15 +1,15 @@
-import { userSessions } from "./server.js";
+import { userSessions, messageCache } from "./server.js";
 import {sendMessage} from "./send-message.js"
 
 import { replacePlaceholders, addDynamicModelInstance, addContact, executeFallback } from "./misc.js"
 import { getMediaID } from "./handle-media.js"
 
 
-export const fastURL = "https://fastapione-gue2c5ecc9c4b8hy.centralindia-01.azurewebsites.net"
-export const djangoURL = "https://backeng4whatsapp-dxbmgpakhzf9bped.centralindia-01.azurewebsites.net"
+// export const fastURL = "https://fastapione-gue2c5ecc9c4b8hy.centralindia-01.azurewebsites.net"
+// export const djangoURL = "https://backeng4whatsapp-dxbmgpakhzf9bped.centralindia-01.azurewebsites.net"
 
-// export const fastURL = "http://localhost:8000"
-// export const djangoURL = "http://localhost:8001"
+export const fastURL = "http://localhost:8000"
+export const djangoURL = "http://localhost:8001"
 
 export async function sendLocationMessage(phone, bpid, body, access_token=null,tenant_id=null, fr_flag = false) {
     const { latitude, longitude, name, address } = body
@@ -380,10 +380,14 @@ export async function sendNodeMessage(userPhoneNumber, business_phone_number_id)
 }
 
 export async function setTemplate(templateData, phone, bpid, access_token, otp) {
+
 try {
     console.log("otp rcvd: ", otp)
     const components = templateData?.components;
     const template_name = templateData.name;
+    const cacheKey = `${template_name}_${phone}_${bpid}_${otp}`
+    let messageData = messageCache.get(cacheKey)
+    if(!messageData){
     const res_components = [];
 
     for (const component of components) {
@@ -440,7 +444,7 @@ try {
     }
     }
 
-    const messageData = {
+    messageData = {
     type: "template",
     template: {
         name: template_name,
@@ -449,6 +453,8 @@ try {
         },
         components: res_components
     }
+    }
+    messageCache.set(cacheKey, messageData)
     };
 
     return messageData;

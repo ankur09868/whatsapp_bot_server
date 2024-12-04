@@ -1,0 +1,18 @@
+{
+  "apps": [
+    {
+      "name": "myserver",
+      "script": "./server.js",
+      "instances": 1,
+      "autorestart": true,
+      "watch": false
+    },
+    {
+      "name": "myworker",
+      "script": "./worker.js",
+      "instances": 1,
+      "autorestart": true,
+      "watch": false
+    }
+  ]
+}

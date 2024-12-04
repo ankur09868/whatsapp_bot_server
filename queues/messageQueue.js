@@ -1,11 +1,11 @@
 import Queue from 'bull';
 
 // Initialize the queue
-const messageQueue = new Queue('messageQueue', {
+export const messageQueue = new Queue('messageQueue', {
   redis: { 
-    host: '127.0.0.1', 
-    port: 6379 
+    host: 'whatsappnuren.redis.cache.windows.net', 
+    port: 6379 ,
+    password: 'O6qxsVvcWHfbwdgBxb1yEDfLeBv5VBmaUAzCaJvnELM='
 }, // Configure Redis connection
 });
 
-module.exports = messageQueue;

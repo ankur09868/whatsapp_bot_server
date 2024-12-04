@@ -13,6 +13,8 @@ import  { sendProduct, sendBill} from "./product.js"
 import { updateStatus, addDynamicModelInstance, addContact, executeFallback, saveMessage } from "./misc.js"
 import { handleMediaUploads } from "./handle-media.js"
 import {Worker, workerData} from "worker_threads"
+import { messageQueue } from "./queues/messageQueue.js";
+import { accessSync } from "fs";
 
 
 export const messageCache = new NodeCache({ stdTTL: 600 });
@@ -154,7 +156,6 @@ console.log('hurreyy')
 })
 
 
-const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
 
 app.post("/send-template", async (req, res) => {
@@ -211,80 +212,23 @@ try {
     }
 
     const templateData = graphResponse.data[0];
+    console.log("Data: ", access_token, tenant_id, phoneNumbers, templateData)
+      await messageQueue.add("send-template", {
+        phoneNumbers,
+        templateData,
+        business_phone_number_id,
+        tenant_id,
+        bg_id,
+        bg_name,
+        access_token,
+        account_id,
+        otp,
+      });
 
-    // Batch processing of phone numbers to limit requests to 80 per second
-    const batchSize = 80;
-    const results = [];
-    for (let i = 0; i < phoneNumbers.length; i += batchSize) {
-      const batch = phoneNumbers.slice(i, i + batchSize);
 
-      const batchResults = await Promise.allSettled(
-        batch.map(async (phoneNumber) => {
-          try {
-            // Generate message data
-            const messageData = await setTemplate(
-              templateData,
-              phoneNumber,
-              business_phone_number_id,
-              access_token,
-              otp
-            );
+    // console.log("Message Sending Results:", JSON.stringify(results, null, 2));
 
-            console.log("Message Data: ", messageData);
-        
-            // Send message template
-            const sendMessageResponse = await sendMessageTemplate(
-              phoneNumber,
-              business_phone_number_id,
-              messageData,
-              access_token,
-              null,
-              tenant_id
-            );
-        
-            const messageID = sendMessageResponse.data?.messages[0]?.id;
-        
-            if (messageID) {
-              const broadcastGroup = {
-                id: bg_id || null,
-                name: bg_name || null,
-                template_name: templateData?.name || null,
-              };
-              
-              // Update status
-              updateStatus(
-                "sent",
-                messageID,
-                business_phone_number_id,
-                phoneNumber,
-                broadcastGroup,
-                tenant_id,
-                Date.now()
-              );
-            }
-        
-            return { phoneNumber, status: "success", messageID };
-          } catch (error) {
-            console.error(`Failed to send message to ${phoneNumber}: ${error.message}`);
-            return { phoneNumber, status: "failed", error: error.message };
-          }
-        })
-      );
-
-      // Add batch results to the main results array
-      results.push(...batchResults);
-
-      // Wait for 1 second before sending the next batch to ensure we don't exceed 80 requests per second
-      if (i + batchSize < phoneNumbers.length) {
-        console.log(`Waiting for 1 second before sending the next batch...`);
-        await delay(1000); // 1 second delay between batches
-      }
-    }
-
-    // Log the results of message sending
-    console.log("Message Sending Results:", JSON.stringify(results, null, 2));
-
-    res.status(200).json({ success: true, results });
+    res.status(200).json({ success: true });
   } catch (error) {
     console.error("Error sending WhatsApp message:", error.message);
     res.status(500).json({ success: false, error: "Failed to send WhatsApp message." });
@@ -674,9 +618,7 @@ app.post("/webhook", async (req, res) => {
       }
       if(status == "read"){
         axios.patch(`${djangoURL}/update-last-seen/${phoneNumber}/read`, {}, {headers: {'X-Tenant-Id': 'ai'}})
-      
       }
-      
     }
     
     res.sendStatus(200);

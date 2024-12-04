@@ -13,6 +13,7 @@ import  { sendProduct, sendBill} from "./product.js"
 import { updateStatus, addDynamicModelInstance, addContact, executeFallback, saveMessage } from "./misc.js"
 import { handleMediaUploads } from "./handle-media.js"
 import {Worker, workerData} from "worker_threads"
+import { messageQueue } from "./queues/messageQueue.js";
 
 
 export const messageCache = new NodeCache({ stdTTL: 600 });
@@ -154,7 +155,9 @@ console.log('hurreyy')
 })
 
 
-const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
+
+
 
 
 app.post("/send-template", async (req, res) => {
@@ -211,80 +214,34 @@ try {
     }
 
     const templateData = graphResponse.data[0];
+    
+    const jobData = {
+      bg_id,
+      bg_name,
+      templateData,
+      business_phone_number_id,
+      access_token,
+      otp,
+      tenant_id,
+      phoneNumbers, // Send all phone numbers to the worker
+      batchSize: 80, // Set batch size for worker
+    };
+    console.log("Sending data to messageQueue")
 
-    // Batch processing of phone numbers to limit requests to 80 per second
-    const batchSize = 80;
-    const results = [];
-    for (let i = 0; i < phoneNumbers.length; i += batchSize) {
-      const batch = phoneNumbers.slice(i, i + batchSize);
-
-      const batchResults = await Promise.allSettled(
-        batch.map(async (phoneNumber) => {
-          try {
-            // Generate message data
-            const messageData = await setTemplate(
-              templateData,
-              phoneNumber,
-              business_phone_number_id,
-              access_token,
-              otp
-            );
-
-            console.log("Message Data: ", messageData);
-        
-            // Send message template
-            const sendMessageResponse = await sendMessageTemplate(
-              phoneNumber,
-              business_phone_number_id,
-              messageData,
-              access_token,
-              null,
-              tenant_id
-            );
-        
-            const messageID = sendMessageResponse.data?.messages[0]?.id;
-        
-            if (messageID) {
-              const broadcastGroup = {
-                id: bg_id || null,
-                name: bg_name || null,
-                template_name: templateData?.name || null,
-              };
-              
-              // Update status
-              updateStatus(
-                "sent",
-                messageID,
-                business_phone_number_id,
-                phoneNumber,
-                broadcastGroup,
-                tenant_id,
-                Date.now()
-              );
-            }
-        
-            return { phoneNumber, status: "success", messageID };
-          } catch (error) {
-            console.error(`Failed to send message to ${phoneNumber}: ${error.message}`);
-            return { phoneNumber, status: "failed", error: error.message };
-          }
-        })
-      );
-
-      // Add batch results to the main results array
-      results.push(...batchResults);
-
-      // Wait for 1 second before sending the next batch to ensure we don't exceed 80 requests per second
-      if (i + batchSize < phoneNumbers.length) {
-        console.log(`Waiting for 1 second before sending the next batch...`);
-        await delay(1000); // 1 second delay between batches
-      }
+    try {
+      await messageQueue.add('message', jobData);
+    } catch (error) {
+      console.error("Error adding job to queue:", error.message);
+      res.status(500).json({ success: false, error: "Failed to enqueue message." });
+      return;
     }
+    
+
 
     // Log the results of message sending
-    console.log("Message Sending Results:", JSON.stringify(results, null, 2));
+    // console.log("Message Sending Results:", JSON.stringify(results, null, 2));
 
-    res.status(200).json({ success: true, results });
+    res.status(200).json({ success: true });
   } catch (error) {
     console.error("Error sending WhatsApp message:", error.message);
     res.status(500).json({ success: false, error: "Failed to send WhatsApp message." });

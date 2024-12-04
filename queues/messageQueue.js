@@ -1,11 +1,16 @@
 import Queue from 'bull';
+import dotenv from 'dotenv'
 
+dotenv.config()
 // Initialize the queue
-const messageQueue = new Queue('messageQueue', {
+export const messageQueue = new Queue('messageQueue', {
   redis: { 
-    host: '127.0.0.1', 
-    port: 6379 
+    host: 'whatsappnuren.redis.cache.windows.net', 
+    port: 6379,
+    password: process.env.REDIS_PASSWORD
 }, // Configure Redis connection
 });
 
-module.exports = messageQueue;
+messageQueue.on('error', (err) => {
+  console.error('Redis connection error:', err);
+});

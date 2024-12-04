@@ -72,45 +72,45 @@ export async function sendMessage(phoneNumber, business_phone_number_id, message
             const now = Date.now()
             const timestamp = now.toLocaleString();
 
-                try{
-                    console.log("MESSAGE DATA: ", JSON.stringify(messageData, null, 4))
-                    io.emit('node-message', {
-                        message: messageData,
-                        phone_number_id: business_phone_number_id,
-                        contactPhone: phoneNumber,
-                        time: timestamp
-                    });
-                    console.log("Emitted  Node Message: ", messageData)
-                    let formattedConversation = [{ text: messageData, sender: "bot" }];
+            try{
+                console.log("MESSAGE DATA: ", JSON.stringify(messageData, null, 4))
+                io.emit('node-message', {
+                    message: messageData,
+                    phone_number_id: business_phone_number_id,
+                    contactPhone: phoneNumber,
+                    time: timestamp
+                });
+                console.log("Emitted  Node Message: ", messageData)
+                let formattedConversation = [{ text: messageData, sender: "bot" }];
 
-                    try {
-                        console.log("Saving convo data: ", phoneNumber, business_phone_number_id, formattedConversation ,tenant)
-                        const saveRes = axios.post(
-                            `${djangoURL}/whatsapp_convo_post/${phoneNumber}/?source=whatsapp`, 
-                            {
-                              contact_id: phoneNumber,
-                              business_phone_number_id: business_phone_number_id,
-                              conversations: formattedConversation,
-                              tenant: tenant || userSession?.tenant,
-                            }, 
-                            {
-                              headers: {
-                                'Content-Type': 'application/json',
-                                'X-Tenant-Id': tenant || userSession?.tenant,
-                              },
-                            }
-                          );
-                          
+                try {
+                    console.log("Saving convo data: ", phoneNumber, business_phone_number_id, formattedConversation ,tenant)
+                    const saveRes = axios.post(
+                        `${djangoURL}/whatsapp_convo_post/${phoneNumber}/?source=whatsapp`, 
+                        {
+                            contact_id: phoneNumber,
+                            business_phone_number_id: business_phone_number_id,
+                            conversations: formattedConversation,
+                            tenant: tenant || userSession?.tenant,
+                        }, 
+                        {
+                            headers: {
+                            'Content-Type': 'application/json',
+                            'X-Tenant-Id': tenant || userSession?.tenant,
+                            },
+                        }
+                        );
+                        
 
-                // if (!saveRes.ok) throw new Error("Failed to save conversation");
-                // console.log("Conversation saved successfully");
+            // if (!saveRes.ok) throw new Error("Failed to save conversation");
+            // console.log("Conversation saved successfully");
 
-            } catch (error) {
-                console.error("Error saving conversation:", error.message);
+        } catch (error) {
+            console.error("Error saving conversation:", error.message);
+        }
+            }catch(error){
+                console.log("error occured while emission: ", error)
             }
-                }catch(error){
-                    console.log("error occured while emission: ", error)
-                }
             
 
             await mediaURLPromise

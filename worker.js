@@ -2,8 +2,9 @@ import { messageQueue } from "./queues/messageQueue.js";
 import axios from "axios";
 import NodeCache from 'node-cache';
 import FormData from 'form-data';
-export const djangoURL = "https://backeng4whatsapp-dxbmgpakhzf9bped.centralindia-01.azurewebsites.net"
 
+export const djangoURL = "https://backeng4whatsapp-dxbmgpakhzf9bped.centralindia-01.azurewebsites.net"
+// const djangoURL = 'http://localhost:8001'
 
 // Helper function
 // Batch processing of phone numbers to limit requests to 80 per second
@@ -237,7 +238,7 @@ export async function updateStatus(status, message_id, business_phone_number_id,
       },
     });
 
-    console.log("Response received:", response.data);
+    console.log("Response received ni update status(worker):", response.data);
   } catch (error) {
     console.error("Error updating status:", error.response ? error.response.data : error.message);
   }
@@ -270,6 +271,7 @@ export async function sendMessageTemplate(phoneNumber, business_phone_number_id,
 
         try {
             console.log("Saving convo data: ", phoneNumber, business_phone_number_id, formattedConversation ,tenant)
+            
             const saveRes = axios.post(
                 `${djangoURL}/whatsapp_convo_post/${phoneNumber}/?source=whatsapp`, 
                 {
@@ -285,6 +287,8 @@ export async function sendMessageTemplate(phoneNumber, business_phone_number_id,
                     },
                 }
                 );
+
+                console.log("SAVE RES: ", saveRes)
 
         } catch (error) {
             console.error("Error saving conversation:", error.message);

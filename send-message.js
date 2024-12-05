@@ -30,7 +30,7 @@ export async function sendMessage(phoneNumber, business_phone_number_id, message
     console.log(url, access_token)
     try {
         console.log("Senidng Details: ", phoneNumber, access_token, business_phone_number_id)
-        const response =await axios.post(
+        const response = await axios.post(
             url, 
             {
                 messaging_product: "whatsapp", 

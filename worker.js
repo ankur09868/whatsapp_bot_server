@@ -43,7 +43,6 @@ messageQueue.process('message' ,async (job) => {
             access_token,
             otp
           );
-
           console.log("Message Data: ", messageData);
 
           // Send message template
@@ -231,6 +230,7 @@ export async function updateStatus(status, message_id, business_phone_number_id,
     };
 
     // Send POST request with JSON payload
+    console.log("Sending req to set-status (worker)")
     const response = await axios.post(`${djangoURL}/set-status/`, data, {
       headers: {
         "X-Tenant-Id": tenant,
@@ -238,7 +238,7 @@ export async function updateStatus(status, message_id, business_phone_number_id,
       },
     });
 
-    console.log("Response received ni update status(worker):", response.data);
+    console.log("Response received in update status(worker):", response.data);
   } catch (error) {
     console.error("Error updating status:", error.response ? error.response.data : error.message);
   }
@@ -248,7 +248,7 @@ export async function sendMessageTemplate(phoneNumber, business_phone_number_id,
   const url = `https://graph.facebook.com/v18.0/${business_phone_number_id}/messages`;
 
   try {
-    const response = axios.post(
+    const response = await axios.post(
       url,
       {
         messaging_product: "whatsapp",
@@ -271,14 +271,15 @@ export async function sendMessageTemplate(phoneNumber, business_phone_number_id,
 
         try {
             console.log("Saving convo data: ", phoneNumber, business_phone_number_id, formattedConversation ,tenant)
-            
-            const saveRes = axios.post(
+            console.log(timestamp)
+            const saveRes = await axios.post(
                 `${djangoURL}/whatsapp_convo_post/${phoneNumber}/?source=whatsapp`, 
                 {
                     contact_id: phoneNumber,
                     business_phone_number_id: business_phone_number_id,
                     conversations: formattedConversation,
                     tenant: tenant || userSession?.tenant,
+                    time: timestamp
                 }, 
                 {
                     headers: {
@@ -288,7 +289,7 @@ export async function sendMessageTemplate(phoneNumber, business_phone_number_id,
                 }
                 );
 
-                console.log("SAVE RES: ", saveRes)
+                console.log("SAVE RES: ", saveRes.data)
 
         } catch (error) {
             console.error("Error saving conversation:", error.message);

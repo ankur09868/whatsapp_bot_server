@@ -14,6 +14,7 @@ import { updateStatus, addDynamicModelInstance, addContact, executeFallback, sav
 import { handleMediaUploads } from "./handle-media.js"
 import {Worker, workerData} from "worker_threads"
 import { messageQueue } from "./queues/messageQueue.js";
+import { time } from "console";
 
 
 export const messageCache = new NodeCache({ stdTTL: 600 });
@@ -236,8 +237,6 @@ try {
       return;
     }
     
-
-
     // Log the results of message sending
     // console.log("Message Sending Results:", JSON.stringify(results, null, 2));
 
@@ -284,7 +283,10 @@ app.post("/webhook", async (req, res) => {
 
     if (message) {
       
-      if(userPhoneNumber) axios.patch(`${djangoURL}/update-last-seen/${userPhoneNumber}/replied`, {}, {headers: {'X-Tenant-Id': 'ai'}})
+      const now = Date.now()
+      const timestamp = now.toLocaleString();
+      console.log("Updating last seen")
+      if(userPhoneNumber) axios.patch(`${djangoURL}/update-last-seen/${userPhoneNumber}/replied`, {time: timestamp}, {headers: {'X-Tenant-Id': 'ai'}})
       console.log("Extracted data:", {business_phone_number_id,contact,message,userPhoneNumber});
 
       // Retrieve or create user session
@@ -368,9 +370,6 @@ app.post("/webhook", async (req, res) => {
       saveMessage(userSession.userPhoneNumber, userSession.business_number_id, formattedConversation, userSession.tenant)
 
       
-      const now = Date.now()
-      const timestamp = now.toLocaleString();
-
       // emitting temp user to frontend
       const temp_user = message?.text?.body?.startsWith('*/') ? message.text.body.split('*/')[1]?.split(' ')[0] : null;
       if(temp_user){
@@ -618,22 +617,31 @@ app.post("/webhook", async (req, res) => {
       const id = statuses?.id
       const business_phone_number_id = req.body.entry?.[0].changes?.[0].value?.metadata?.phone_number_id;
 
-      updateStatus(status, id, null, null, null, null, Date.now())
+      const now = Date.now()
+      const timestamp = now.toLocaleString();
+
       console.log(status, id)
       if (status == "failed"){
+        updateStatus(status, id, null, null, null, null, timestamp)
         const error = statuses?.errors[0]
         console.log("Message failed: ", error)
         io.emit('failed-response', error)
         // res.status(400).json(error)
       }
-      if(status == "delivered"){
-        axios.patch(`${djangoURL}/update-last-seen/${phoneNumber}/delivered`, {}, {headers: {'X-Tenant-Id': 'ai'}})
+      else if(status == "delivered"){
+        updateStatus(status, id, null, null, null, null, timestamp)
+        console.log("Delivered")
+        console.log("Updating last seen")
+        const res = await axios.patch(`${djangoURL}/update-last-seen/${phoneNumber}/delivered`, {time: timestamp}, {headers: {'X-Tenant-Id': 'ai'}})
+        console.log(res.data)
       }
-      if(status == "read"){
-        axios.patch(`${djangoURL}/update-last-seen/${phoneNumber}/read`, {}, {headers: {'X-Tenant-Id': 'ai'}})
+      else if(status == "read"){
+        updateStatus(status, id, null, null, null, null, timestamp)
+        console.log("Updating last seen")
+        axios.patch(`${djangoURL}/update-last-seen/${phoneNumber}/read`, {time: timestamp}, {headers: {'X-Tenant-Id': 'ai'}})
       
       }
-      
+      console.log("Webhook Processing Complete")
     }
     
     res.sendStatus(200);

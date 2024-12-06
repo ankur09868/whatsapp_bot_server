@@ -152,6 +152,7 @@ try {
     // console.log("Sending request with data:", data);
 
     // Send POST request with JSON payload
+    console.log("Sending req to set status")
     const response = await axios.post(`${djangoURL}/set-status/`, data, {
     headers: { 
         "X-Tenant-Id": tenant, 
@@ -217,11 +218,15 @@ export async function getTenantFromBpid(bpid) {
 export async function saveMessage(userPhoneNumber, business_phone_number_id, formattedConversation, tenant) {
     try {
         
+        const now = Date.now()
+        const timestamp = now.toLocaleString();
+        
         const body = {
             contact_id: userPhoneNumber,
             business_phone_number_id: business_phone_number_id,
             conversations: formattedConversation,
-            tenant: tenant
+            tenant: tenant,
+            time: timestamp
         }
 
         axios.post(`${djangoURL}/whatsapp_convo_post/${userPhoneNumber}/?source=whatsapp`,body,

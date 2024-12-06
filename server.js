@@ -286,7 +286,7 @@ app.post("/webhook", async (req, res) => {
       const now = Date.now()
       const timestamp = now.toLocaleString();
       console.log("Updating last seen")
-      if(userPhoneNumber) axios.patch(`${djangoURL}/update-last-seen/${userPhoneNumber}/replied`, {time: now}, {headers: {'X-Tenant-Id': 'ai'}})
+      if(userPhoneNumber) axios.patch(`${djangoURL}/update-last-seen/${userPhoneNumber}/replied`, {time: now}, {headers: {'bpid': business_phone_number_id}})
       console.log("Extracted data:", {business_phone_number_id,contact,message,userPhoneNumber});
 
       // Retrieve or create user session
@@ -632,13 +632,13 @@ app.post("/webhook", async (req, res) => {
         updateStatus(status, id, null, null, null, null, timestamp)
         console.log("Delivered")
         console.log("Updating last seen")
-        axios.patch(`${djangoURL}/update-last-seen/${phoneNumber}/delivered`, {time: now}, {headers: {'X-Tenant-Id': 'ai'}})
+        axios.patch(`${djangoURL}/update-last-seen/${phoneNumber}/delivered`, {time: now}, {headers: {'bpid': business_phone_number_id}})
         console.log("updated last seen: ")
       }
       else if(status == "read"){
         updateStatus(status, id, null, null, null, null, timestamp)
         console.log("Updating last seen")
-        axios.patch(`${djangoURL}/update-last-seen/${phoneNumber}/read`, {time: now}, {headers: {'X-Tenant-Id': 'ai'}})
+        axios.patch(`${djangoURL}/update-last-seen/${phoneNumber}/read`, {time: now}, {headers: {'bpid': business_phone_number_id}})
         console.log("updated last seen")
       }
       console.log("Webhook Processing Complete")

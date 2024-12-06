@@ -284,7 +284,7 @@ app.post("/webhook", async (req, res) => {
     if (message) {
       
       const now = Date.now()
-      
+      const timestamp = now.toLocaleString();
       console.log("Updating last seen")
       if(userPhoneNumber) axios.patch(`${djangoURL}/update-last-seen/${userPhoneNumber}/replied`, {time: now}, {headers: {'X-Tenant-Id': 'ai'}})
       console.log("Extracted data:", {business_phone_number_id,contact,message,userPhoneNumber});
@@ -618,26 +618,27 @@ app.post("/webhook", async (req, res) => {
       const business_phone_number_id = req.body.entry?.[0].changes?.[0].value?.metadata?.phone_number_id;
 
       const now = Date.now()
+      const timestamp = now.toLocaleString();
 
       console.log(status, id)
       if (status == "failed"){
-        updateStatus(status, id, null, null, null, null, now)
+        updateStatus(status, id, null, null, null, null, timestamp)
         const error = statuses?.errors[0]
         console.log("Message failed: ", error)
         io.emit('failed-response', error)
         // res.status(400).json(error)
       }
       else if(status == "delivered"){
-        updateStatus(status, id, null, null, null, null, now)
+        updateStatus(status, id, null, null, null, null, timestamp)
         console.log("Delivered")
         console.log("Updating last seen")
-        axios.patch(`${djangoURL}/update-last-seen/${phoneNumber}/delivered`, {time: timestamp}, {headers: {'X-Tenant-Id': 'ai'}})
+        axios.patch(`${djangoURL}/update-last-seen/${phoneNumber}/delivered`, {time: now}, {headers: {'X-Tenant-Id': 'ai'}})
         console.log("updated last seen: ")
       }
       else if(status == "read"){
-        updateStatus(status, id, null, null, null, null, now)
+        updateStatus(status, id, null, null, null, null, timestamp)
         console.log("Updating last seen")
-        axios.patch(`${djangoURL}/update-last-seen/${phoneNumber}/read`, {time: timestamp}, {headers: {'X-Tenant-Id': 'ai'}})
+        axios.patch(`${djangoURL}/update-last-seen/${phoneNumber}/read`, {time: now}, {headers: {'X-Tenant-Id': 'ai'}})
         console.log("updated last seen")
       }
       console.log("Webhook Processing Complete")

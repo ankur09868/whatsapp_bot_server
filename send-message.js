@@ -85,6 +85,7 @@ export async function sendMessage(phoneNumber, business_phone_number_id, message
 
                 try {
                     console.log("Saving convo data: ", phoneNumber, business_phone_number_id, formattedConversation ,tenant)
+                    console.log("Time: ", timestamp)
                     const saveRes = axios.post(
                         `${djangoURL}/whatsapp_convo_post/${phoneNumber}/?source=whatsapp`, 
                         {
@@ -92,6 +93,7 @@ export async function sendMessage(phoneNumber, business_phone_number_id, message
                             business_phone_number_id: business_phone_number_id,
                             conversations: formattedConversation,
                             tenant: tenant || userSession?.tenant,
+                            time: timestamp
                         }, 
                         {
                             headers: {

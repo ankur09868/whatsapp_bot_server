@@ -3,7 +3,7 @@ import axios from "axios";
 import NodeCache from 'node-cache';
 import FormData from 'form-data';
 
-export const djangoURL = "https://backeng4whatsapp-dxbmgpakhzf9bped.centralindia-01.azurewebsites.net"
+const djangoURL = "https://backeng4whatsapp-dxbmgpakhzf9bped.centralindia-01.azurewebsites.net"
 // const djangoURL = 'http://localhost:8001'
 
 // Helper function

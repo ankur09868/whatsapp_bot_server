@@ -242,3 +242,29 @@ export async function saveMessage(userPhoneNumber, business_phone_number_id, for
         console.error("Error saving conversation (save message):", error.message);
       }
 }
+
+export async function sendNotification(notif, tenant){
+    try{
+        const res = await axios.post(`${fastURL}/notifications`, notif,
+            {
+                headers: {
+                    'X-Tenant-Id': tenant
+                }
+            }
+        )
+        console.log("Response Sednign Notifications: ", res.data)
+    }
+    catch (error){
+        console.error(`Error sending notification: ${error}`)
+    }
+}
+
+export async function updateLastSeen(type, time, phone, bpid) {
+    try{
+        const response = await axios.patch(`${djangoURL}/update-last-seen/${phone}/${type}`, {time: time}, {headers: {bpid: bpid}})
+
+        console.log("Response updating last seen: ", response.data)
+    } catch (error){
+        console.error("Error Occured in updating last seen: ", error)
+    }
+}

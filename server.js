@@ -10,11 +10,12 @@ import { getAccessToken, getWabaID, getPhoneNumberID, registerAccount, postRegis
 import { setTemplate, sendNodeMessage, sendImageMessage, sendTextMessage, sendAudioMessage, sendVideoMessage, sendLocationMessage, fastURL, djangoURL} from "./snm.js"
 import { sendMessage, sendMessageTemplate  } from "./send-message.js"; 
 import  { sendProduct, sendBill} from "./product.js"
-import { updateStatus, addDynamicModelInstance, addContact, executeFallback, saveMessage } from "./misc.js"
+import { updateStatus, addDynamicModelInstance, addContact, executeFallback, saveMessage, sendNotification, updateLastSeen } from "./misc.js"
 import { handleMediaUploads } from "./handle-media.js"
 import {Worker, workerData} from "worker_threads"
 import { messageQueue } from "./queues/messageQueue.js";
 import { time } from "console";
+import { notDeepEqual } from "assert";
 
 
 export const messageCache = new NodeCache({ stdTTL: 600 });
@@ -163,8 +164,8 @@ console.log('hurreyy')
 
 app.post("/send-template", async (req, res) => {
   const { bg_id, bg_name, template, business_phone_number_id, phoneNumbers } = req.body;
-  const tenant_id = req.headers["x-tenant-id"];
-
+  // const tenant_id = req.headers["x-tenant-id"];
+  console.log("rcvd data: ", req.body)
   const templateName = template.name;
   const otp = template?.otp;
 
@@ -187,6 +188,7 @@ try {
 
     const access_token = responseData?.whatsapp_data[0]?.access_token;
     const account_id = responseData?.whatsapp_data[0]?.business_account_id;
+    const tenant_id = responseData?.whatsapp_data[0]?.tenant_id
 
     if (!access_token || !account_id) {
       throw new Error("Invalid tenant data. Missing access token or account ID.");
@@ -286,7 +288,7 @@ app.post("/webhook", async (req, res) => {
       const now = Date.now()
       const timestamp = now.toLocaleString();
       console.log("Updating last seen")
-      if(userPhoneNumber) axios.patch(`${djangoURL}/update-last-seen/${userPhoneNumber}/replied`, {time: now}, {headers: {'bpid': business_phone_number_id}})
+      updateLastSeen("replied", now, userPhoneNumber, business_phone_number_id)
       console.log("Extracted data:", {business_phone_number_id,contact,message,userPhoneNumber});
 
       // Retrieve or create user session
@@ -401,6 +403,10 @@ app.post("/webhook", async (req, res) => {
           name: userName,
           time: timestamp
         });
+        const notif_body = {
+          content: `New meessage from ${userName || userPhoneNumber}: ${messageData?.text?.body}`
+        }
+        sendNotification(notif_body, userSession.tenant)
         console.log("Emitted new message: ", messageData)
       }catch(error){
         console.log("error occured while emission: ", error)
@@ -632,13 +638,13 @@ app.post("/webhook", async (req, res) => {
         updateStatus(status, id, null, null, null, null, timestamp)
         console.log("Delivered")
         console.log("Updating last seen")
-        axios.patch(`${djangoURL}/update-last-seen/${phoneNumber}/delivered`, {time: now}, {headers: {'bpid': business_phone_number_id}})
+        updateLastSeen("delivered", now, userPhoneNumber, business_phone_number_id)
         console.log("updated last seen: ")
       }
       else if(status == "read"){
         updateStatus(status, id, null, null, null, null, timestamp)
         console.log("Updating last seen")
-        axios.patch(`${djangoURL}/update-last-seen/${phoneNumber}/read`, {time: now}, {headers: {'bpid': business_phone_number_id}})
+        updateLastSeen("seen", now, userPhoneNumber, business_phone_number_id)
         console.log("updated last seen")
       }
       console.log("Webhook Processing Complete")

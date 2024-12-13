@@ -67,7 +67,7 @@ export async function sendProductList(userSession, message){
             }
         }
     }
-    await sendMessage(userSession.userPhoneNumber, userSession.business_number_id, productListMessageData, userSession.accessToken, null, userSession.tenant)
+    await sendMessage(userSession.userPhoneNumber, userSession.business_phone_number_id, productListMessageData, userSession.accessToken, null, userSession.tenant)
 }
 
 export async function sendBillMessage(){
@@ -141,7 +141,7 @@ const textMessageData = {
     body: `Thank you for shopping from our store!\n\nYour total order amount: ${totalAmount}\n\nItems you have purchased are:\n\n${product_list.map(item => `Product: *${item.product_name}*, Quantity: *${item.quantity}*`).join('\n\n')}\n\nPlease use the QR below to make the payment!`
     }
 }
-await sendMessage(userSession.userPhoneNumber, userSession.business_number_id, textMessageData, userSession.accessToken, null, userSession.tenant)
+await sendMessage(userSession.userPhoneNumber, userSession.business_phone_number_id, textMessageData, userSession.accessToken, null, userSession.tenant)
 const QRMessageData = {
     type: "image",
     image: {
@@ -149,7 +149,7 @@ const QRMessageData = {
     caption: "Scan this QR Code with your payment provider app or just open the image in whatsapp."
     }
 }
-await sendMessage(userSession.userPhoneNumber, userSession.business_number_id, QRMessageData, userSession.accessToken, null, userSession.tenant)
+await sendMessage(userSession.userPhoneNumber, userSession.business_phone_number_id, QRMessageData, userSession.accessToken, null, userSession.tenant)
 }
 
 export async function sendProduct(userSession, product_id) {
@@ -170,8 +170,8 @@ const productMessageData = {
     }
     }
 }
-await sendMessage(userSession.userPhoneNumber, userSession.business_number_id, productMessageData, userSession.accessToken, null, userSession.tenant)
+await sendMessage(userSession.userPhoneNumber, userSession.business_phone_number_id, productMessageData, userSession.accessToken, null, userSession.tenant)
 console.log("take my whiskey neeeeeat")
 userSession.currNode = 6
-sendNodeMessage(userSession.userPhoneNumber, userSession.business_number_id)
+sendNodeMessage(userSession.userPhoneNumber, userSession.business_phone_number_id)
 }

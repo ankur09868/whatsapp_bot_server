@@ -10,7 +10,7 @@ export async function executeFallback(userSession){
 console.log("Entering Fallback")
 var fallback_count = userSession.fallback_count
 const userPhoneNumber = userSession.userPhoneNumber
-const business_phone_number_id = userSession.business_number_id
+const business_phone_number_id = userSession.business_phone_number_id
 if(fallback_count > 0){
     console.log("Fallback Count: ", fallback_count)
     const fallback_msg = userSession.fallback_msg
@@ -25,9 +25,13 @@ else{
     }
 }
 
-export async function addContact(c_data, tenant) {
+export async function addContact(phone, name, tenant) {
     try{
         // console.log("add contactt", c_data, tenant)
+        const c_data = {
+            name: name,
+            phone: phone
+        }
         await axios.post(`${djangoURL}/contacts_by_tenant/`, c_data, {
         headers: {'X-Tenant-Id': tenant}
         })
@@ -69,7 +73,7 @@ export async function replacePlaceholders(message, userSession=null, userPhoneNu
     const placeholders = [...message.matchAll(/{{\s*[\w]+\s*}}/g)];
     if (userSession !== null) {
         var userPhoneNumber = userSession.userPhoneNumber
-        var business_phone_number_id = userSession.business_number_id
+        var business_phone_number_id = userSession.business_phone_number_id
     }
     console.log("placeholders: ", placeholders)
     for (const placeholder of placeholders) {

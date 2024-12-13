@@ -3,8 +3,8 @@ import axios from "axios";
 import NodeCache from 'node-cache';
 import FormData from 'form-data';
 
-const djangoURL = "https://backeng4whatsapp-dxbmgpakhzf9bped.centralindia-01.azurewebsites.net"
-// const djangoURL = 'http://localhost:8001'
+// const djangoURL = "https://backeng4whatsapp-dxbmgpakhzf9bped.centralindia-01.azurewebsites.net"
+const djangoURL = 'http://localhost:8001'
 
 // Helper function
 // Batch processing of phone numbers to limit requests to 80 per second

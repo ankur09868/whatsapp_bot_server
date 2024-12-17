@@ -10,7 +10,7 @@ import { getAccessToken, getWabaID, getPhoneNumberID, registerAccount, postRegis
 import { setTemplate, sendNodeMessage, sendImageMessage, sendTextMessage, sendAudioMessage, sendVideoMessage, sendLocationMessage, fastURL, djangoURL} from "./snm.js"
 import { sendMessage, sendMessageTemplate  } from "./send-message.js"; 
 import  { sendProduct, sendBill} from "./product.js"
-import { updateStatus, addDynamicModelInstance, addContact, executeFallback, saveMessage, sendNotification, updateLastSeen } from "./misc.js"
+import { addDynamicModelInstance, addContact, executeFallback, saveMessage, sendNotification, updateLastSeen } from "./misc.js"
 import { handleMediaUploads } from "./handle-media.js"
 import {Worker, workerData} from "worker_threads"
 import { messageQueue } from "./queues/messageQueue.js";

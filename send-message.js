@@ -1,6 +1,5 @@
 import { fastURL, djangoURL} from "./snm.js"
 
-import { updateStatus } from "./misc.js"
 import { getImageAndUploadToBlob } from "./handle-media.js"
 import { userSessions, io } from "./server.js";
 import axios from "axios";

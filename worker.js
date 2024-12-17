@@ -74,6 +74,7 @@ messageQueue.process('message' ,async (job) => {
               tenant_id,
               Date.now()
             );
+
           }
 
           return { phoneNumber, status: "success", messageID };
@@ -237,6 +238,13 @@ export async function updateStatus(status, message_id, business_phone_number_id,
         "Content-Type": "application/json",
       },
     });
+    const key = broadcastGroup?.name || broadcastGroup?.template_name
+    axios.patch(`${djangoURL}/update-contacts/`, {key: key, phone: user_phone}, {
+      headers: {
+        "X-Tenant-Id": tenant,
+        "Content-Type": "application/json",
+      }
+    })
 
     console.log("Response received in update status(worker):", response.data);
   } catch (error) {

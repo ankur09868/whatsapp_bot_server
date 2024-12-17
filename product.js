@@ -1,7 +1,7 @@
 import { getAccessToken, getWabaID, getPhoneNumberID, registerAccount, postRegister } from "./login-flow.js";
 import { setTemplate, sendNodeMessage, sendProductMessage, sendListMessage, sendInputMessage, sendButtonMessage, sendImageMessage, sendTextMessage, sendAudioMessage, sendVideoMessage, sendLocationMessage} from "./snm.js"
 import { sendMessage  } from "./send-message.js";
-import { validateInput, updateStatus, replacePlaceholders, addDynamicModelInstance, addContact, executeFallback } from "./misc.js"
+import { validateInput, replacePlaceholders, addDynamicModelInstance, addContact, executeFallback } from "./misc.js"
 import { getMediaID, handleMediaUploads, checkBlobExists, getImageAndUploadToBlob } from "./handle-media.js"
 import { userSessions, io } from "./server.js";
 import axios from "axios";

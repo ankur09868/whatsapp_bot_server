@@ -265,6 +265,7 @@ app.post("/reset-session", async (req, res) => {
 });
 
 async function getSession(business_phone_number_id, contact) {
+  console.log("Contact: " ,contact)
   const userPhoneNumber = contact?.wa_id
   const userName = contact?.profile?.name || null
 
@@ -458,13 +459,13 @@ app.post("/webhook", async (req, res) => {
       // console.log("Rcvd Req: ",req.body, business_phone_number_id,contact,message,userPhoneNumber, JSON.stringify(statuses), userName)
       // console.log("Contact: ", userName)
 
-      let userSession = await getSession(business_phone_number_id, contact, message)
 
       const now = Date.now()
       const timestamp = now.toLocaleString();
 
       
       if (message) {
+          let userSession = await getSession(business_phone_number_id, contact)
           const message_text = message?.text?.body || (message?.interactive ? (message?.interactive?.button_reply?.title || message?.interactive?.list_reply?.title) : null)
           const notif_body = {content: `New meessage from ${userSession.userName || userSession.userPhoneNumber}: ${message_text}`}
 

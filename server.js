@@ -447,9 +447,7 @@ app.post("/webhook", async (req, res) => {
       const business_phone_number_id = req.body.entry?.[0].changes?.[0].value?.metadata?.phone_number_id;
       const contact = req.body.entry?.[0]?.changes[0]?.value?.contacts?.[0];
       const message = req.body.entry?.[0]?.changes[0]?.value?.messages?.[0];
-      console.log("Contact: ", JSON.stringify(contact, null, 6))
       const userPhoneNumber = contact?.wa_id || null;
-      console.log("User Phone Number: ", userPhoneNumber)
       const statuses = req.body.entry?.[0]?.changes[0]?.value?.statuses?.[0];
       const userName = contact?.profile?.name || null
       const products = message?.order?.product_items

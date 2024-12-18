@@ -167,7 +167,7 @@ export async function setTemplate(templateData, phone, bpid, access_token, otp) 
         template: {
           name: template_name,
           language: {
-            code: "en_US",
+            code: templateData?.language,
           },
           components: res_components,
         },

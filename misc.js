@@ -27,7 +27,7 @@ else{
 
 export async function addContact(phone, name, tenant) {
     try{
-        // console.log("add contactt", c_data, tenant)
+        console.log(`Saving ${name} with phone ${phone} under tenant ${tenant} to DB`)
         const c_data = {
             name: name,
             phone: phone

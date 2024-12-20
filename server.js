@@ -464,11 +464,25 @@ app.post("/webhook", async (req, res) => {
       const now = Date.now()
       let timestamp = now.toLocaleString();
 
+      const current_time = new Date()
+      const options = {
+        timeZone: 'Asia/Kolkata',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        fractionalSecondDigits: 3,
+      };
+      
+      const indiaTime = new Intl.DateTimeFormat('en-GB', options).format(current_time);
+      console.log("India Time: ", indiaTime)      
       
       if (message) {
           let userSession = await getSession(business_phone_number_id, contact)
           const message_text = message?.text?.body || (message?.interactive ? (message?.interactive?.button_reply?.title || message?.interactive?.list_reply?.title) : null)
-          const notif_body = {content: `${userSession.userPhoneNumber} | New meessage from ${userSession.userName || userSession.userPhoneNumber}: ${message_text}`, created_on: timestamp}
+          const notif_body = {content: `${userSession.userPhoneNumber} | New meessage from ${userSession.userName || userSession.userPhoneNumber}: ${message_text}`, created_on: indiaTime}
 
           sendNotification(notif_body, userSession.tenant)
           updateLastSeen("replied", now, userSession.userPhoneNumber, userSession.business_phone_number_id)
@@ -599,7 +613,6 @@ app.post("/webhook", async (req, res) => {
           const business_phone_number_id = req.body.entry?.[0].changes?.[0].value?.metadata?.phone_number_id;
   
           if (status == "failed"){
-            
               timestamp = timestamp.replace(/,/g, '').trim();
               updateStatus(status, id, null, null, null, null, timestamp)
               const error = statuses?.errors[0]

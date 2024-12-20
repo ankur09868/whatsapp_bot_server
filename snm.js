@@ -25,7 +25,7 @@ export async function sendLocationMessage(phone, bpid, body, access_token=null,t
 
     return sendMessage(phone, bpid, messageData, access_token, fr_flag, tenant_id)
 }
-
+// 
 export async function sendVideoMessage(phone, bpid, videoID, access_token=null, tenant_id=null, fr_flag = false) {
     const messageData = {
         type : "video",

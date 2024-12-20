@@ -63,7 +63,10 @@ messageQueue.process('message' ,async (job) => {
               name: bg_name || null,
               template_name: templateData?.name || null,
             };
-
+            const now = Date.now()
+            let timestamp = now.toLocaleString();
+      
+            timestamp = timestamp.replace(/,/g, '').trim();
             // Update status
             updateStatus(
               "sent",
@@ -72,7 +75,7 @@ messageQueue.process('message' ,async (job) => {
               phoneNumber,
               broadcastGroup,
               tenant_id,
-              Date.now()
+              timestamp
             );
 
           }
@@ -190,27 +193,17 @@ export async function updateStatus(status, message_id, business_phone_number_id,
   let isSent = false;
   let isReplied = false;
   let isFailed = false;
-
+  console.log("Sending broadcast status: ", status)
   try {
     if (status === "replied") {
       isReplied = true;
-      isRead = true;
-      isDelivered = true;
-      isSent = true;
     } else if (status === "read") {
       isRead = true;
-      isDelivered = true;
-      isSent = true;
     } else if (status === "delivered") {
       isDelivered = true;
-      isSent = true;
     } else if (status === "sent") {
       isSent = true;
     } else if (status === "failed") {
-      isRead = false;
-      isDelivered = false;
-      isSent = false;
-      isReplied = false;
       isFailed = true;
     }
 
@@ -238,6 +231,14 @@ export async function updateStatus(status, message_id, business_phone_number_id,
         "Content-Type": "application/json",
       },
     });
+
+    // const new_response = await axios.post(`http://localhost:8001/test/`, data, {
+    //   headers: {
+    //     "X-Tenant-Id": tenant,
+    //     "Content-Type": "application/json",
+    //   },
+    // });
+    
     const key = broadcastGroup?.name || broadcastGroup?.template_name
     axios.patch(`${djangoURL}/update-contacts/`, {key: key, phone: user_phone}, {
       headers: {

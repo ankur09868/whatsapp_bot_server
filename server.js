@@ -282,12 +282,12 @@ async function getSession(business_phone_number_id, contact) {
       responseData = response.data
       messageCache.set(business_phone_number_id, responseData)
       }
-      //   console.log("Tenant data received:", responseData);
-      const flowData = responseData.whatsapp_data[0].flow_data
-      const adjList = responseData.whatsapp_data[0].adj_list
-      const startNode = responseData.whatsapp_data[0].start !== null ? responseData.whatsapp_data[0].start : 0;
+      console.log("Tenant data received:", responseData);
+      const flowData = responseData?.whatsapp_data[0]?.flow_data
+      const adjList = responseData?.whatsapp_data[0]?.adj_list
+      const startNode = responseData?.whatsapp_data[0]?.start !== null ? responseData?.whatsapp_data[0]?.start : 0;
       const currNode = startNode
-
+      if(!flowData && !adjList) console.error("Flow Data is not present for bpid: ", business_phone_number_id)
       userSession = {
           AIMode: false,
           lastActivityTime: Date.now(),
@@ -310,6 +310,7 @@ async function getSession(business_phone_number_id, contact) {
       };
 
       const key = userPhoneNumber + business_phone_number_id
+      
       userSessions.set(key, userSession);
       } catch (error) {
       console.error(`Error fetching tenant data for user ${userPhoneNumber}:`, error);
@@ -461,13 +462,13 @@ app.post("/webhook", async (req, res) => {
 
 
       const now = Date.now()
-      const timestamp = now.toLocaleString();
+      let timestamp = now.toLocaleString();
 
       
       if (message) {
           let userSession = await getSession(business_phone_number_id, contact)
           const message_text = message?.text?.body || (message?.interactive ? (message?.interactive?.button_reply?.title || message?.interactive?.list_reply?.title) : null)
-          const notif_body = {content: `New meessage from ${userSession.userName || userSession.userPhoneNumber}: ${message_text}`}
+          const notif_body = {content: `${userSession.userPhoneNumber} | New meessage from ${userSession.userName || userSession.userPhoneNumber}: ${message_text}`, created_on: timestamp}
 
           sendNotification(notif_body, userSession.tenant)
           updateLastSeen("replied", now, userSession.userPhoneNumber, userSession.business_phone_number_id)
@@ -598,6 +599,8 @@ app.post("/webhook", async (req, res) => {
           const business_phone_number_id = req.body.entry?.[0].changes?.[0].value?.metadata?.phone_number_id;
   
           if (status == "failed"){
+            
+              timestamp = timestamp.replace(/,/g, '').trim();
               updateStatus(status, id, null, null, null, null, timestamp)
               const error = statuses?.errors[0]
               console.log("Message failed: ", error)
@@ -605,11 +608,15 @@ app.post("/webhook", async (req, res) => {
               // res.status(400).json(error)
           }
           else if(status == "delivered"){
+            
+              timestamp = timestamp.replace(/,/g, '').trim();
               updateStatus(status, id, null, null, null, null, timestamp)
               console.log("Delivered: ", userPhone)
               updateLastSeen("delivered", now, userPhone, business_phone_number_id)
           }
           else if(status == "read"){
+            
+              timestamp = timestamp.replace(/,/g, '').trim();
               updateStatus(status, id, null, null, null, null, timestamp)
               updateLastSeen("seen", now, userPhone, business_phone_number_id)
           }

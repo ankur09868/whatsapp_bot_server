@@ -10,7 +10,7 @@ import { getAccessToken, getWabaID, getPhoneNumberID, registerAccount, postRegis
 import { setTemplate, sendNodeMessage, sendImageMessage, sendTextMessage, sendAudioMessage, sendVideoMessage, sendLocationMessage, fastURL, djangoURL} from "./snm.js"
 import { sendMessage, sendMessageTemplate  } from "./send-message.js"; 
 import  { sendProduct, sendBill} from "./product.js"
-import { updateStatus, addDynamicModelInstance, addContact, executeFallback, saveMessage, sendNotification, updateLastSeen } from "./misc.js"
+import { updateStatus, addDynamicModelInstance, addContact, executeFallback, saveMessage, sendNotification, updateLastSeen, getIndianCurrentTime } from "./misc.js"
 import { handleMediaUploads } from "./handle-media.js"
 import {Worker, workerData} from "worker_threads"
 import { messageQueue } from "./queues/messageQueue.js";
@@ -454,38 +454,25 @@ app.post("/webhook", async (req, res) => {
       const products = message?.order?.product_items
       const repliedTo = message?.context?.id || null
 
-      if (repliedTo !== null) updateStatus("replied", repliedTo, null, null, null, null, Date.now())
+      
+      let timestamp = await  getIndianCurrentTime()
+      console.log("INDIANT CT: ", timestamp)
+
+      if (repliedTo !== null) updateStatus("replied", repliedTo, null, null, null, null, timestamp)
 
 
       // console.log("Rcvd Req: ",req.body, business_phone_number_id,contact,message,userPhoneNumber, JSON.stringify(statuses), userName)
       // console.log("Contact: ", userName)
 
 
-      const now = Date.now()
-      let timestamp = now.toLocaleString();
-
-      const current_time = new Date()
-      const options = {
-        timeZone: 'Asia/Kolkata',
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit',
-        hour: '2-digit',
-        minute: '2-digit',
-        second: '2-digit',
-        fractionalSecondDigits: 3,
-      };
-      
-      const indiaTime = new Intl.DateTimeFormat('en-GB', options).format(current_time);
-      console.log("India Time: ", indiaTime)      
       
       if (message) {
           let userSession = await getSession(business_phone_number_id, contact)
           const message_text = message?.text?.body || (message?.interactive ? (message?.interactive?.button_reply?.title || message?.interactive?.list_reply?.title) : null)
-          const notif_body = {content: `${userSession.userPhoneNumber} | New meessage from ${userSession.userName || userSession.userPhoneNumber}: ${message_text}`, created_on: indiaTime}
+          const notif_body = {content: `${userSession.userPhoneNumber} | New meessage from ${userSession.userName || userSession.userPhoneNumber}: ${message_text}`, created_on: timestamp}
 
           sendNotification(notif_body, userSession.tenant)
-          updateLastSeen("replied", now, userSession.userPhoneNumber, userSession.business_phone_number_id)
+          updateLastSeen("replied", timestamp, userSession.userPhoneNumber, userSession.business_phone_number_id)
           // console.log("Extracted data:", {business_phone_number_id,contact,message,userPhoneNumber});
           addContact(userSession.userPhoneNumber, userSession.userName, userSession.tenant)
 
@@ -495,7 +482,7 @@ app.post("/webhook", async (req, res) => {
           text: message_text,
           sender: "user"
           }];
-          saveMessage(userSession.userPhoneNumber, userSession.business_phone_number_id, formattedConversation, userSession.tenant)
+          saveMessage(userSession.userPhoneNumber, userSession.business_phone_number_id, formattedConversation, userSession.tenant, timestamp)
 
       
           // emitting temp user to frontend
@@ -613,7 +600,6 @@ app.post("/webhook", async (req, res) => {
           const business_phone_number_id = req.body.entry?.[0].changes?.[0].value?.metadata?.phone_number_id;
   
           if (status == "failed"){
-              timestamp = timestamp.replace(/,/g, '').trim();
               updateStatus(status, id, null, null, null, null, timestamp)
               const error = statuses?.errors[0]
               console.log("Message failed: ", error)
@@ -621,17 +607,13 @@ app.post("/webhook", async (req, res) => {
               // res.status(400).json(error)
           }
           else if(status == "delivered"){
-            
-              timestamp = timestamp.replace(/,/g, '').trim();
               updateStatus(status, id, null, null, null, null, timestamp)
               console.log("Delivered: ", userPhone)
-              updateLastSeen("delivered", now, userPhone, business_phone_number_id)
+              updateLastSeen("delivered", timestamp, userPhone, business_phone_number_id)
           }
           else if(status == "read"){
-            
-              timestamp = timestamp.replace(/,/g, '').trim();
               updateStatus(status, id, null, null, null, null, timestamp)
-              updateLastSeen("seen", now, userPhone, business_phone_number_id)
+              updateLastSeen("seen", timestamp, userPhone, business_phone_number_id)
           }
           console.log("Webhook Processing Complete")
       }

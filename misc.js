@@ -215,11 +215,8 @@ export async function getTenantFromBpid(bpid) {
     }
 }
 
-export async function saveMessage(userPhoneNumber, business_phone_number_id, formattedConversation, tenant) {
+export async function saveMessage(userPhoneNumber, business_phone_number_id, formattedConversation, tenant, timestamp) {
     try {
-        
-        const now = Date.now()
-        const timestamp = now.toLocaleString();
         
         const body = {
             contact_id: userPhoneNumber,
@@ -267,4 +264,24 @@ export async function updateLastSeen(type, time, phone, bpid) {
     } catch (error){
         console.error("Error Occured in updating last seen: ", error)
     }
+}
+
+export async function getIndianCurrentTime(){
+
+    const current_time = new Date()
+    
+    const options = {
+    timeZone: 'Asia/Kolkata',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    fractionalSecondDigits: 3,
+    };
+    
+    const indiaTime = new Intl.DateTimeFormat('en-GB', options).format(current_time);
+    console.log("India Time: ", indiaTime)
+    return indiaTime
 }

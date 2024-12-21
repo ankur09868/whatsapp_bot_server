@@ -3,6 +3,7 @@ import { fastURL, djangoURL} from "./snm.js"
 import { getImageAndUploadToBlob } from "./handle-media.js"
 import { userSessions, io } from "./server.js";
 import axios from "axios";
+import { getIndianCurrentTime } from "./misc.js";
 
 export async function sendMessage(phoneNumber, business_phone_number_id, messageData, access_token = null, fr_flag, tenant) {
 
@@ -67,9 +68,7 @@ export async function sendMessage(phoneNumber, business_phone_number_id, message
             }
 
             // if(messageData?.interactive?.type == 'product')
-            
-            const now = Date.now()
-            const timestamp = now.toLocaleString();
+            let timestamp = await getIndianCurrentTime()
 
             try{
                 console.log("MESSAGE DATA: ", JSON.stringify(messageData, null, 4))

@@ -455,7 +455,7 @@ app.post("/webhook", async (req, res) => {
       const repliedTo = message?.context?.id || null
 
       
-      let timestamp = await  getIndianCurrentTime()
+      let timestamp = await getIndianCurrentTime()
       console.log("INDIANT CT: ", timestamp)
 
       if (repliedTo !== null) updateStatus("replied", repliedTo, null, null, null, null, timestamp)
@@ -482,6 +482,7 @@ app.post("/webhook", async (req, res) => {
           text: message_text,
           sender: "user"
           }];
+          console.log("Saving messagwe qith timeL ", timestamp)
           saveMessage(userSession.userPhoneNumber, userSession.business_phone_number_id, formattedConversation, userSession.tenant, timestamp)
 
       

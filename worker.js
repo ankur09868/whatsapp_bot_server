@@ -270,8 +270,7 @@ export async function sendMessageTemplate(phoneNumber, business_phone_number_id,
       }
     );
 
-    const now = Date.now()
-    const timestamp = now.toLocaleString();
+    let timestamp = await getIndianCurrentTime()
 
     try{
         console.log("MESSAGE DATA: ", JSON.stringify(messageData, null, 4))
@@ -373,3 +372,23 @@ export async function getMediaID(handle, bpid, access_token) {
     }
   }
   
+
+  export async function getIndianCurrentTime(){
+
+    const current_time = new Date()
+    
+    const options = {
+    timeZone: 'Asia/Kolkata',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    fractionalSecondDigits: 3,
+    };
+    
+    const indiaTime = new Intl.DateTimeFormat('en-GB', options).format(current_time);
+    console.log("India Time: ", indiaTime)
+    return indiaTime
+}

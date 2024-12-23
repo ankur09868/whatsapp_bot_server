@@ -6,7 +6,7 @@ import session from "express-session";
 import { createServer } from "http";
 import { Server } from "socket.io";
 
-import { getAccessToken, getWabaID, getPhoneNumberID, registerAccount, postRegister } from "./login-flow.js";
+import { getAccessToken, getWabaID, getPhoneNumberID, registerAccount, postRegister, addKey } from "./login-flow.js";
 import { setTemplate, sendNodeMessage, sendImageMessage, sendTextMessage, sendAudioMessage, sendVideoMessage, sendLocationMessage, fastURL, djangoURL} from "./snm.js"
 import { sendMessage, sendMessageTemplate  } from "./send-message.js"; 
 import  { sendProduct, sendBill} from "./product.js"
@@ -685,6 +685,8 @@ app.post("/login-flow/:tenant_id", async (req, res) => {
         'X-Tenant-Id': tenant_id
       }
     });
+
+    addKey(tenant_id)
     
     res.sendStatus(200);
   } catch (error) {

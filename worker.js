@@ -63,10 +63,9 @@ messageQueue.process('message' ,async (job) => {
               name: bg_name || null,
               template_name: templateData?.name || null,
             };
-            const now = Date.now()
-            let timestamp = now.toLocaleString();
-      
-            timestamp = timestamp.replace(/,/g, '').trim();
+            
+            let timestamp = await getIndianCurrentTime()
+
             // Update status
             updateStatus(
               "sent",

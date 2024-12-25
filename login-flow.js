@@ -131,3 +131,17 @@ export async function postRegister(access_token, account_id){
         throw error;
     }
 }
+
+export async function addKey(tenant_id){
+  try{
+    axios.get(`${djangoURL}/add-key/${tenant_id}`, {
+      headers:{
+        'X-Tenant-Id': tenant_id,
+    }
+    })
+  }
+  catch (error) {
+    console.error("Error occured in addKey: ", error)
+    throw error
+  }
+}

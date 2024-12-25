@@ -6,22 +6,34 @@ import { getMediaID, handleMediaUploads, checkBlobExists, getImageAndUploadToBlo
 import { userSessions, io } from "./server.js";
 import axios from "axios";
 
-export async function executeFallback(userSession){
-console.log("Entering Fallback")
-var fallback_count = userSession.fallback_count
-const userPhoneNumber = userSession.userPhoneNumber
-const business_phone_number_id = userSession.business_phone_number_id
-if(fallback_count > 0){
-    console.log("Fallback Count: ", fallback_count)
-    const fallback_msg = userSession.fallback_msg
-    const access_token = userSession.accessToken
-    const response = await sendTextMessage(userPhoneNumber, business_phone_number_id, fallback_msg, access_token)
-    fallback_count=fallback_count - 1;
-    userSession.fallback_count = fallback_count
+const fallback_messages = {
+    as: "দয়া করে সঠিক ইনপুট দিন",
+    bh: "कृपया सही इनपुट दें",
+    bn: "দয়া করে সঠিক ইনপুট দিন",
+    gu: "કૃપા કરીને સahi ઇનપુટ આપો",
+    hi: "कृपया सही इनपुट दें",
+    kn: "ದಯವಿಟ್ಟು ಸರಿಯಾದ ಇನ್‌ಪುಟ್ ನೀಡಿರಿ",
+    mr: "कृपया योग्य इनपुट द्या",
+    or: "ଦୟାକରି ସଠିକ୍ ଇନପୁଟ୍ ଦିଅନ୍ତୁ"
 }
-else{
-    userSessions.delete(userPhoneNumber+business_phone_number_id)
-    console.log("restarting user session for user: ", userPhoneNumber)
+
+export async function executeFallback(userSession){
+    console.log("Entering Fallback")
+    var fallback_count = userSession.fallback_count
+    const userPhoneNumber = userSession.userPhoneNumber
+    const business_phone_number_id = userSession.business_phone_number_id
+
+    if(fallback_count > 0){
+        console.log("Fallback Count: ", fallback_count)
+        const fallback_msg = userSession.language == null ? userSession.fallback_msg : fallback_messages?.[`${userSession.language}`]
+        const access_token = userSession.accessToken
+        const response = await sendTextMessage(userPhoneNumber, business_phone_number_id, fallback_msg, access_token)
+        fallback_count=fallback_count - 1;
+        userSession.fallback_count = fallback_count
+    }
+    else{
+        userSessions.delete(userPhoneNumber+business_phone_number_id)
+        console.log("restarting user session for user: ", userPhoneNumber)
     }
 }
 
@@ -61,50 +73,87 @@ export async function addDynamicModelInstance(modelName, updateData, tenant) {
         } else {
             console.error('Error in setting up the request:', error.message);
         }
-        console.error('Config details:', error.config);
+        // console.error('Config details:', error.config);
         return null;
     }
 }
 
-export async function replacePlaceholders(message, userSession=null, userPhoneNumber=null, business_phone_number_id=null) {
+export async function replacePlaceholders(message, userSession, api_placeholders, contact_placeholders) {
     
-    let modifiedMessage = message;
-    console.log("message: ", message) 
-    const placeholders = [...message.matchAll(/{{\s*[\w]+\s*}}/g)];
-    if (userSession !== null) {
-        var userPhoneNumber = userSession.userPhoneNumber
-        var business_phone_number_id = userSession.business_phone_number_id
-    }
-    console.log("placeholders: ", placeholders)
-    for (const placeholder of placeholders) {
-        let key = placeholder[0].slice(2, -2).trim();
-        console.log("key:", key)
-        if(key in ['id', 'name', 'phone', 'createdOn', 'isActive', 'bg_id', 'bg_name', 'tenant'])
-        {
-            var url = `${djangoURL}/contacts-by-phone/${userPhoneNumber}`;
+    console.log("message b4 replacement: ", message) 
 
-            const tenant_id_res = await axios.get(`${djangoURL}/get-tenant/?bpid=${business_phone_number_id}`)
-            const tenant_id = tenant_id_res.data.tenant
-            try {
-                const response = await axios.get(url, {
-                    headers: {
-                        "X-Tenant-Id": tenant_id
-                    }
-                });
-                const responseData = response.data?.[0]
-                console.log("response : " ,responseData)
-                const replacementValue = responseData?.[key] !== undefined ? responseData[key] : '';
+    
+        // const placeholders = [...message.matchAll(/{{\s*[\w]+\s*}}/g)];
+        
+    if(contact_placeholders && contact_placeholders.length > 0){
+        console.log("Contact Placeholders: ", contact_placeholders)
+        for (const placeholder of contact_placeholders) {
+            let key = placeholder[0].slice(2, -2).trim();
+            console.log("key:", key)
+            if(['id', 'name', 'phone', 'createdOn', 'isActive', 'bg_id', 'bg_name', 'tenant'].includes(key))
+            {
+                var url = `${djangoURL}/contacts-by-phone/${userSession.userPhoneNumber}`;
+                const tenant_id = userSession.tenant
+                try {
+                    const response = await axios.get(url, {
+                        headers: {
+                            "X-Tenant-Id": tenant_id
+                        }
+                    });
+                    const responseData = response.data?.[0]
+                    console.log("response : " ,responseData)
+                    const replacementValue = responseData?.[key] !== undefined ? responseData[key] : '';
 
-                modifiedMessage = modifiedMessage.replace(placeholder[0], replacementValue);
-                
-            } catch (error) {
-                console.error('Error fetching data for placeholder replacement:', error);
+                    message = message.replace(placeholder[0], replacementValue);
+                    
+                } catch (error) {
+                    console.error('Error fetching data for placeholder replacement:', error);
 
+                }
             }
         }
     }
-    console.log(modifiedMessage)
-    return modifiedMessage;
+
+    api_placeholders = [...message.matchAll(/{{\s*[\w._\[\]]+\s*}}/g)] || []; 
+    
+    if(api_placeholders && api_placeholders.length>0){
+        console.log("placeholders: ", api_placeholders)
+
+        for (const placeholder of api_placeholders) {
+            const key = placeholder[0].slice(2, -2).trim();
+            console.log("ey: ", key);
+
+            const value = key.split('.').reduce((acc, part) => {
+                // Check if the part contains an array index (e.g., 'whatsappdata[0]')
+                if (part.includes('[')) {
+                    const [arrayKey, index] = part.split('[');
+                    console.log('arrayKey:', arrayKey);  // Log the array key
+                    console.log('index before clean:', index);  // Log the index before cleaning
+                    const cleanIndex = index.replace(']', '');  // Remove the closing bracket
+                    console.log('cleanIndex:', cleanIndex);  // Log the cleaned index
+                    console.log('acc', acc);  // Log the value of acc before accessing array
+                    console.log('acc[arrayKey]:', acc.whatsappdata);  // Log the value of acc[arrayKey] before accessing index
+                    const acc_list = acc?.[arrayKey];
+                    const flow_data = acc_list[parseInt(cleanIndex)]
+                    console.log("Flow Data: ", flow_data)
+                    return flow_data;  // Access the array element at the index
+                }
+                return acc?.[part];  // Otherwise access the property normally
+            }, userSession.api.GET);
+            // const value = userSession.api.GET?.[key]
+
+            console.log("Value: ", value);
+
+            
+            if (value !== undefined) {
+                message = message.replace(placeholder[0], value);
+            }
+        }
+    }
+
+console.log("MEssage after replacing: " ,message)
+
+return message;
 }
 
 export async function  updateStatus(status, message_id, business_phone_number_id, user_phone, broadcastGroup, tenant, timestamp) {
@@ -242,14 +291,14 @@ export async function saveMessage(userPhoneNumber, business_phone_number_id, for
 
 export async function sendNotification(notif, tenant){
     try{
-        const res = await axios.post(`${fastURL}/notifications`, notif,
+        await axios.post(`${fastURL}/notifications`, notif,
             {
                 headers: {
                     'X-Tenant-Id': tenant
                 }
             }
         )
-        console.log("Response Sednign Notifications: ", res.data)
+        // console.log("Response Sending Notification: ", res.data)
     }
     catch (error){
         console.error(`Error sending notification: ${error}`)

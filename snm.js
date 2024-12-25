@@ -1,8 +1,10 @@
 import { userSessions, messageCache } from "./server.js";
 import {sendMessage} from "./send-message.js"
+import axios from "axios";
 
 import { replacePlaceholders, addDynamicModelInstance, addContact, executeFallback } from "./misc.js"
 import { getMediaID } from "./handle-media.js"
+import { json } from "express";
 
 
 export const fastURL = "https://fastapione-gue2c5ecc9c4b8hy.centralindia-01.azurewebsites.net"
@@ -11,6 +13,35 @@ export const djangoURL = "https://backeng4whatsapp-dxbmgpakhzf9bped.centralindia
 // export const fastURL = "http://localhost:8000"
 // export const djangoURL = "http://localhost:8001"
 
+
+const chooseOptionMap = {
+    'hi': 'विकल्प चुनें', // Hindi
+    'en': 'Choose Option', // English
+    'mr': 'पर्याय निवडा', // Marathi
+    'ta': 'விருப்பத்தைத் தேர்ந்தெடுக்கவும்', // Tamil
+    'te': 'ఎంపికను ఎంచుకోండి', // Telugu
+    'gu': 'વિકલ્પ પસંદ કરો', // Gujarati
+    'bn': 'বিকল্প নির্বাচন করুন', // Bengali
+    'pa': 'ਵਿਕਲਪ ਚੁਣੋ', // Punjabi
+    'ml': 'ഓപ്ഷൻ തിരഞ്ഞെടുക്കുക', // Malayalam
+    'kn': 'ಆಯ್ಕೆಯನ್ನು ಆಯ್ಕೆಮಾಡಿ', // Kannada
+    'or': 'ବିକଳ୍ପ ଚୟନ କରନ୍ତୁ', // Odia
+    'as': 'বিকল্প বাচনি কৰক', // Assamese
+    'ks': 'آپشن منتخب کریں', // Kashmiri
+    'ur': 'آپشن منتخب کریں', // Urdu
+    'ne': 'विकल्प छान्नुहोस्', // Nepali
+    'sa': 'विकल्पं चुनोतु', // Sanskrit
+    'mai': 'विकल्प चुनू', // Maithili
+    'doi': 'विकल्प चुनो', // Dogri
+    'kok': 'पर्याय निवडा', // Konkani
+    'bodo': 'अभिराम सन्थार', // Bodo
+    'sd': 'چونڊ جو آپشن', // Sindhi
+    'mni': 'অপশন নির্বাচন করুন', // Manipuri
+    'sat': 'ᱥᱟᱹᱵᱟᱭ ᱢᱤᱭᱤᱭ ᱵᱤᱦᱤᱭ', // Santhali
+    'bho': 'विकल्प चुनीं', // Bhojpuri
+    'hing': 'Choose Option', // Hinglish
+  };
+  
 export async function sendLocationMessage(phone, bpid, body, access_token=null,tenant_id=null, fr_flag = false) {
     const { latitude, longitude, name, address } = body
     const messageData = {
@@ -25,7 +56,7 @@ export async function sendLocationMessage(phone, bpid, body, access_token=null,t
 
     return sendMessage(phone, bpid, messageData, access_token, fr_flag, tenant_id)
 }
-// 
+
 export async function sendVideoMessage(phone, bpid, videoID, access_token=null, tenant_id=null, fr_flag = false) {
     const messageData = {
         type : "video",
@@ -80,7 +111,7 @@ export async function sendButtonMessage(buttons, message, phoneNumber, business_
             type: 'reply',
             reply: {
                 id: flow[buttonNode].id,
-                title: flow[buttonNode].body
+                title: (flow[buttonNode].body).slice(0 , 20)
             }
         }));
         console.log("button_row:" ,button_rows)
@@ -116,18 +147,20 @@ export async function sendListMessage(list, message, phoneNumber, business_phone
     // console.log("USER SESSIONS: ",  userSessions, key)
     const userSession = userSessions.get(key);
     const flow = userSession.flowData
-  
+    
     const rows = list.map((listNode, index) => ({
         id: flow[listNode].id,
-        title: flow[listNode].body
+        title: (flow[listNode].body).slice(0 , 24)
     }));
+    console.log(userSession.language)
+    console.log("OPTION CHOOSING RESULT: ", chooseOptionMap[`${userSession.language}`] )
     const messageData = {
         type: "interactive",
         interactive: {
             type: "list",
             body: { text: message },
             action: {
-                button: "Choose Option",
+                button: chooseOptionMap[`${userSession.language}`] || "Choose Option:",
                 sections: [{ title: "Section Title", rows }]
             }
         }
@@ -212,17 +245,20 @@ export async function sendNodeMessage(userPhoneNumber, business_phone_number_id)
     if (typeof currNode !== 'undefined' && currNode !== null && adjListParsed) {
         
         const nextNode = adjListParsed[currNode];
-        var node_message = flow[currNode]?.body;
-        
-        let sendMessagePromise;
-        let sendDynamicPromise;
+
+        let node_message = flow[currNode]?.body;
         console.log("flowlfolwolfowl: ", flow[currNode])
+
+        let api_placeholders
+        let contact_placeholders
+        
+                
         switch (flow[currNode]?.type) {
             case "Button":
                 const buttons = nextNode
 
-                var placeholders = [...node_message.matchAll(/{{\s*[\w]+\s*}}/g)];
-                if(placeholders.length > 0) node_message = await replacePlaceholders(node_message, userSession)
+                // var placeholders = [...node_message.matchAll(/{{\s*[\w]+\s*}}/g)];
+                // if(placeholders.length > 0) node_message = await replacePlaceholders(node_message, userSession)
                 
                 var variable = flow[currNode]?.variable
                 if(variable) {
@@ -232,8 +268,14 @@ export async function sendNodeMessage(userPhoneNumber, business_phone_number_id)
                     console.log("input variable: ", userSession.inputVariable)
                     var data = {phone_no : BigInt(userPhoneNumber).toString()}
                     var modelName = userSession.flowName
-                    sendDynamicPromise = addDynamicModelInstance(modelName, data, userSession.tenant)
+                    addDynamicModelInstance(modelName, data, userSession.tenant)
                 }
+                        
+                api_placeholders = [...node_message.matchAll(/{{\s*[\w._\[\]]+\s*}}/g)] || []; 
+                contact_placeholders = [...node_message.matchAll(/{{\s*[\w]+\s*}}/g)] || [];
+
+                if(api_placeholders.length > 0 || contact_placeholders.length > 0) node_message = await replacePlaceholders(node_message, userSession, api_placeholders, contact_placeholders)
+                    
                 let mediaID = flow[currNode]?.mediaID
                 await sendButtonMessage(buttons, node_message, userPhoneNumber,business_phone_number_id, mediaID );
                 break;
@@ -241,8 +283,8 @@ export async function sendNodeMessage(userPhoneNumber, business_phone_number_id)
             case "List":
                 const list = nextNode
 
-                var placeholders = [...node_message.matchAll(/{{\s*[\w]+\s*}}/g)];
-                if(placeholders.length > 0) node_message = await replacePlaceholders(node_message, userSession)
+                // var placeholders = [...node_message.matchAll(/{{\s*[\w]+\s*}}/g)];
+                // if(placeholders.length > 0) node_message = await replacePlaceholders(node_message, userSession)
                 
                 var variable = flow[currNode]?.variable
                 if(variable) {
@@ -251,16 +293,22 @@ export async function sendNodeMessage(userPhoneNumber, business_phone_number_id)
                     console.log("input variable: ", userSession.inputVariable)
                     var data = {phone_no : BigInt(userPhoneNumber).toString()}
                     var modelName = userSession.flowName
-                    sendDynamicPromise = addDynamicModelInstance(modelName, data, userSession.tenant)
+                    addDynamicModelInstance(modelName, data, userSession.tenant)
                 }
+                        
+                api_placeholders = [...node_message.matchAll(/{{\s*[\w._\[\]]+\s*}}/g)] || []; 
+                contact_placeholders = [...node_message.matchAll(/{{\s*[\w]+\s*}}/g)] || [];
+
+                if(api_placeholders.length > 0 || contact_placeholders.length > 0) node_message = await replacePlaceholders(node_message, userSession, api_placeholders, contact_placeholders)
+
                 await sendListMessage(list, node_message, userPhoneNumber,business_phone_number_id, accessToken);
                 break;
             
             // text with variable
             case "Text":
 
-                var placeholders = [...node_message.matchAll(/{{\s*[\w]+\s*}}/g)];
-                if(placeholders.length > 0) node_message = await replacePlaceholders(node_message, userSession)
+                // var placeholders = [...node_message.matchAll(/{{\s*[\w]+\s*}}/g)];
+                // if(placeholders.length > 0) node_message = await replacePlaceholders(node_message, userSession)
                  
                 var variable = flow[currNode]?.variable
                 if(variable) {
@@ -269,37 +317,54 @@ export async function sendNodeMessage(userPhoneNumber, business_phone_number_id)
                     console.log("input variable: ", userSession.inputVariable)
                     var data = {phone_no : BigInt(userPhoneNumber).toString()}
                     var modelName = userSession.flowName
-                    sendDynamicPromise = addDynamicModelInstance(modelName, data, userSession.tenant)
+                    addDynamicModelInstance(modelName, data, userSession.tenant)
                 }
+                    
+                api_placeholders = [...node_message.matchAll(/{{\s*[\w._\[\]]+\s*}}/g)] || []; 
+                contact_placeholders = [...node_message.matchAll(/{{\s*[\w]+\s*}}/g)] || [];
 
-                sendMessagePromise = sendInputMessage(userPhoneNumber,business_phone_number_id, node_message);
+                if(api_placeholders.length > 0 || contact_placeholders.length > 0) node_message = await replacePlaceholders(node_message, userSession, api_placeholders, contact_placeholders)
+                    
+                sendInputMessage(userPhoneNumber,business_phone_number_id, node_message);
+                
+                userSession.currNode = nextNode[0] !==undefined ? nextNode[0] : null;
+
                 break;
               
             // text without variable
             case "string":
-                
-                var placeholders = [...node_message.matchAll(/{{\s*[\w]+\s*}}/g)];
-                if(placeholders.length > 0) node_message = await replacePlaceholders(node_message, userSession)
-                
-                
-                await sendTextMessage(userPhoneNumber,business_phone_number_id, node_message, );
-                console.log(nextNode[0])
+                    
+                api_placeholders = [...node_message.matchAll(/{{\s*[\w._\[\]]+\s*}}/g)] || []; 
+                contact_placeholders = [...node_message.matchAll(/{{\s*[\w]+\s*}}/g)] || [];
+
+                if(api_placeholders.length > 0 || contact_placeholders.length > 0) node_message = await replacePlaceholders(node_message, userSession, api_placeholders, contact_placeholders)
+                    
+                const fr_flag = false
+                sendTextMessage(userPhoneNumber,business_phone_number_id, node_message, userSession.accessToken, userSession.tenant, fr_flag);
+                // console.log(nextNode[0])
                 userSession.currNode = nextNode[0] !==undefined ? nextNode[0] : null;
                 console.log("string currNode: ", userSession.currNode)
+
                 if(userSession.currNode!=null) {
                     sendNodeMessage(userPhoneNumber,business_phone_number_id)
                 }
                 break;
 
             case "image":
-                var caption = flow[currNode]?.body?.caption
+                var caption =flow[currNode]?.body?.caption
 
-                if(caption !== undefined){
-                    var placeholders = [...caption.matchAll(/{{\s*[\w]+\s*}}/g)];
-                    if(placeholders.length > 0) caption = await replacePlaceholders(node_message, userSession)
-                }
+                // if(caption !== undefined){
+                //     var placeholders = [...caption.matchAll(/{{\s*[\w]+\s*}}/g)];
+                //     if(placeholders.length > 0) caption = await replacePlaceholders(node_message, userSession)
+                // }
 
-                await sendImageMessage(userPhoneNumber,business_phone_number_id, flow[currNode]?.body?.id, flow[currNode]?.body?.caption ,accessToken);
+                const api_placeholders_img = [...caption.matchAll(/{{\s*[\w._\[\]]+\s*}}/g)] || []; 
+                const contact_placeholders_img = [...caption.matchAll(/{{\s*[\w]+\s*}}/g)] || [];
+
+                if(api_placeholders_img.length > 0 || contact_placeholders_img.length > 0) caption = await replacePlaceholders(caption, userSession, api_placeholders, contact_placeholders)
+                        
+                
+                await sendImageMessage(userPhoneNumber,business_phone_number_id, flow[currNode]?.body?.id, caption ,accessToken);
                 userSession.currNode = nextNode[0] !==undefined ? nextNode[0] : null;
                 console.log("image currNode: ", userSession.currNode)
                 if(userSession.currNode!=null) {
@@ -311,12 +376,19 @@ export async function sendNodeMessage(userPhoneNumber, business_phone_number_id)
                 const audioID = flow[currNode]?.body?.audioID
 
                 var caption = flow[currNode]?.body?.caption
-                if(caption !== undefined){
-                    var placeholders = [...caption.matchAll(/{{\s*[\w]+\s*}}/g)];
-                    if(placeholders.length > 0) caption = await replacePlaceholders(node_message, userSession)
-                }
+                // if(caption !== undefined){
+                //     var placeholders = [...caption.matchAll(/{{\s*[\w]+\s*}}/g)];
+                //     if(placeholders.length > 0) caption = await replacePlaceholders(node_message, userSession)
+                // }
+                
+                const api_placeholders_aud = [...caption.matchAll(/{{\s*[\w._\[\]]+\s*}}/g)] || []; 
+                const contact_placeholders_aud = [...caption.matchAll(/{{\s*[\w]+\s*}}/g)] || [];
 
-                sendMessagePromise  = await sendAudioMessage(userPhoneNumber, business_phone_number_id, audioID, caption, accessToken);
+                if(api_placeholders_aud.length > 0 || contact_placeholders_aud.length > 0) caption = await replacePlaceholders(caption, userSession, api_placeholders, contact_placeholders)
+
+                
+
+                await sendAudioMessage(userPhoneNumber, business_phone_number_id, audioID, caption, accessToken);
                 userSession.currNode = nextNode[0] !==undefined ? nextNode[0] : null;
                 console.log("audio currNode: ", userSession.currNode)
                 if(userSession.currNode!=null) {
@@ -325,7 +397,12 @@ export async function sendNodeMessage(userPhoneNumber, business_phone_number_id)
                 break;
             
             case "video":
-                sendMessagePromise = sendVideoMessage(userPhoneNumber, business_phone_number_id, flow[currNode]?.body?.videoID, accessToken);
+
+                var caption = flow[currNode]?.body?.caption
+                var placeholders = [...caption.matchAll(/{{\s*[\w.]+\s*}}/g)];
+                if(placeholders.length > 0) caption = await replacePlaceholders(node_message, userSession, placeholders)
+                
+                await sendVideoMessage(userPhoneNumber, business_phone_number_id, flow[currNode]?.body?.videoID, accessToken);
                 userSession.currNode = nextNode[0] !==undefined ? nextNode[0] : null;
                 console.log("video currNode: ", userSession.currNode)
                 if(userSession.currNode!=null) {
@@ -334,8 +411,10 @@ export async function sendNodeMessage(userPhoneNumber, business_phone_number_id)
                 break;
 
             case "location":
-
-                sendMessagePromise = sendLocationMessage(userPhoneNumber, business_phone_number_id, flow[currNode]?.body , accessToken)
+                var placeholders = [...node_message.matchAll(/{{\s*[\w.]+\s*}}/g)];
+                if(placeholders.length > 0) node_message = await replacePlaceholders(node_message, userSession, placeholders)
+                
+                sendLocationMessage(userPhoneNumber, business_phone_number_id, flow[currNode]?.body , accessToken)
                 userSession.currNode = nextNode[0] !==undefined ? nextNode[0] : null;
                 console.log("image currNode: ", userSession.currNode)
                 if(userSession.currNode!=null) {
@@ -345,9 +424,14 @@ export async function sendNodeMessage(userPhoneNumber, business_phone_number_id)
 
             case "AI":
                 console.log("AI Node")
-                if(node_message) await sendTextMessage(userPhoneNumber,business_phone_number_id, node_message);
-
+                if(node_message){
+                    var placeholders = [...node_message.matchAll(/{{\s*[\w.]+\s*}}/g)];
+                    if(placeholders.length > 0) node_message = await replacePlaceholders(node_message, userSession, placeholders)
+                    
+                    await sendTextMessage(userPhoneNumber,business_phone_number_id, node_message);
+                }
                 var variable = flow[currNode]?.variable
+
                 if(variable) {
                     userSession.inputVariable = variable
                 
@@ -365,12 +449,58 @@ export async function sendNodeMessage(userPhoneNumber, business_phone_number_id)
                 await sendProductMessage(userSession, product_list, catalog_id,header, body, footer)
                 break;
             
+            case "api":
+                const api = flow[currNode]?.api
+                const method = api?.method
+
+                const headers = api?.headers
+                const header_json = JSON.parse(headers)
+                console.log("Type of headers: ", typeof(header_json))
+                const url = api?.endpoint
+
+                if(method == "GET"){
+                    const variable_name = api?.variable
+                    console.log("Variable Name: ", variable_name)
+                    const response = await axios.get(url, {headers: header_json})
+                    console.log("Received Response from GET req: ", response.data)
+                    userSession.api.GET[`${variable_name}`] = response.data
+                    console.log("User Session after GET: ", userSession)
+                }
+                // userSession.api.POST = {name: "Shreyas", age: 19}
+                // data = {variable: name}
+                else if(method == 'POST'){
+                    console.log("Entering API-POST")
+                    const variables = api?.variable
+                    console.log("Variables: ", typeof(variables))
+                    const dataToSend = {}
+
+                    for (const variable of variables){
+                        console.log("Var: ", variable)
+                        const value = userSession.api.POST?.[variable] //Shreyas
+                        console.log(value)
+                        dataToSend[variable] = value
+                    }
+                    console.log("Data to Send: ", dataToSend)
+                    axios.post(url, dataToSend, {headers: header_json})
+                    console.log("Sending POST req with data: ", dataToSend)
+                }
+                else if(method == "DELETE"){
+
+                }
+
+                userSession.currNode = nextNode[0] !==undefined ? nextNode[0] : null;
+                console.log("string currNode: ", userSession.currNode)
+                if(userSession.currNode!=null) {
+                    sendNodeMessage(userPhoneNumber,business_phone_number_id)
+                }
+                break;
             default:
                 console.log(`Unknown node type: ${flow[currNode]?.type}`);
             }
+            
         userSession.nextNode = nextNode;
         userSessions.set(userPhoneNumber+business_phone_number_id, userSession);
-        await Promise.all([sendMessagePromise, sendDynamicPromise])
+        // await Promise.all([sendMessagePromise, sendDynamicPromise])
     }
     else{
         userSession.currNode = userSession.startNode;
@@ -404,10 +534,10 @@ try {
         });
         }
         for (const text of header_text) {
-        let modified_text = await replacePlaceholders(text, null, phone, bpid)
+        // let modified_text = await replacePlaceholders(text, null, phone, bpid)
         parameters.push({
             type: "text",
-            text: modified_text
+            text: text
         });
         }
         if(parameters.length> 0){
@@ -418,6 +548,8 @@ try {
         res_components.push(header_component);
     }
     }
+
+    // userSession.api.GET = {data1: {}, data2: {}, data3:{}}
     else if (component.type === "BODY") {
         const body_text = component?.example?.body_text[0] || [];
         const parameters = [];

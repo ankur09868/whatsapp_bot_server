@@ -471,10 +471,12 @@ export async function sendNodeMessage(userPhoneNumber, business_phone_number_id)
                 else if(method == 'POST'){
                     console.log("Entering API-POST")
                     const variables = api?.variable
-                    console.log("Variables: ", typeof(variables))
+                    const variableList = variables?.split(',').map(item => item.trim());
+                    console.log("Variables: ", typeof(variableList))
+
                     const dataToSend = {}
 
-                    for (const variable of variables){
+                    for (const variable of variableList){
                         console.log("Var: ", variable)
                         const value = userSession.api.POST?.[variable] //Shreyas
                         console.log(value)

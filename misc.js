@@ -124,21 +124,14 @@ export async function replacePlaceholders(message, userSession, api_placeholders
             console.log("ey: ", key);
 
             const value = key.split('.').reduce((acc, part) => {
-                // Check if the part contains an array index (e.g., 'whatsappdata[0]')
                 if (part.includes('[')) {
                     const [arrayKey, index] = part.split('[');
-                    console.log('arrayKey:', arrayKey);  // Log the array key
-                    console.log('index before clean:', index);  // Log the index before cleaning
-                    const cleanIndex = index.replace(']', '');  // Remove the closing bracket
-                    console.log('cleanIndex:', cleanIndex);  // Log the cleaned index
-                    console.log('acc', acc);  // Log the value of acc before accessing array
-                    console.log('acc[arrayKey]:', acc.whatsappdata);  // Log the value of acc[arrayKey] before accessing index
+                    const cleanIndex = index.replace(']', ''); 
                     const acc_list = acc?.[arrayKey];
                     const flow_data = acc_list[parseInt(cleanIndex)]
-                    console.log("Flow Data: ", flow_data)
-                    return flow_data;  // Access the array element at the index
+                    return flow_data; 
                 }
-                return acc?.[part];  // Otherwise access the property normally
+                return acc?.[part]; 
             }, userSession.api.GET);
             // const value = userSession.api.GET?.[key]
 

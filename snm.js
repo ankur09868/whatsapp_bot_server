@@ -325,12 +325,12 @@ export async function sendNodeMessage(userPhoneNumber, business_phone_number_id)
 
                 if(api_placeholders.length > 0 || contact_placeholders.length > 0) node_message = await replacePlaceholders(node_message, userSession, api_placeholders, contact_placeholders)
                     
-                sendInputMessage(userPhoneNumber,business_phone_number_id, node_message);
+                await sendInputMessage(userPhoneNumber,business_phone_number_id, node_message);
                 
                 userSession.currNode = nextNode[0] !==undefined ? nextNode[0] : null;
 
                 break;
-              
+            
             // text without variable
             case "string":
                     
@@ -340,7 +340,7 @@ export async function sendNodeMessage(userPhoneNumber, business_phone_number_id)
                 if(api_placeholders.length > 0 || contact_placeholders.length > 0) node_message = await replacePlaceholders(node_message, userSession, api_placeholders, contact_placeholders)
                     
                 const fr_flag = false
-                sendTextMessage(userPhoneNumber,business_phone_number_id, node_message, userSession.accessToken, userSession.tenant, fr_flag);
+                await sendTextMessage(userPhoneNumber,business_phone_number_id, node_message, userSession.accessToken, userSession.tenant, fr_flag);
                 // console.log(nextNode[0])
                 userSession.currNode = nextNode[0] !==undefined ? nextNode[0] : null;
                 console.log("string currNode: ", userSession.currNode)
@@ -349,7 +349,7 @@ export async function sendNodeMessage(userPhoneNumber, business_phone_number_id)
                     sendNodeMessage(userPhoneNumber,business_phone_number_id)
                 }
                 break;
-
+            
             case "image":
                 var caption =flow[currNode]?.body?.caption
 
@@ -371,7 +371,7 @@ export async function sendNodeMessage(userPhoneNumber, business_phone_number_id)
                     sendNodeMessage(userPhoneNumber,business_phone_number_id)
                 }
                 break;
-
+            
             case "audio":
                 const audioID = flow[currNode]?.body?.audioID
 
@@ -409,7 +409,7 @@ export async function sendNodeMessage(userPhoneNumber, business_phone_number_id)
                     sendNodeMessage(userPhoneNumber,business_phone_number_id)
                 }
                 break;
-
+            
             case "location":
                 var placeholders = [...node_message.matchAll(/{{\s*[\w.]+\s*}}/g)];
                 if(placeholders.length > 0) node_message = await replacePlaceholders(node_message, userSession, placeholders)
@@ -421,7 +421,7 @@ export async function sendNodeMessage(userPhoneNumber, business_phone_number_id)
                     sendNodeMessage(userPhoneNumber,business_phone_number_id)
                 }
                 break;
-
+            
             case "AI":
                 console.log("AI Node")
                 if(node_message){
@@ -439,7 +439,7 @@ export async function sendNodeMessage(userPhoneNumber, business_phone_number_id)
                 }
                 userSession.AIMode = true;
                 break;
-                
+            
             case "product":
                 const product_list = flow[currNode]?.product
                 const catalog_id = flow[currNode]?.catalog_id
@@ -496,10 +496,12 @@ export async function sendNodeMessage(userPhoneNumber, business_phone_number_id)
                     sendNodeMessage(userPhoneNumber,business_phone_number_id)
                 }
                 break;
+            
             default:
                 console.log(`Unknown node type: ${flow[currNode]?.type}`);
-            }
             
+        }
+    
         userSession.nextNode = nextNode;
         userSessions.set(userPhoneNumber+business_phone_number_id, userSession);
         // await Promise.all([sendMessagePromise, sendDynamicPromise])

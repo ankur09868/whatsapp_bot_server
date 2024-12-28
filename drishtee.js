@@ -85,11 +85,24 @@ const registry = {
     
 export const DRISHTEE_IDS = [...DRISHTEE_PRODUCT_CAROUSEL_IDS, ...Object.keys(DRISHTEE_PRODUCT_CATEGORY_IDS)]
 
-const catalog_id = ""
-const header = ""
-const body = ""
-const footer = ""
-const section_title = ""
+async function getKeyFromValue(registry, value) {
+
+    console.log("rcvd regi: ", registry, "rcvd calue: ", typeof(value))
+    for (const category in registry) {
+        console.log("CATEGROFY: ", category)
+        const subObject = registry[category];
+        console.log("SUBOBJECTL: ", subObject)
+        for (const key in subObject) {
+            console.log("JEYEYEYE: ", key)
+            const numericValue = Number(value);
+            if (subObject[key] === numericValue) {
+                console.log("Right Key: ", key)
+                return key;
+            }
+        }
+    }
+    return null; // Return null if the value is not found
+}
 
 export async function handleCatalogManagement(selectionID, userSession) {
     const category_message = "Choose a Category:"
@@ -139,10 +152,21 @@ export async function handleCatalogManagement(selectionID, userSession) {
     else if(selectionID.split('_')[0] === 'drishtee'){
         const categoryID = selectionID.split('_')[1]
         const response = await axios.get(`https://testexpenses.drishtee.in/rrp/nuren/productlist?PhoneNumber=9643393874&CategoryCode=${categoryID}`)
-        // console.log("Response: ", response.data)
+        console.log("Response: ", response.data)
         const product_list = response.data.map(product => product.product_id)
+        console.log("Product List: ", product_list)
         const fr_flag = false
-        // await sendProductMessage(userSession, product_list, catalog_id, header, body, footer, section_title, userSession.tenant, fr_flag)
+        const header = await getKeyFromValue(registry, categoryID)
+        const body = `Browse through our exclusive collection of ${header} products and find what suits your needs best. Shop now and enjoy amazing offers!`
+        const catalog_id = 1134019438184024
+        const footer = null
+        const section_title = header
+        const chunkSize = 30;
+        for (let i = 0; i < product_list.length; i += chunkSize) {
+            const chunk = product_list.slice(i, i + chunkSize);
+            // Send the product message for the current chunk
+            await sendProductMessage(userSession, chunk, catalog_id, header, body, footer, section_title, userSession.tenant, fr_flag);
+        }
     }
     else{
         console.error("Given User Selection ID is not stored")

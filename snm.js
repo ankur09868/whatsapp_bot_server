@@ -215,16 +215,16 @@ export async function sendProductMessage(userSession, product_list, catalog_id, 
     }
     // multiple products
     else{
-        let sections = []
-        for (let product of product_list){
-            let section = {}
-            section['title'] = section_title
-            section['product_items'] = []
-            console.log("product: ", product)
-            section['product_items'].push({product_retailer_id: product})
-            console.log("SEction: ", section)
-            sections.push(section)
+        let section = {
+            title: section_title,
+            product_items: []
+        };
+    
+        for (let product of product_list) {
+            console.log("product: ", product);
+            section['product_items'].push({ product_retailer_id: product });
         }
+        let sections = [section];
         console.log("sections: ", JSON.stringify(sections, null, 4))
         productMessageData = {
             type: "interactive",

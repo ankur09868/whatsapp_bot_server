@@ -7,13 +7,14 @@ import { createServer } from "http";
 import { Server } from "socket.io";
 
 import { getAccessToken, getWabaID, getPhoneNumberID, registerAccount, postRegister, addKey } from "./login-flow.js";
-import { setTemplate, sendNodeMessage, sendImageMessage, sendTextMessage, sendAudioMessage, sendVideoMessage, sendLocationMessage, fastURL, djangoURL} from "./snm.js"
+import { setTemplate, sendNodeMessage, sendImageMessage, sendTextMessage, sendAudioMessage, sendVideoMessage, sendLocationMessage, fastURL, djangoURL, sendListMessage} from "./snm.js"
 import { sendMessage, sendMessageTemplate  } from "./send-message.js"; 
 import  { sendProduct, sendBill} from "./product.js"
 import { updateStatus, addDynamicModelInstance, addContact, executeFallback, saveMessage, sendNotification, updateLastSeen, getIndianCurrentTime } from "./misc.js"
 import { handleMediaUploads } from "./handle-media.js"
 import {Worker, workerData} from "worker_threads"
 import { messageQueue } from "./queues/messageQueue.js";
+import { DRISHTEE_IDS, handleCatalogManagement }  from "./drishtee.js"
 
 
 export const messageCache = new NodeCache({ stdTTL: 600 });
@@ -153,6 +154,8 @@ worker.on("error", (msg) => {
  });
 console.log('hurreyy')
 })
+
+
 
 app.post("/send-template", async (req, res) => {
   const { bg_id, bg_name, template, business_phone_number_id, phoneNumbers } = req.body;
@@ -393,6 +396,11 @@ async function handleInput(userSession, message) {
   return userSession;
 }
 
+async function processOrderForDrishtee(userSession, products) {
+  const failureMessage = "Your response is received. Let's continue further process to place your order"
+  await sendTextMessage(userSession.userPhoneNumber, userSession.business_phone_number_id, failureMessage, userSession.accessToken, userSession.tenant)
+}
+
 async function processOrder(userSession, products) {
   let totalAmount = 0;
   const product_list = []
@@ -488,9 +496,7 @@ const languageMap = {
 
 app.post("/webhook", async (req, res) => {
   try {
-
-    
-      // console.log("Received Webhook: ", JSON.stringify(req.body, null, 6))
+      console.log("Received Webhook: ", JSON.stringify(req.body, null, 6))
       const business_phone_number_id = req.body.entry?.[0].changes?.[0].value?.metadata?.phone_number_id;
       const contact = req.body.entry?.[0]?.changes[0]?.value?.contacts?.[0];
       const message = req.body.entry?.[0]?.changes[0]?.value?.messages?.[0];
@@ -565,8 +571,9 @@ app.post("/webhook", async (req, res) => {
               if (message?.type === "interactive") {
                   // console.log("Processing interactive message");
                   let userSelectionID = message?.interactive?.button_reply?.id || message?.interactive?.list_reply?.id;
+                  if (userSelectionID.split('_')[0] == 'drishtee') handleCatalogManagement(userSelectionID, userSession)
                   // console.log("User selection:", { userSelectionID, userSelection });
-                  try {
+                  else{try {
                       // console.log("NextNode: ", userSession.nextNode)
                       for (let i = 0; i < userSession.nextNode.length; i++) {
                           // console.log(`Checking node ${userSession.nextNode[i]}:`, userSession.flowData[userSession.nextNode[i]]);
@@ -585,7 +592,7 @@ app.post("/webhook", async (req, res) => {
                       if(isNaN(userSelectionID)) await sendProduct(userSession, userSelectionID)
                   } catch (error) {
                       console.error('Error processing interactive message:', error);
-                  }
+                  }}
               }
               else if (message?.type === "text" || message?.type == "image") {
                   // console.log("Processing text or image message");
@@ -593,8 +600,9 @@ app.post("/webhook", async (req, res) => {
                   const flow = userSession.flowData
                   const type = flow[userSession.currNode].type
                   console.log("Curr Node: ", userSession.currNode, "Start Node: ", userSession.startNode)
+                  console.log("Type: ", type)
                   if (userSession.currNode != userSession.startNode){
-                      if (['string', 'audio', 'video', 'location', 'image', 'AI'].includes(type)) {
+                      if (['Text' ,'string', 'audio', 'video', 'location', 'image', 'AI'].includes(type)) {
                           console.log(`Storing input for node ${userSession.currNode}:`, message?.text?.body);
                           userSession.currNode = userSession.nextNode[0];
                           // console.log("Updated currNode:", userSession.currNode);
@@ -609,7 +617,16 @@ app.post("/webhook", async (req, res) => {
                   sendNodeMessage(userPhoneNumber,business_phone_number_id);
               }
               else if (message?.type =="order"){
-                  await processOrder(userSession, products)
+                  // await processOrder(userSession, products)
+                await processOrderForDrishtee(userSession, products)
+                userSession.currNode = userSession.nextNode[0];
+                console.log("Current node after processing order: ", userSession.currNode)
+                sendNodeMessage(userPhoneNumber,business_phone_number_id);
+              }
+              else if (message?.type == "button"){
+                const userSelectionText = message?.button?.text
+                console.log("User Selection Text: ", userSelectionText)
+                if (DRISHTEE_IDS.includes(userSelectionText)) await handleCatalogManagement(userSelectionText, userSession)
               }
           }
           else {

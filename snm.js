@@ -13,8 +13,36 @@ export const djangoURL = "https://backeng4whatsapp-dxbmgpakhzf9bped.centralindia
 // export const fastURL = "http://localhost:8000"
 // export const djangoURL = "http://localhost:8001"
 
+const viewItemsMap = {
+    'hi': 'वस्तुएं देखें', // Hindi - Vastuon Dekhein (Formal)
+    'en': 'View Items', // English
+    'mr': 'वस्तू पहा', // Marathi - Vastoo Paha
+    'ta': 'உருப்படிகளைப் பார்க்கவும்', // Tamil - Uruppadigalai Paarkavum
+    'te': 'వస్తువులను చూడండి', // Telugu - Vastuvulanu Choodandi
+    'gu': 'વસ્તુઓ જુઓ', // Gujarati - Vastuo Juo
+    'bn': 'বস্তুগুলি দেখুন', // Bengali - Bostuguli Dekhun
+    'pa': 'ਵਸਤਾਂ ਵੇਖੋ', // Punjabi - Vastan Vekho
+    'ml': 'വസ്തുക്കൾ കാണുക', // Malayalam - Vastrukkal Kaanku
+    'kn': 'ವಸ್ತುಗಳನ್ನು ವೀಕ್ಷಿಸಿ', // Kannada - Vastugalu Veekshisi
+    'or': 'ବସ୍ତୁଗୁଡ଼ିକ ଦେଖନ୍ତୁ', // Odia - Bastugudika Dekhantu
+    'as': 'বস্তুবোৰ চাওক', // Assamese - Bostubor Chaok
+    'ks': 'اشیاء دیکھیں', // Kashmiri - Ashiya Dekhein
+    'ur': 'اشیاء دیکھیں', // Urdu - Ashiya Dekhein
+    'ne': 'वस्तुहरू हेर्नुहोस्', // Nepali - Vastuharu Hernuhos
+    'sa': 'वस्तूनि पश्यत', // Sanskrit - Vastuuni Pashyata
+    'mai': 'वस्तु देखू', // Maithili - Vastu Dekhu
+    'doi': 'वस्तुएं देखो', // Dogri - Vastu Dekho
+    'kok': 'वस्तू पाहा', // Konkani - Vastoo Paha
+    'bodo': 'वस्तु सायाय', // Bodo - Vastu Saayaya
+    'sd': 'شيون ڏسو', // Sindhi - Shiyon Diso
+    'mni': 'বস্তু চাও', // Manipuri - Bostu Chao
+    'sat': 'ᱵᱟᱵᱤᱭᱥ ᱦᱤᱞᱟᱹᱜᱤ', // Santhali - Babiyis Hilaygi
+    'bho': 'सामान देखीं', // Bhojpuri - Samaan Dekhin
+    'hing': 'View Items', // Hinglish
+};
 
-const chooseOptionMap = {
+
+export const chooseOptionMap = {
     'hi': 'विकल्प चुनें', // Hindi
     'en': 'Choose Option', // English
     'mr': 'पर्याय निवडा', // Marathi
@@ -168,7 +196,7 @@ export async function sendListMessage(list, message, phoneNumber, business_phone
     return sendMessage(phoneNumber, business_phone_number_id, messageData, access_token, fr_flag, tenant_id);
 }
 
-export async function sendProductMessage(userSession, product_list, catalog_id, header, body, footer, tenant_id = null, fr_flag = false){
+export async function sendProductMessage(userSession, product_list, catalog_id, header, body, footer, section_title, tenant_id = null, fr_flag = false){
     let productMessageData;
     // single product
     if (product_list.length == 1){
@@ -189,8 +217,8 @@ export async function sendProductMessage(userSession, product_list, catalog_id, 
     else{
         let sections = []
         for (let product of product_list){
-            let section ={}
-            section['title'] = "This is Title"
+            let section = {}
+            section['title'] = section_title
             section['product_items'] = []
             console.log("product: ", product)
             section['product_items'].push({product_retailer_id: product})
@@ -207,9 +235,10 @@ export async function sendProductMessage(userSession, product_list, catalog_id, 
                     text: header
                 },
                 body: {
-                    text: body || "this is body"
+                    text: body
                 },
                 action: {
+                    button: "Start Shopping",
                     catalog_id: catalog_id,
                     sections: sections
                 }
@@ -327,7 +356,7 @@ export async function sendNodeMessage(userPhoneNumber, business_phone_number_id)
                     
                 await sendInputMessage(userPhoneNumber,business_phone_number_id, node_message);
                 
-                userSession.currNode = nextNode[0] !==undefined ? nextNode[0] : null;
+                // userSession.currNode = nextNode[0] !==undefined ? nextNode[0] : null;
 
                 break;
             
@@ -445,8 +474,14 @@ export async function sendNodeMessage(userPhoneNumber, business_phone_number_id)
                 const catalog_id = flow[currNode]?.catalog_id
                 const body = flow[currNode]?.body
                 const footer = flow[currNode]?.footer
-                const header = flow[currNode]?.header || "This is Header"
-                await sendProductMessage(userSession, product_list, catalog_id,header, body, footer)
+                const header = flow[currNode]?.header 
+                const section_title = flow[currNode]?.section_title
+                await sendProductMessage(userSession, product_list, catalog_id,header, body, footer, section_title)
+                // userSession.currNode = nextNode[0] !==undefined ? nextNode[0] : null;
+                // console.log("video currNode: ", userSession.currNode)
+                // if(userSession.currNode!=null) {
+                //     sendNodeMessage(userPhoneNumber,business_phone_number_id)
+                // }
                 break;
             
             case "api":

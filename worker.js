@@ -159,7 +159,88 @@ export async function setTemplate(templateData, phone, bpid, access_token, otp) 
             };
             res_components.push(body_component);
           }
-        } else {
+        }
+        else if (component.type === "CAROUSEL") {
+          const cards = component?.cards || [];
+          const cards_content = [];
+
+          for (let cardIndex = 0; cardIndex < cards.length; cardIndex++) {
+            const card = cards[cardIndex];
+            const inner_card_component = [];
+            
+            for (const cardComponent of card.components || []) {
+              if (cardComponent.type === "HEADER") {
+                const header_handle = cardComponent?.example?.header_handle || [];
+                const parameters = [];
+
+                for (const handle of header_handle) {
+                  const mediaID = await getMediaID(handle, bpid, access_token);
+                  parameters.push({
+                    type: "image",
+                    image: { id: mediaID }
+                  });
+                }
+
+                if (parameters.length > 0) {
+                  inner_card_component.push({
+                    type: "header",
+                    parameters: parameters
+                  });
+                }
+              } else if(cardComponent.type === "BODY"){
+                const body_text = cardComponent?.example?.body_text[0] || [];
+                const parameters = [];
+      
+                for (const text of body_text) {
+                  let modified_text;
+                  if (otp) modified_text = otp;
+                  else modified_text = await replacePlaceholders(text, null, phone, bpid);
+      
+                  parameters.push({
+                    type: "text",
+                    text: modified_text,
+                  });
+                }
+                if (parameters.length > 0) {
+                  inner_card_component.push({
+                    type: "body",
+                    parameters: parameters
+                  });
+                }
+              } else if (cardComponent.type === "BUTTONS") {
+                const buttons = cardComponent.buttons || [];
+                
+                buttons.forEach((button, buttonIndex) => {
+                  if (button.type === "QUICK_REPLY") {
+                    inner_card_component.push({
+                      type: "button",
+                      sub_type: "quick_reply",  
+                      index: buttonIndex.toString(),
+                      parameters: [
+                        {
+                          type: "payload",
+                          payload: button.text.toLowerCase().replace(/\s+/g, '-')
+                        }
+                      ]
+                    });
+                  }
+                });
+              }
+            }
+            const card_component = {
+              card_index: cardIndex,
+              components: inner_card_component
+            };
+            cards_content.push(card_component);
+          }
+
+          const carousel_component = {
+            type: "carousel",
+            cards: cards_content
+          };
+          res_components.push(carousel_component);
+        }
+        else {
           console.warn(`Unknown component type: ${component.type}`);
         }
       }

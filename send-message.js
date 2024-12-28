@@ -8,7 +8,7 @@ import { getIndianCurrentTime } from "./misc.js";
 export async function sendMessage(phoneNumber, business_phone_number_id, messageData, access_token = null, fr_flag, tenant) {
 
     const key = phoneNumber + business_phone_number_id;
-    console.log("USESESES: ", userSessions, key)
+    // console.log("USESESES: ", userSessions, key)
     const userSession = userSessions.get(key);
 
     if (!userSession && access_token == null) {
@@ -27,7 +27,7 @@ export async function sendMessage(phoneNumber, business_phone_number_id, message
     // Use session access token if not provided
     if (access_token == null) access_token = userSession.accessToken;
     if (tenant == null) tenant = userSession.tenant
-    console.log(url, access_token)
+    // console.log(url, access_token)
     try {
         console.log("Senidng Details: ", phoneNumber, access_token, business_phone_number_id)
         const response = await axios.post(
@@ -99,21 +99,23 @@ export async function sendMessage(phoneNumber, business_phone_number_id, message
                             'X-Tenant-Id': tenant || userSession?.tenant,
                             },
                         }
-                        );
+                    );
                         
 
-            // if (!saveRes.ok) throw new Error("Failed to save conversation");
-            // console.log("Conversation saved successfully");
+                    // if (!saveRes.ok) throw new Error("Failed to save conversation");
+                    // console.log("Conversation saved successfully");
 
-        } catch (error) {
-            console.error("Error saving conversation:", error.message);
-        }
+                } catch (error) {
+                    console.error("Error saving conversation:", error.message);
+                }
+
             }catch(error){
                 console.log("error occured while emission: ", error)
             }
             
 
             await mediaURLPromise
+            // if(userSession) console.log("Current Node after sending message: ", userSession.currNode, "Next Node after sending message: ", userSession.nextNode)
             return { success: true, data: response.data };
 
         } else {

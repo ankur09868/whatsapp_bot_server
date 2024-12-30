@@ -69,6 +69,35 @@ export const chooseOptionMap = {
     'bho': 'विकल्प चुनीं', // Bhojpuri
     'hing': 'Choose Option', // Hinglish
   };
+
+export const pickCategoryMap = {
+'hi': 'कृपया एक श्रेणी चुनें', // Hindi
+'en': 'Please pick a category', // English
+'mr': 'कृपया एक श्रेणी निवडा', // Marathi
+'ta': 'தயவுசெய்து ஒரு பிரிவைத் தேர்ந்தெடுக்கவும்', // Tamil
+'te': 'దయచేసి ఒక వర్గాన్ని ఎంచుకోండి', // Telugu
+'gu': 'કૃપયા એક શ્રેણી પસંદ કરો', // Gujarati
+'bn': 'দয়া করে একটি বিভাগ নির্বাচন করুন', // Bengali
+'pa': 'ਕਿਰਪਾ ਕਰਕੇ ਇੱਕ ਸ਼੍ਰੇਣੀ ਚੁਣੋ', // Punjabi
+'ml': 'ദയവായി ഒരു വിഭാഗം തിരഞ്ഞെടുക്കുക', // Malayalam
+'kn': 'ದಯವಿಟ್ಟು ಒಂದು ವರ್ಗವನ್ನು ಆಯ್ಕೆಮಾಡಿ', // Kannada
+'or': 'ଦୟାକରି ଏକ ଶ୍ରେଣୀ ବାଛନ୍ତୁ', // Odia
+'as': 'অনুগ্রহ কৰি একটি শ্রেণী বাছুন', // Assamese
+'ks': 'براہ کرم ایک زمرہ منتخب کریں', // Kashmiri
+'ur': 'براہ کرم ایک زمرہ منتخب کریں', // Urdu
+'ne': 'कृपया एक श्रेणी छान्नुहोस्', // Nepali
+'sa': 'कृपया एक श्रेणी चयनित करें', // Sanskrit
+'mai': 'कृपया एक श्रेणी चुनू', // Maithili
+'doi': 'कृपया एक श्रेणी चुनो', // Dogri
+'kok': 'कृपया एक श्रेणी निवडा', // Konkani
+'bodo': 'कृपया एक श्रेणी चयन करा', // Bodo
+'sd': 'مهرباني ڪري هڪ ڪيٽيگري چونڊيو', // Sindhi
+'mni': 'অনুগ্রহ করে একটি বিভাগ নির্বাচন করুন', // Manipuri
+'sat': 'ᱥᱟᱹᱵᱟᱭ ᱢᱤᱭᱤᱭ ᱵᱤᱦᱤᱭ', // Santhali
+'bho': 'कृपया एक श्रेणी चुनीं', // Bhojpuri
+'hing': 'Please pick a category', // Hinglish
+};
+
   
 export async function sendLocationMessage(phone, bpid, body, access_token=null,tenant_id=null, fr_flag = false) {
     const { latitude, longitude, name, address } = body
@@ -126,7 +155,7 @@ export async function sendImageMessage(phoneNumber, business_phone_number_id, im
     console.log("IMAGEEEE");
     return sendMessage(phoneNumber, business_phone_number_id, messageData, access_token, fr_flag ,tenant_id);
 }
- 
+
 export async function sendButtonMessage(buttons, message, phoneNumber, business_phone_number_id,  mediaID = null, access_token = null,tenant_id=null, fr_flag = false) {
     console.log("phone number: ", phoneNumber, business_phone_number_id)
     const key = phoneNumber + business_phone_number_id
@@ -532,6 +561,12 @@ export async function sendNodeMessage(userPhoneNumber, business_phone_number_id)
                 }
                 break;
             
+            case "template":
+                
+                const templateName = userSession.language ? `${flow[currNode]?.name}${userSession.language}`  : flow[currNode]?.name
+                console.log("Language: ", userSession.language, "Name: ", templateName)
+                await sendTemplateMessage(templateName, userSession)
+
             default:
                 console.log(`Unknown node type: ${flow[currNode]?.type}`);
             
@@ -633,4 +668,329 @@ try {
     console.error("Error in setTemplate function:", error);
     throw error; // Rethrow the error to handle it further up the call stack if needed
 }
+}
+
+export async function sendTemplateMessage(templateName, userSession) {
+    let responseData = messageCache.get(userSession.business_phone_number_id);
+
+    // Fetch tenant data if not available in cache
+    if (!responseData) {
+      try {
+        const response = await axios.get(`${fastURL}/whatsapp_tenant`, {
+          headers: { bpid: business_phone_number_id },
+        });
+        responseData = response.data;
+        messageCache.set(business_phone_number_id, responseData);
+      } catch (error) {
+        console.error(`Error fetching tenant data: ${error.message}`);
+        throw new Error("Failed to fetch tenant data.");
+      }
+    }
+
+    const access_token = responseData?.whatsapp_data[0]?.access_token;
+    const account_id = responseData?.whatsapp_data[0]?.business_account_id;
+    const tenant_id = responseData?.whatsapp_data[0]?.tenant_id
+
+    if (!access_token || !account_id) {
+      throw new Error("Invalid tenant data. Missing access token or account ID.");
+    }
+
+    const cacheKey = `${account_id}_${templateName}`;
+    let graphResponse = messageCache.get(cacheKey);
+
+    // Fetch template data if not available in cache
+    if (!graphResponse) {
+      try {
+        const response = await axios.get(
+          `https://graph.facebook.com/v16.0/${account_id}/message_templates?name=${templateName}`,
+          { headers: { Authorization: `Bearer ${access_token}` } }
+        );
+        graphResponse = response.data;
+        messageCache.set(cacheKey, graphResponse);
+      } catch (error) {
+        console.error(`Error fetching template: ${error.message}`);
+        throw new Error("Failed to fetch template data from the API.");
+      }
+    }
+
+    if (!graphResponse?.data || graphResponse.data.length === 0) {
+      throw new Error("Template not found.");
+    }
+
+    const templateData = graphResponse.data[0];
+
+    
+
+    const messageData = await setTemplateCar(
+    templateData, // Template data from job
+    userSession.userPhoneNumber,
+    userSession.business_phone_number_id,
+    userSession.accessToken
+    );
+
+    console.log("Message Data: ", messageData);
+
+    // Send message template
+    const sendMessageResponse = await sendMessageTemplate(
+    userSession.userPhoneNumber,
+    userSession.business_phone_number_id,
+    messageData,
+    userSession.accessToken,
+    userSession.tenant
+    );
+
+}
+
+
+
+export async function setTemplateCar(templateData, phone, bpid, access_token) {
+    try {
+        const components = templateData?.components || []; // Fallback to empty array if components are missing
+        const template_name = templateData.name || "defaultTemplateName"; // Fallback if template name is missing
+        const cacheKey = `${template_name}_${phone}_${bpid}`;
+        let messageData = messageCache.get(cacheKey);
+
+        if (!messageData) {
+        const res_components = [];
+
+        for (const component of components) {
+            if (component.type === "HEADER") {
+            const header_handle = component?.example?.header_handle || [];
+            const header_text = component?.example?.header_text || [];
+            const parameters = [];
+
+            for (const handle of header_handle) {
+                const mediaID = await getMediaID(handle, bpid, access_token);
+                parameters.push({
+                type: "image",
+                image: { id: mediaID },
+                });
+            }
+            for (const text of header_text) {
+                let modified_text = await replacePlaceholders(text, null, phone, bpid);
+                parameters.push({
+                type: "text",
+                text: modified_text,
+                });
+            }
+            if (parameters.length > 0) {
+                const header_component = {
+                type: "header",
+                parameters: parameters,
+                };
+                res_components.push(header_component);
+            }
+            } else if (component.type === "BODY") {
+            const body_text = component?.example?.body_text[0] || [];
+            const parameters = [];
+
+            for (const text of body_text) {
+                let modified_text= await replacePlaceholders(text, null, phone, bpid);
+
+                parameters.push({
+                type: "text",
+                text: modified_text,
+                });
+            }
+            if (parameters.length > 0) {
+                const body_component = {
+                type: "body",
+                parameters: parameters,
+                };
+                res_components.push(body_component);
+            }
+            }
+            else if (component.type === "CAROUSEL") {
+            const cards = component?.cards || [];
+            const cards_content = [];
+
+            for (let cardIndex = 0; cardIndex < cards.length; cardIndex++) {
+                const card = cards[cardIndex];
+                const inner_card_component = [];
+                
+                for (const cardComponent of card.components || []) {
+                if (cardComponent.type === "HEADER") {
+                    const header_handle = cardComponent?.example?.header_handle || [];
+                    const parameters = [];
+
+                    for (const handle of header_handle) {
+                    const mediaID = await getMediaID(handle, bpid, access_token);
+                    parameters.push({
+                        type: "image",
+                        image: { id: mediaID }
+                    });
+                    }
+
+                    if (parameters.length > 0) {
+                    inner_card_component.push({
+                        type: "header",
+                        parameters: parameters
+                    });
+                    }
+                } else if(cardComponent.type === "BODY"){
+                    const body_text = cardComponent?.example?.body_text[0] || [];
+                    const parameters = [];
+        
+                    for (const text of body_text) {
+                    let modified_text;
+                    if (otp) modified_text = otp;
+                    else modified_text = await replacePlaceholders(text, null, phone, bpid);
+        
+                    parameters.push({
+                        type: "text",
+                        text: modified_text,
+                    });
+                    }
+                    if (parameters.length > 0) {
+                    inner_card_component.push({
+                        type: "body",
+                        parameters: parameters
+                    });
+                    }
+                } else if (cardComponent.type === "BUTTONS") {
+                    const buttons = cardComponent.buttons || [];
+                    
+                    buttons.forEach((button, buttonIndex) => {
+                    if (button.type === "QUICK_REPLY") {
+                        inner_card_component.push({
+                        type: "button",
+                        sub_type: "quick_reply",  
+                        index: buttonIndex.toString(),
+                        parameters: [
+                            {
+                            type: "payload",
+                            payload: button.text.toLowerCase().replace(/\s+/g, '-')
+                            }
+                        ]
+                        });
+                    }
+                    });
+                }
+                }
+                const card_component = {
+                card_index: cardIndex,
+                components: inner_card_component
+                };
+                cards_content.push(card_component);
+            }
+
+            const carousel_component = {
+                type: "carousel",
+                cards: cards_content
+            };
+            res_components.push(carousel_component);
+            }
+            else {
+            console.warn(`Unknown component type: ${component.type}`);
+            }
+        }
+
+        messageData = {
+            type: "template",
+            template: {
+            name: template_name,
+            language: {
+                code: templateData?.language,
+            },
+            components: res_components,
+            },
+        };
+        messageCache.set(cacheKey, messageData);
+        }
+
+        return messageData;
+    } catch (error) {
+        console.error("Error in setTemplate function:", error);
+        throw error; // Rethrow the error to handle it further up the call stack if needed
+    }
+    }
+  
+  
+export async function sendMessageTemplate(phoneNumber, business_phone_number_id, messageData, access_token = null, tenant) {
+    const url = `https://graph.facebook.com/v18.0/${business_phone_number_id}/messages`;
+
+    try {
+        const response = await axios.post(
+        url,
+        {
+            messaging_product: "whatsapp",
+            recipient_type: "individual",
+            to: phoneNumber,
+            ...messageData
+        },
+        {
+            headers: { Authorization: `Bearer ${access_token}` },
+        }
+        );
+
+        let timestamp = await getIndianCurrentTime()
+
+        try{
+            console.log("MESSAGE DATA: ", JSON.stringify(messageData, null, 4))
+
+            let formattedConversation = [{ text: messageData, sender: "bot" }];
+
+            try {
+                console.log("Saving convo data: ", phoneNumber, business_phone_number_id, formattedConversation ,tenant)
+                console.log(timestamp)
+                const saveRes = await axios.post(
+                    `${djangoURL}/whatsapp_convo_post/${phoneNumber}/?source=whatsapp`, 
+                    {
+                        contact_id: phoneNumber,
+                        business_phone_number_id: business_phone_number_id,
+                        conversations: formattedConversation,
+                        tenant: tenant || userSession?.tenant,
+                        time: timestamp
+                    }, 
+                    {
+                        headers: {
+                        'Content-Type': 'application/json',
+                        'X-Tenant-Id': tenant
+                        },
+                    }
+                    );
+
+                    console.log("SAVE RES: ", saveRes.data)
+
+            } catch (error) {
+                console.error("Error saving conversation:", error.message);
+            }
+        }catch(error){
+            console.log("error occured while emission: ", error)
+        }
+        console.log("Message sent successfully:", response.data);
+
+        return { success: true, data: response.data };
+    } catch (error) {
+        if (error.response) {
+        console.error("Response Error:", error.response.data);
+        } else if (error.request) {
+        console.error("No Response Error:", error.request);
+        } else {
+        console.error("Setup Error:", error.message);
+        }
+
+        return { success: false, error: error.response ? error.response.data : error.message };
+    }
+}
+
+
+export async function getIndianCurrentTime(){
+
+    const current_time = new Date()
+    
+    const options = {
+    timeZone: 'Asia/Kolkata',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    fractionalSecondDigits: 3,
+    };
+    
+    const indiaTime = new Intl.DateTimeFormat('en-GB', options).format(current_time);
+    console.log("India Time: ", indiaTime)
+    return indiaTime
 }

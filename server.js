@@ -315,7 +315,7 @@ async function getSession(business_phone_number_id, contact) {
           fallback_msg : responseData.whatsapp_data[0].fallback_message || "please provide correct input",
           fallback_count: responseData.whatsapp_data[0].fallback_count != null ? responseData.whatsapp_data[0].fallback_count : 1,
           products: responseData.catalog_data,
-          language: null,
+          language: "en",
           multilingual: multilingual,
           doorbell: responseData.whatsapp_data[0]?.introductory_msg || null,
           api:  {
@@ -397,7 +397,9 @@ async function handleInput(userSession, message) {
 }
 
 async function processOrderForDrishtee(userSession, products) {
-  const failureMessage = "Your response is received. Let's continue further process to place your order"
+  const failureMessage_hi = "हमारी टीम को आपकी प्रतिक्रिया प्राप्त हो गई है। अब हम आपके ऑर्डर को प्लेस करने की प्रक्रिया को आगे बढ़ा रहे हैं।"
+  const failureMessage_en = "Your response is received. Let's continue further process to place your order"
+  const failureMessage = userSession.language == "en" ? failureMessage_en: failureMessage_hi
   await sendTextMessage(userSession.userPhoneNumber, userSession.business_phone_number_id, failureMessage, userSession.accessToken, userSession.tenant)
 }
 

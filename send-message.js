@@ -3,7 +3,7 @@ import { fastURL, djangoURL} from "./snm.js"
 import { getImageAndUploadToBlob } from "./handle-media.js"
 import { userSessions, io } from "./server.js";
 import axios from "axios";
-import { getIndianCurrentTime } from "./misc.js";
+import { getIndianCurrentTime, saveMessage } from "./misc.js";
 
 export async function sendMessage(phoneNumber, business_phone_number_id, messageData, access_token = null, fr_flag, tenant) {
 
@@ -29,7 +29,7 @@ export async function sendMessage(phoneNumber, business_phone_number_id, message
     if (tenant == null) tenant = userSession.tenant
     // console.log(url, access_token)
     try {
-        console.log("Senidng Details: ", phoneNumber, access_token, business_phone_number_id)
+        console.log("Sending Details: ", phoneNumber, access_token, business_phone_number_id)
         const response = await axios.post(
             url, 
             {
@@ -45,12 +45,7 @@ export async function sendMessage(phoneNumber, business_phone_number_id, message
         // Check if the message was sent successfully
         if (response.data && response.data.messages && response.data.messages.length > 0) {
             console.log('Message sent successfully:', response.data);
-            const messageID = response.data.messages[0].id;
-            const status = "sent";
-
-            // Update status
             console.log("Tenant sent in send-message: ", tenant)
-            // updateStatus(status, messageID, business_phone_number_id, phoneNumber, null, tenant);
 
             let mediaURLPromise = Promise.resolve(null);
             const mediaID = messageData?.video?.id || messageData?.audio?.id || messageData?.image?.id
@@ -63,56 +58,21 @@ export async function sendMessage(phoneNumber, business_phone_number_id, message
                     } else if (messageData?.image?.id) {
                         messageData.image.id = mediaURL;
                     }
-                    console.log("message data  updated: ", messageData)
                 })
             }
 
-            // if(messageData?.interactive?.type == 'product')
             let timestamp = await getIndianCurrentTime()
 
-            try{
-                console.log("MESSAGE DATA: ", JSON.stringify(messageData, null, 4))
-                io.emit('node-message', {
-                    message: messageData,
-                    phone_number_id: business_phone_number_id,
-                    contactPhone: phoneNumber,
-                    time: timestamp
-                });
-                console.log("Emitted  Node Message: ", messageData)
-                let formattedConversation = [{ text: messageData, sender: "bot" }];
-
-                try {
-                    console.log("Saving convo data: ", phoneNumber, business_phone_number_id, formattedConversation ,tenant)
-                    console.log("Time: ", timestamp)
-                    const saveRes = axios.post(
-                        `${djangoURL}/whatsapp_convo_post/${phoneNumber}/?source=whatsapp`, 
-                        {
-                            contact_id: phoneNumber,
-                            business_phone_number_id: business_phone_number_id,
-                            conversations: formattedConversation,
-                            tenant: tenant || userSession?.tenant,
-                            time: timestamp
-                        }, 
-                        {
-                            headers: {
-                            'Content-Type': 'application/json',
-                            'X-Tenant-Id': tenant || userSession?.tenant,
-                            },
-                        }
-                    );
-                        
-
-                    // if (!saveRes.ok) throw new Error("Failed to save conversation");
-                    // console.log("Conversation saved successfully");
-
-                } catch (error) {
-                    console.error("Error saving conversation:", error.message);
-                }
-
-            }catch(error){
-                console.log("error occured while emission: ", error)
-            }
-            
+            console.log("MESSAGE DATA: ", JSON.stringify(messageData, null, 4))
+            io.emit('node-message', {
+                message: messageData,
+                phone_number_id: business_phone_number_id,
+                contactPhone: phoneNumber,
+                time: timestamp
+            });
+            console.log("Emitted  Node Message: ", messageData)
+            let formattedConversation = [{ text: messageData, sender: "bot" }];
+            saveMessage(userSession.userPhoneNumber, userSession.business_phone_number_id, formattedConversation, userSession.tenant, timestamp)
 
             await mediaURLPromise
             // if(userSession) console.log("Current Node after sending message: ", userSession.currNode, "Next Node after sending message: ", userSession.nextNode)

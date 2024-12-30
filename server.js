@@ -510,7 +510,7 @@ app.post("/webhook", async (req, res) => {
 
       
       let timestamp = await getIndianCurrentTime()
-      // console.log("INDIANT CT: ", timestamp)
+      console.log("INDIANT CT: ", timestamp)
 
       if (repliedTo !== null) updateStatus("replied", repliedTo, null, null, null, null, timestamp)
 
@@ -521,130 +521,117 @@ app.post("/webhook", async (req, res) => {
 
       
       if (message) {
-          let userSession = await getSession(business_phone_number_id, contact)
-          
-          if (!userSession.multilingual){
+        const message_text = message?.text?.body || (message?.interactive ? (message?.interactive?.button_reply?.title || message?.interactive?.list_reply?.title) : null)
 
-          const message_text = message?.text?.body || (message?.interactive ? (message?.interactive?.button_reply?.title || message?.interactive?.list_reply?.title) : null)
-          const notif_body = {content: `${userSession.userPhoneNumber} | New meessage from ${userSession.userName || userSession.userPhoneNumber}: ${message_text}`, created_on: timestamp}
+        let userSession = await getSession(business_phone_number_id, contact)
 
-          sendNotification(notif_body, userSession.tenant)
-          updateLastSeen("replied", timestamp, userSession.userPhoneNumber, userSession.business_phone_number_id)
-          // console.log("Extracted data:", {business_phone_number_id,contact,message,userPhoneNumber});
-          addContact(userSession.userPhoneNumber, userSession.userName, userSession.tenant)
+        addContact(userSession.userPhoneNumber, userSession.userName, userSession.tenant)
+        updateLastSeen("replied", timestamp, userSession.userPhoneNumber, userSession.business_phone_number_id)
 
-
-          // saving message to backend
-          let formattedConversation = [{
+        let formattedConversation = [{
           text: message_text,
           sender: "user"
-          }];
-          // console.log("Saving messagwe qith timeL ", timestamp)
-          saveMessage(userSession.userPhoneNumber, userSession.business_phone_number_id, formattedConversation, userSession.tenant, timestamp)
+        }];
+        saveMessage(userSession.userPhoneNumber, userSession.business_phone_number_id, formattedConversation, userSession.tenant, timestamp)
+        
+        const notif_body = {content: `${userSession.userPhoneNumber} | New meessage from ${userSession.userName || userSession.userPhoneNumber}: ${message_text}`, created_on: timestamp}
+        sendNotification(notif_body, userSession.tenant)
+        
+        const temp_user = message?.text?.body?.startsWith('*/') ? message.text.body.split('*/')[1]?.split(' ')[0] : null;
+        if(temp_user){
+            io.emit('temp-user', {
+                temp_user: temp_user,
+                phone_number_id: userSession.business_phone_number_id,
+                contactPhone: userSession.userPhoneNumber,
+                time: timestamp
+            });
+            // console.log("Emitted temp_user message: ", temp_user)
+        }
 
-      
-          // emitting temp user to frontend
-          const temp_user = message?.text?.body?.startsWith('*/') ? message.text.body.split('*/')[1]?.split(' ')[0] : null;
-          if(temp_user){
-              io.emit('temp-user', {
-                  temp_user: temp_user,
-                  phone_number_id: userSession.business_phone_number_id,
-                  contactPhone: userSession.userPhoneNumber,
-                  time: timestamp
-              });
-              // console.log("Emitted temp_user message: ", temp_user)
-          }
+        io.emit('new-message', {
+          message: {type: "text" ,text: {body: message_text}},
+          phone_number_id: userSession.business_phone_number_id,
+          contactPhone: userSession.userPhoneNumber,
+          name: userSession.userName,
+          time: timestamp
+        });
 
-          io.emit('new-message', {
-              message: {type: "text" ,text: {body: message_text}},
-              phone_number_id: userSession.business_phone_number_id,
-              contactPhone: userSession.userPhoneNumber,
-              name: userSession.userName,
-              time: timestamp
-          });
-          //console.log("Emitted new message: ", messageData)
-      
+        if (!userSession.multilingual){
           if (!userSession.AIMode) {
-              //console.log("Processing in non-AI mode");
-              //console.log("input vr: ", userSession.inputVariable)
-
-              handleInput(userSession, message)
+            handleInput(userSession, message)
           
-              if (message?.type === "interactive") {
-                  // console.log("Processing interactive message");
-                  let userSelectionID = message?.interactive?.button_reply?.id || message?.interactive?.list_reply?.id;
-                  if (userSelectionID.split('_')[0] == 'drishtee') handleCatalogManagement(userSelectionID, userSession)
-                  // console.log("User selection:", { userSelectionID, userSelection });
-                  else{try {
-                      // console.log("NextNode: ", userSession.nextNode)
-                      for (let i = 0; i < userSession.nextNode.length; i++) {
-                          // console.log(`Checking node ${userSession.nextNode[i]}:`, userSession.flowData[userSession.nextNode[i]]);
-                          if (userSession.flowData[userSession.nextNode[i]].id == userSelectionID) {
-                              userSession.currNode = userSession.nextNode[i];
-                              // console.log("Matched node found. New currNode:", userSession.currNode);
-                              userSession.nextNode = userSession.adjList[userSession.currNode];
-                              // console.log("Updated nextNode:", userSession.nextNode);
-                              userSession.currNode = userSession.nextNode[0];
-                              // console.log("Final currNode:", userSession.currNode);
-                              // console.log("Calling sendNodeMessage");
-                              sendNodeMessage(userSession.userPhoneNumber, userSession.business_phone_number_id);
-                              break; // Exit the loop when the condition is met
-                          }
-                      };
-                      if(isNaN(userSelectionID)) await sendProduct(userSession, userSelectionID)
-                  } catch (error) {
-                      console.error('Error processing interactive message:', error);
-                  }}
-              }
-              else if (message?.type === "text" || message?.type == "image") {
-                  // console.log("Processing text or image message");
-                  // console.log(userSession.currNode, userSession.startNode)
-                  const flow = userSession.flowData
-                  const type = flow[userSession.currNode].type
-                  console.log("Curr Node: ", userSession.currNode, "Start Node: ", userSession.startNode)
-                  console.log("Type: ", type)
-                  if (userSession.currNode != userSession.startNode){
-                      if (['Text' ,'string', 'audio', 'video', 'location', 'image', 'AI'].includes(type)) {
-                          console.log(`Storing input for node ${userSession.currNode}:`, message?.text?.body);
-                          userSession.currNode = userSession.nextNode[0];
-                          // console.log("Updated currNode:", userSession.currNode);
-                      }
-                      else if(['Button', 'List'].includes(type)){
-                          await executeFallback(userSession)
-                          res.sendStatus(200)
-                          return
-                      }
-                  }
-                  // console.log("Calling sendNodeMessage");
-                  sendNodeMessage(userPhoneNumber,business_phone_number_id);
-              }
-              else if (message?.type =="order"){
-                  // await processOrder(userSession, products)
-                await processOrderForDrishtee(userSession, products)
-                userSession.currNode = userSession.nextNode[0];
-                console.log("Current node after processing order: ", userSession.currNode)
+            if (message?.type === "interactive") {
+                let userSelectionID = message?.interactive?.button_reply?.id || message?.interactive?.list_reply?.id;
+
+                if (userSelectionID.split('_')[0] == 'drishtee') handleCatalogManagement(userSelectionID, userSession)
+
+                else{try {
+                    // console.log("NextNode: ", userSession.nextNode)
+                    for (let i = 0; i < userSession.nextNode.length; i++) {
+                        // console.log(`Checking node ${userSession.nextNode[i]}:`, userSession.flowData[userSession.nextNode[i]]);
+                        if (userSession.flowData[userSession.nextNode[i]].id == userSelectionID) {
+                            userSession.currNode = userSession.nextNode[i];
+                            // console.log("Matched node found. New currNode:", userSession.currNode);
+                            userSession.nextNode = userSession.adjList[userSession.currNode];
+                            // console.log("Updated nextNode:", userSession.nextNode);
+                            userSession.currNode = userSession.nextNode[0];
+                            // console.log("Final currNode:", userSession.currNode);
+                            // console.log("Calling sendNodeMessage");
+                            sendNodeMessage(userSession.userPhoneNumber, userSession.business_phone_number_id);
+                            break; // Exit the loop when the condition is met
+                        }
+                    };
+                    if(isNaN(userSelectionID)) await sendProduct(userSession, userSelectionID)
+                } catch (error) {
+                    console.error('Error processing interactive message:', error);
+                }}
+            }
+            else if (message?.type === "text" || message?.type == "image") {
+                // console.log("Processing text or image message");
+                // console.log(userSession.currNode, userSession.startNode)
+                const flow = userSession.flowData
+                const type = flow[userSession.currNode].type
+                console.log("Curr Node: ", userSession.currNode, "Start Node: ", userSession.startNode)
+                console.log("Type: ", type)
+                if (userSession.currNode != userSession.startNode){
+                    if (['Text' ,'string', 'audio', 'video', 'location', 'image', 'AI'].includes(type)) {
+                        console.log(`Storing input for node ${userSession.currNode}:`, message?.text?.body);
+                        userSession.currNode = userSession.nextNode[0];
+                        // console.log("Updated currNode:", userSession.currNode);
+                    }
+                    else if(['Button', 'List'].includes(type)){
+                        await executeFallback(userSession)
+                        res.sendStatus(200)
+                        return
+                    }
+                }
+                // console.log("Calling sendNodeMessage");
                 sendNodeMessage(userPhoneNumber,business_phone_number_id);
-              }
-              else if (message?.type == "button"){
-                const userSelectionText = message?.button?.text
-                console.log("User Selection Text: ", userSelectionText)
-                if (DRISHTEE_IDS.includes(userSelectionText)) await handleCatalogManagement(userSelectionText, userSession)
-              }
+            }
+            else if (message?.type =="order"){
+                // await processOrder(userSession, products)
+              await processOrderForDrishtee(userSession, products)
+              userSession.currNode = userSession.nextNode[0];
+              console.log("Current node after processing order: ", userSession.currNode)
+              sendNodeMessage(userPhoneNumber,business_phone_number_id);
+            }
+            else if (message?.type == "button"){
+              const userSelectionText = message?.button?.text
+              console.log("User Selection Text: ", userSelectionText)
+              if (DRISHTEE_IDS.includes(userSelectionText)) await handleCatalogManagement(userSelectionText, userSession)
+            }
           }
           else {
               if (message?.type == "interactive"){
                   let userSelectionID = message?.interactive?.button_reply?.id || message?.interactive?.list_reply?.id;
                   if (userSelectionID == "Exit AI"){
                       userSession.AIMode = false;
-                      // console.log("Matched node found. New currNode:", userSession.currNode);
                       userSession.nextNode = userSession.adjList[userSession.currNode];
-                      // console.log("Updated nextNode:", userSession.nextNode);
                       userSession.currNode = userSession.nextNode[0];
-                      // console.log("Final currNode:", userSession.currNode);
-                      // console.log("Calling sendNodeMessage");
                       sendNodeMessage(userPhoneNumber,business_phone_number_id);
                   }
-              }else if(message?.type == "text"){
+              }
+              else if(message?.type == "text"){
                   handleQuery(message, userSession)
               }
               else if (message?.type == "image" || message?.type == "document" || message?.type == "video") {
@@ -663,43 +650,31 @@ app.post("/webhook", async (req, res) => {
         }
         else{
           if (message?.type === "text"){
-            const message_text = message?.text?.body
             const doorbell = userSession.doorbell
-            // console.log("Doorbell: ", doorbell)
             const doorbell_text = doorbell?.message
             const language_data = doorbell?.languages
-            const languages = Object.entries(language_data).map(([id, name]) => ({
-              id: parseInt(id), // Convert the string keys to integers
-              name: name
-            }));
-
+            
             const languageKeys = Object.keys(language_data);
             const languageValues = Object.values(language_data)
-            // console.log("Message Text: ", message_text)
-            // console.log("Keys: ", languageKeys)
-            // console.log("Values: ", languageValues)
+            
             if (languageKeys.includes(message_text) || languageValues.includes(message_text)){
               let lang_code;
               if (languageKeys.includes(message_text)){
-                // console.log("language keys")
                 const language = language_data[message_text]
-                // console.log("LAnguage: ", language)
                 lang_code = languageMap[language]
-                // console.log("Lang code: ", lang_code)
               }else{
-                // console.log("language values")
                 lang_code = languageMap[message_text]
               }
               
               const flowData = userSession.flowData
               userSession.language = lang_code
               const selectedFlowData = flowData.find(data => data.language === lang_code);
-              // console.log("Selected flow data: ", selectedFlowData)
+
               userSession.flowData = selectedFlowData?.flow_data
               userSession.multilingual = false
-              // console.log("Changing fallback language: ", selectedFlowData?.fallback_message)
+              
               userSession.fallback_msg = selectedFlowData?.fallback_message
-              // console.log("New fallback: ", userSession.fallback_msg)
+              
               sendNodeMessage(userPhoneNumber,business_phone_number_id);
 
             }
@@ -747,20 +722,14 @@ app.post("/webhook", async (req, res) => {
             let userSelectionID = message?.interactive?.button_reply?.id || message?.interactive?.list_reply?.id;
             userSession.language = userSelectionID;
             const flowData = userSession.flowData
-            // console.log("Is flowData an array?", Array.isArray(flowData));
-            // console.log("Type of flowData:", typeof flowData);
-            // console.log("Value of flowData:", flowData);
-
             const selectedFlowData = flowData.find(data => data.language === userSelectionID);
-            // console.log("Selected flow data: ", selectedFlowData)
+            
             userSession.flowData = selectedFlowData?.flow_data
             userSession.multilingual = false
-            // console.log("Changing fallback language: ", selectedFlowData?.fallback_message)
             userSession.fallback_msg = selectedFlowData?.fallback_message
-            // console.log("New fallback: ", userSession.fallback_msg)
             sendNodeMessage(userPhoneNumber,business_phone_number_id);
-
           }
+
         }
       }
 

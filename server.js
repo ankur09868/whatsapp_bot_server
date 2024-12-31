@@ -14,7 +14,7 @@ import { updateStatus, addDynamicModelInstance, addContact, executeFallback, sav
 import { handleMediaUploads } from "./handle-media.js"
 import {Worker, workerData} from "worker_threads"
 import { messageQueue } from "./queues/messageQueue.js";
-import { DRISHTEE_IDS, handleCatalogManagement }  from "./drishtee.js"
+import { DRISHTEE_PRODUCT_CAROUSEL_IDS, handleCatalogManagement }  from "./drishtee.js"
 
 
 export const messageCache = new NodeCache({ stdTTL: 600 });
@@ -399,7 +399,17 @@ async function handleInput(userSession, message) {
 async function processOrderForDrishtee(userSession, products) {
   const failureMessage_hi = "हमारी टीम को आपकी प्रतिक्रिया प्राप्त हो गई है। अब हम आपके ऑर्डर को प्लेस करने की प्रक्रिया को आगे बढ़ा रहे हैं।"
   const failureMessage_en = "Your response is received. Let's continue further process to place your order"
-  const failureMessage = userSession.language == "en" ? failureMessage_en: failureMessage_hi
+  const failureMessage_bn = "আপনার উত্তর পাওয়া গেছে। আসুন আপনার অর্ডার দেওয়ার পরবর্তী প্রক্রিয়া শুরু করি।"
+  const failureMessage_mr = "आपला प्रतिसाद मिळाला आहे. चला, तुमची ऑर्डर देण्याची पुढील प्रक्रिया सुरू करूया."
+  let failureMessage;
+  const language = userSession.language
+
+  if(language == "en") failureMessage = failureMessage_en
+  else if(language == "mr") failureMessage = failureMessage_mr
+  else if(language == "bn") failureMessage = failureMessage_bn
+  else if(language == "hi") failureMessage = failureMessage_hi
+
+  // const failureMessage = userSession.language == "en" ? failureMessage_en: failureMessage_hi
   await sendTextMessage(userSession.userPhoneNumber, userSession.business_phone_number_id, failureMessage, userSession.accessToken, userSession.tenant)
 }
 
@@ -495,6 +505,30 @@ const languageMap = {
   'Hinglish': 'hing'
 };
 
+const countryMobileCodes = {
+  "1": "United States",
+  "91": "India",
+  "86": "China",
+  "7": "Russia",
+  "81": "Japan",
+  "44": "United Kingdom",
+  "33": "France",
+  "49": "Germany",
+  "39": "Italy",
+  "61": "Australia",
+  "55": "Brazil",
+  "27": "South Africa",
+  "34": "Spain",
+  "90": "Turkey",
+  "82": "South Korea",
+  "62": "Indonesia",
+  "52": "Mexico",
+  "64": "New Zealand",
+  "971": "United Arab Emirates",
+  "66": "Thailand"
+};
+
+
 
 app.post("/webhook", async (req, res) => {
   try {
@@ -508,7 +542,6 @@ app.post("/webhook", async (req, res) => {
       const products = message?.order?.product_items
       const repliedTo = message?.context?.id || null
 
-      
       let timestamp = await getIndianCurrentTime()
       console.log("INDIANT CT: ", timestamp)
 
@@ -521,6 +554,9 @@ app.post("/webhook", async (req, res) => {
 
       
       if (message) {
+
+        console.log("Country: ", countryMobileCodes[userPhoneNumber.slice(0,2)])
+      
         const message_text = message?.text?.body || (message?.interactive ? (message?.interactive?.button_reply?.title || message?.interactive?.list_reply?.title) : null)
 
         let userSession = await getSession(business_phone_number_id, contact)
@@ -618,7 +654,7 @@ app.post("/webhook", async (req, res) => {
             else if (message?.type == "button"){
               const userSelectionText = message?.button?.text
               console.log("User Selection Text: ", userSelectionText)
-              if (DRISHTEE_IDS.includes(userSelectionText)) await handleCatalogManagement(userSelectionText, userSession)
+              if (DRISHTEE_PRODUCT_CAROUSEL_IDS.includes(userSelectionText)) await handleCatalogManagement(userSelectionText, userSession)
             }
           }
           else {

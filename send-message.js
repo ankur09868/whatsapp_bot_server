@@ -22,7 +22,7 @@ export async function sendMessage(phoneNumber, business_phone_number_id, message
     phoneNumber = String(phoneNumber).trim();
     if(phoneNumber.length == 10) phoneNumber = `91${phoneNumber}`
 
-    console.log('Message Data:', JSON.stringify(messageData, null, 3));
+    console.log('Message Data:', JSON.stringify(messageData, null, 7));
 
     // Use session access token if not provided
     if (access_token == null) access_token = userSession.accessToken;

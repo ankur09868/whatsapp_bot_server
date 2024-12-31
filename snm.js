@@ -563,7 +563,11 @@ export async function sendNodeMessage(userPhoneNumber, business_phone_number_id)
             
             case "template":
                 
-                const templateName = userSession.language ? `${flow[currNode]?.name}${userSession.language}`  : flow[currNode]?.name
+                let templateName = userSession.language ? `${flow[currNode]?.name}${userSession.language}`  : flow[currNode]?.name
+                if(userSession.tenant == "qqeeusz"){
+                    if(userSession.language == "mr") templateName = "carouseldrishteemar"
+                    if(userSession.language == "bn") templateName = "carouseldrishteeben"
+                }
                 console.log("Language: ", userSession.language, "Name: ", templateName)
                 await sendTemplateMessage(templateName, userSession)
 

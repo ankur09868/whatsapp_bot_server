@@ -533,7 +533,7 @@ const countryMobileCodes = {
 
 app.post("/webhook", async (req, res) => {
   try {
-      console.log("Received Webhook: ", JSON.stringify(req.body, null, 6))
+      // console.log("Received Webhook: ", JSON.stringify(req.body, null, 6))
       const business_phone_number_id = req.body.entry?.[0].changes?.[0].value?.metadata?.phone_number_id;
       const contact = req.body.entry?.[0]?.changes[0]?.value?.contacts?.[0];
       const message = req.body.entry?.[0]?.changes[0]?.value?.messages?.[0];

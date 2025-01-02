@@ -405,7 +405,7 @@ export async function handleCatalogManagement(selectionID, userSession) {
     else if(selectionID.split('_')[0] === 'drishtee'){
         const categoryID = selectionID.split('_')[1]
         const response = await axios.get(`https://testexpenses.drishtee.in/rrp/nuren/productlist?PhoneNumber=9643393874&CategoryCode=${categoryID}`)
-        console.log("Response: ", response.data)
+        // console.log("Response: ", response.data)
         userSession.api.POST['RRP_ID'] = response.data?.[0]?.RRP_ID
         userSession.api.POST['RRP_Name'] = response.data?.[0]?.RRP_Name
         const product_list = response.data.map(product => product.product_id)

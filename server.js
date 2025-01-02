@@ -68,6 +68,21 @@ app.use(session({
   cookie: { secure: true }  // Set to true if you're using HTTPS
 }));
 
+app.post("/sendMessage", async (req, res) => {
+  const { message, phone } = req.body;
+  const business_phone_number_id = 536251836232437;
+  const access_token = "EAAVZBobCt7AcBO3wIFi4f1T5viNWnWVMNEYZB6fa0J4LymWmjlCUZCgWiWUyzM0puxnhWJiHZAZAeqvaY0zSJAj4PZAdUNmo6kwfHL4ZCAqvW8TVR1RFk5ZBx8zmpdul1sZBaw8Cl9Jd6aEnFhXvgZAIu3ABefjTlYJ9RipOQdfCNpWu6WDYG2mTH3Q4X7ZBk9VFlJ9ocGnSRxlh7ipRQIn9JrcFqFS5FjiDAESNLSaJpDu5XAfxWtn1KaN5afZA2ZAUH";
+  const tenant_id = 'qqeeusz';
+
+  try {
+    await sendTextMessage(phone, business_phone_number_id, message, access_token, tenant_id);
+    res.status(200).json({ success: true });
+  } catch (error) {
+    console.error("Error sending message:", error);
+    res.status(500).json({ error: "Failed to send message" });
+  }
+});
+
 app.post("/send-message", async (req, res) => {
   try {
     const { phoneNumbers, message, url, messageType, additionalData, business_phone_number_id, bg_id } = req.body;

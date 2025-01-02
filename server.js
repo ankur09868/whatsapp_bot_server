@@ -380,20 +380,34 @@ async function handleInput(userSession, message) {
 }
 
 async function processOrderForDrishtee(userSession, products) {
-  const failureMessage_hi = "हमारी टीम को आपकी प्रतिक्रिया प्राप्त हो गई है। अब हम आपके ऑर्डर को प्लेस करने की प्रक्रिया को आगे बढ़ा रहे हैं।"
-  const failureMessage_en = "Your response is received. Let's continue further process to place your order"
-  const failureMessage_bn = "আপনার উত্তর পাওয়া গেছে। আসুন আপনার অর্ডার দেওয়ার পরবর্তী প্রক্রিয়া শুরু করি।"
-  const failureMessage_mr = "आपला प्रतिसाद मिळाला आहे. चला, तुमची ऑर्डर देण्याची पुढील प्रक्रिया सुरू करूया."
-  let failureMessage;
+  const responseMessage_hi = "हमारी टीम को आपकी प्रतिक्रिया प्राप्त हो गई है। अब हम आपके ऑर्डर को प्लेस करने की प्रक्रिया को आगे बढ़ा रहे हैं।"
+  const responseMessage_en = "Your response is received. Let's continue further process to place your order"
+  const responseMessage_bn = "আপনার উত্তর পাওয়া গেছে। আসুন আপনার অর্ডার দেওয়ার পরবর্তী প্রক্রিয়া শুরু করি।"
+  const responseMessage_mr = "आपला प्रतिसाद मिळाला आहे. चला, तुमची ऑर्डर देण्याची पुढील प्रक्रिया सुरू करूया."
+  let responseMessage = responseMessage_en;
+
   const language = userSession.language
 
-  if(language == "en") failureMessage = failureMessage_en
-  else if(language == "mr") failureMessage = failureMessage_mr
-  else if(language == "bn") failureMessage = failureMessage_bn
-  else if(language == "hi") failureMessage = failureMessage_hi
+  if(language == "mr") responseMessage = responseMessage_mr
+  else if(language == "bn") responseMessage = responseMessage_bn
+  else if(language == "hi") responseMessage = responseMessage_hi
 
   // const failureMessage = userSession.language == "en" ? failureMessage_en: failureMessage_hi
-  await sendTextMessage(userSession.userPhoneNumber, userSession.business_phone_number_id, failureMessage, userSession.accessToken, userSession.tenant)
+  sendTextMessage(userSession.userPhoneNumber, userSession.business_phone_number_id, responseMessage, userSession.accessToken, userSession.tenant)
+  console.log("Products: ", products)
+  const url = "https://testexpenses.drishtee.in/rrp/nuren/savePreOrder"
+  const headers = {'Content-Type': 'application/json'}
+  const data = {
+    RRP_id: userSession.api.POST?.["RRP_ID"],
+    products: products.map(product => {
+      return {
+        product_id: product.product_retailer_id,
+        product_quantity: product.quantity
+      }
+    })
+  }
+  const response = await axios.post(url, data, {headers: headers})
+  console.log("Response: ", response.data)
 }
 
 async function processOrder(userSession, products) {
@@ -633,8 +647,8 @@ app.post("/webhook", async (req, res) => {
             }
             else if (message?.type =="order"){
                 // await processOrder(userSession, products)
-              // await processOrderForDrishtee(userSession, products)
-              await processOrder2(userSession, products)
+              await processOrderForDrishtee(userSession, products)
+              // await processOrder2(userSession, products)
               
               // userSession.currNode = userSession.nextNode[0];
               // console.log("Current node after processing order: ", userSession.currNode)

@@ -366,13 +366,13 @@ export async function sendMessageTemplate(phoneNumber, business_phone_number_id,
                     contact_id: phoneNumber,
                     business_phone_number_id: business_phone_number_id,
                     conversations: formattedConversation,
-                    tenant: tenant || userSession?.tenant,
+                    tenant: tenant ,
                     time: timestamp
                 }, 
                 {
                     headers: {
                     'Content-Type': 'application/json',
-                    'X-Tenant-Id': tenant || userSession?.tenant,
+                    'X-Tenant-Id': tenant,
                     },
                 }
                 );

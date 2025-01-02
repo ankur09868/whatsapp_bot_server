@@ -400,8 +400,7 @@ export async function handleCatalogManagement(selectionID, userSession) {
                 }
             };
         }
-        const fr_flag = false
-        return sendMessage(userSession.userPhoneNumber, userSession.business_phone_number_id, messageData, userSession.accessToken, fr_flag ,userSession.tenant);
+        return sendMessage(userSession.userPhoneNumber, userSession.business_phone_number_id, messageData, userSession.accessToken ,userSession.tenant);
     }
     else if(selectionID.split('_')[0] === 'drishtee'){
         const categoryID = selectionID.split('_')[1]
@@ -410,7 +409,6 @@ export async function handleCatalogManagement(selectionID, userSession) {
         const product_list = response.data.map(product => product.product_id)
         console.log("Product List: ", product_list)
         if(product_list.length>0){
-            const fr_flag = false
             const header = await getKeyFromValue(local_reg, categoryID)
             // const body = userSession.language == "en" ? `Browse through our exclusive collection of ${header} products and find what suits your needs best. Shop now and enjoy amazing offers!` : `हमारे ${header} उत्पादों के विशेष संग्रह को ब्राउज़ करें और अपनी आवश्यकताओं के अनुसार सबसे उपयुक्त उत्पाद खोजें। अभी खरीदारी करें और शानदार ऑफ़र्स का आनंद लें!`
             const catalog_id = 1134019438184024
@@ -419,7 +417,7 @@ export async function handleCatalogManagement(selectionID, userSession) {
             const chunkSize = 30;
             for (let i = 0; i < product_list.length; i += chunkSize) {
                 const chunk = product_list.slice(i, i + chunkSize);
-                await sendProductMessage(userSession, chunk, catalog_id, header, product_body, footer, section_title, userSession.tenant, fr_flag);
+                await sendProductMessage(userSession, chunk, catalog_id, header, product_body, footer, section_title, userSession.tenant);
             }
         }
         else{
@@ -428,8 +426,7 @@ export async function handleCatalogManagement(selectionID, userSession) {
                 type: "text",
                 text: { body: fallback_message }
             }
-            const fr_flag = false
-            return sendMessage(userSession.userPhoneNumber, userSession.business_phone_number_id, messageData, userSession.accessToken, fr_flag ,userSession.tenant);
+            return sendMessage(userSession.userPhoneNumber, userSession.business_phone_number_id, messageData, userSession.accessToken ,userSession.tenant);
         }
     }
     else{

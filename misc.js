@@ -1,9 +1,7 @@
-import { getAccessToken, getWabaID, getPhoneNumberID, registerAccount, postRegister } from "./login-flow.js";
-import { setTemplate, sendNodeMessage, sendProductMessage, sendListMessage, sendInputMessage, sendButtonMessage, sendImageMessage, sendTextMessage, sendAudioMessage, sendVideoMessage, sendLocationMessage, fastURL, djangoURL} from "./snm.js"
-import { sendMessage  } from "./send-message.js"; 
-import  { sendProduct, sendBill, sendBillMessage, sendProductList, sendProduct_List } from "./product.js"
-import { getMediaID, handleMediaUploads, checkBlobExists, getImageAndUploadToBlob } from "./handle-media.js"
-import { userSessions, io } from "./server.js";
+
+import { sendTextMessage, fastURL, djangoURL} from "./snm.js"
+
+import { userSessions } from "./server.js";
 import axios from "axios";
 
 const fallback_messages = {

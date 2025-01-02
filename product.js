@@ -1,10 +1,6 @@
-import { getAccessToken, getWabaID, getPhoneNumberID, registerAccount, postRegister } from "./login-flow.js";
-import { setTemplate, sendNodeMessage, sendProductMessage, sendListMessage, sendInputMessage, sendButtonMessage, sendImageMessage, sendTextMessage, sendAudioMessage, sendVideoMessage, sendLocationMessage} from "./snm.js"
+
+import { sendNodeMessage} from "./snm.js"
 import { sendMessage  } from "./send-message.js";
-import { validateInput, replacePlaceholders, addDynamicModelInstance, addContact, executeFallback } from "./misc.js"
-import { getMediaID, handleMediaUploads, checkBlobExists, getImageAndUploadToBlob } from "./handle-media.js"
-import { userSessions, io } from "./server.js";
-import axios from "axios";
 
 export async function sendProduct_List() {
     const messageData = {
@@ -45,7 +41,7 @@ export async function sendProduct_List() {
     const bpid = 394345743768990
     const access_token = "EAAVZBobCt7AcBO02EyyYdLbpJn17HUXqAxQoZBxnhkGWTBrRiqBIZCOccY8peg73jQltdKc0vQF6u3EZA8wwaiGYTOF18ZAFQbLq5OsBCpPNReGCOvJS4MuQLiXt1t6WfkoJ5tnq65ITcygoKhh0eRU0GT9vWZBodvj3COpsYgG40R4XLZABHewbfm7FG6a2MbPy8YamxEDO4qoqZAKxrSpPZCJcL27dkdiGIBSobhILkJJpIPqYJkekIpmdI6V9ZB"
 
-    await sendMessage(phone, bpid, messageData, access_token, null, null)
+    await sendMessage(phone, bpid, messageData, access_token, null)
 }
 
 export async function sendProductList(userSession, message){
@@ -67,7 +63,7 @@ export async function sendProductList(userSession, message){
             }
         }
     }
-    await sendMessage(userSession.userPhoneNumber, userSession.business_phone_number_id, productListMessageData, userSession.accessToken, null, userSession.tenant)
+    await sendMessage(userSession.userPhoneNumber, userSession.business_phone_number_id, productListMessageData, userSession.accessToken, userSession.tenant)
 }
 
 export async function sendBillMessage(){
@@ -130,7 +126,7 @@ export async function sendBillMessage(){
     const access_token = "EAAVZBobCt7AcBO02EyyYdLbpJn17HUXqAxQoZBxnhkGWTBrRiqBIZCOccY8peg73jQltdKc0vQF6u3EZA8wwaiGYTOF18ZAFQbLq5OsBCpPNReGCOvJS4MuQLiXt1t6WfkoJ5tnq65ITcygoKhh0eRU0GT9vWZBodvj3COpsYgG40R4XLZABHewbfm7FG6a2MbPy8YamxEDO4qoqZAKxrSpPZCJcL27dkdiGIBSobhILkJJpIPqYJkekIpmdI6V9ZB"
 
 
-    await sendMessage(phone, bpid, messageData, access_token, null, null)
+    await sendMessage(phone, bpid, messageData, access_token, null)
 }
 
 export async function sendBill(totalAmount, product_list, userSession) {
@@ -141,7 +137,7 @@ const textMessageData = {
     body: `Thank you for shopping from our store!\n\nYour total order amount: ${totalAmount}\n\nItems you have purchased are:\n\n${product_list.map(item => `Product: *${item.product_name}*, Quantity: *${item.quantity}*`).join('\n\n')}\n\nPlease use the QR below to make the payment!`
     }
 }
-await sendMessage(userSession.userPhoneNumber, userSession.business_phone_number_id, textMessageData, userSession.accessToken, null, userSession.tenant)
+await sendMessage(userSession.userPhoneNumber, userSession.business_phone_number_id, textMessageData, userSession.accessToken, userSession.tenant)
 const QRMessageData = {
     type: "image",
     image: {
@@ -149,7 +145,7 @@ const QRMessageData = {
     caption: "Scan this QR Code with your payment provider app or just open the image in whatsapp."
     }
 }
-await sendMessage(userSession.userPhoneNumber, userSession.business_phone_number_id, QRMessageData, userSession.accessToken, null, userSession.tenant)
+await sendMessage(userSession.userPhoneNumber, userSession.business_phone_number_id, QRMessageData, userSession.accessToken, userSession.tenant)
 }
 
 export async function sendProduct(userSession, product_id) {
@@ -170,7 +166,7 @@ const productMessageData = {
     }
     }
 }
-await sendMessage(userSession.userPhoneNumber, userSession.business_phone_number_id, productMessageData, userSession.accessToken, null, userSession.tenant)
+await sendMessage(userSession.userPhoneNumber, userSession.business_phone_number_id, productMessageData, userSession.accessToken, userSession.tenant)
 console.log("take my whiskey neeeeeat")
 userSession.currNode = 6
 sendNodeMessage(userSession.userPhoneNumber, userSession.business_phone_number_id)

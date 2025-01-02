@@ -72,75 +72,58 @@ app.post("/send-message", async (req, res) => {
   try {
     const { phoneNumbers, message, url, messageType, additionalData, business_phone_number_id, bg_id } = req.body;
     const tenant_id = req.headers['x-tenant-id'];
-    console.log("Rcvd tenant id: ", tenant_id)
     const sendPromises = phoneNumbers.map(async (phoneNumber) => {
       
-      let formattedPhoneNumber;
-      if (phoneNumber.length === 10) {
-        formattedPhoneNumber = `91${phoneNumber}`;
-      } else {
-        formattedPhoneNumber = phoneNumber; // Keep it as is if the length is not 10
-      }
+      const formattedPhoneNumber = phoneNumber.length === 10 ? `91${phoneNumber}` : phoneNumber;
       const cacheKey = `${business_phone_number_id}_${tenant_id}`;
       
       let access_token = messageCache.get(cacheKey);
       if (!access_token) {
         try {
           const tenantRes = await axios.get(`${fastURL}/whatsapp_tenant/`, {
-            headers: { 'X-Tenant-Id': tenant_id}
+            headers: { 'X-Tenant-Id': tenant_id }
           });
           access_token = tenantRes.data.whatsapp_data[0].access_token;
           messageCache.set(cacheKey, access_token);
-
         } catch (error) {
           console.error(`Error fetching tenant data for user ${business_phone_number_id}:`, error);
           throw error;
         }
       }
 
-      let sendMessagePromise;
-      let fr_flag;
-      switch (messageType) {
-        case 'text':
-          sendMessagePromise = sendTextMessage(formattedPhoneNumber, business_phone_number_id, message, access_token, tenant_id, fr_flag = true);
-          break;
-        case 'image':
+      const messageHandlers = {
+        text: () => sendTextMessage(formattedPhoneNumber, business_phone_number_id, message, access_token, tenant_id),
+        image: () => {
           const { imageId, caption } = additionalData;
-          console.log(`image ID: ${imageId}, caption: ${caption}`)
-          sendMessagePromise = sendImageMessage(formattedPhoneNumber, business_phone_number_id, imageId, caption, access_token, tenant_id, fr_flag = true);
-          // formattedConversation.push({ text: caption, sender: "bot" });
-          break;
-        case 'audio':
+          console.log(`image ID: ${imageId}, caption: ${caption}`);
+          return sendImageMessage(formattedPhoneNumber, business_phone_number_id, imageId, caption, access_token, tenant_id);
+        },
+        audio: () => {
           const { audioID } = additionalData;
-          sendMessagePromise = sendAudioMessage(formattedPhoneNumber, business_phone_number_id, audioID, access_token,tenant_id, fr_flag = true);
-          break;
-        case 'video':
+          return sendAudioMessage(formattedPhoneNumber, business_phone_number_id, audioID, access_token, tenant_id);
+        },
+        video: () => {
           const { videoID } = additionalData;
-          sendMessagePromise = sendVideoMessage(formattedPhoneNumber, business_phone_number_id, videoID, access_token,tenant_id, fr_flag = true);
-          break;
-        case 'location':
-          sendMessagePromise = sendLocationMessage(formattedPhoneNumber, business_phone_number_id, additionalData, access_token,tenant_id, fr_flag = true);
-          break;
-        default:
-          throw new Error("Invalid message type");
+          return sendVideoMessage(formattedPhoneNumber, business_phone_number_id, videoID, access_token, tenant_id);
+        },
+        location: () => sendLocationMessage(formattedPhoneNumber, business_phone_number_id, additionalData, access_token, tenant_id)
+      };
+
+      if (!messageHandlers[messageType]) {
+        throw new Error("Invalid message type");
       }
 
-      const [ response] = await Promise.all([ sendMessagePromise]);
-
-
+      const response = await messageHandlers[messageType]();
       const messageID = response.data?.messages[0]?.id;
-      if (bg_id != null && messageID) {
-        // updateStatus(null, messageID, business_phone_number_id, null, bg_id, tenant_id).catch(console.error);
-      }
 
       return { phoneNumber: formattedPhoneNumber, messageID, success: true };
     });
 
     const results = await Promise.all(sendPromises);
-    res.status(200).json({ success: true, message: "WhatsApp message(s) sent successfully", results });
+    res.json({ results });
   } catch (error) {
-    console.error("Error sending WhatsApp message:", error.message);
-    res.status(500).json({ success: false, error: "Failed to send WhatsApp message" });
+    console.error("Error sending message:", error);
+    res.status(500).json({ error: "Failed to send message" });
   }
 });
 
@@ -447,6 +430,10 @@ async function processOrder(userSession, products) {
   }
 }
 
+async function processOrder2(userSession, products) {
+  console.log("Products: ", products)
+}
+
 async function handleQuery(message, userSession) {
   const query = message?.text?.body
   const data = {query: query, phone: userSession.userPhoneNumber}
@@ -474,7 +461,7 @@ async function handleQuery(message, userSession) {
       }
   }
   }
-  sendMessage(userPhoneNumber, business_phone_number_id, messageData)
+  sendMessage(userPhoneNumber, business_phone_number_id, messageData, userSession.accessToken, userSession.tenant)
 }
 
 const languageMap = {
@@ -646,10 +633,12 @@ app.post("/webhook", async (req, res) => {
             }
             else if (message?.type =="order"){
                 // await processOrder(userSession, products)
-              await processOrderForDrishtee(userSession, products)
-              userSession.currNode = userSession.nextNode[0];
-              console.log("Current node after processing order: ", userSession.currNode)
-              sendNodeMessage(userPhoneNumber,business_phone_number_id);
+              // await processOrderForDrishtee(userSession, products)
+              await processOrder2(userSession, products)
+              
+              // userSession.currNode = userSession.nextNode[0];
+              // console.log("Current node after processing order: ", userSession.currNode)
+              // sendNodeMessage(userPhoneNumber,business_phone_number_id);
             }
             else if (message?.type == "button"){
               const userSelectionText = message?.button?.text
@@ -910,8 +899,7 @@ console.log("LANGUAGE LIST: ", language_list)
           action: { buttons: button_rows }
       }
 }
-const fr_flag = false
-return sendMessage(phoneNumber, business_phone_number_id, messageData, access_token, fr_flag, tenant_id)
+return sendMessage(phoneNumber, business_phone_number_id, messageData, access_token, tenant_id)
   }
 
 async function sendLanguageSelectionListMessage(language_list, message, access_token, phoneNumber, business_phone_number_id, tenant_id) {
@@ -932,8 +920,7 @@ const messageData = {
     }
 };
 
-const fr_flag = false
-return sendMessage(phoneNumber, business_phone_number_id, messageData, access_token, fr_flag, tenant_id)
+return sendMessage(phoneNumber, business_phone_number_id, messageData, access_token, tenant_id)
 
 }
 
@@ -946,7 +933,6 @@ async function sendLanguageSelectionMessage(message_text, access_token, phoneNum
     }
   }
 
-  const fr_flag = false
-return sendMessage(phoneNumber, business_phone_number_id, messageData, access_token, fr_flag, tenant_id)
+return sendMessage(phoneNumber, business_phone_number_id, messageData, access_token, tenant_id)
 
 }

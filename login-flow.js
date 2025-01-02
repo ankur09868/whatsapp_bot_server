@@ -1,10 +1,6 @@
 import axios from "axios";
 
-import { setTemplate, sendNodeMessage, sendProductMessage, sendListMessage, sendInputMessage, sendButtonMessage, sendImageMessage, sendTextMessage, sendAudioMessage, sendVideoMessage, sendLocationMessage, fastURL, djangoURL} from "./snm.js"
-import { sendMessage  } from "./send-message.js"; 
-import  { sendProduct, sendBill, sendBillMessage, sendProductList, sendProduct_List } from "./product.js"
-import { validateInput, replacePlaceholders, addDynamicModelInstance, addContact, executeFallback } from "./misc.js"
-import { getMediaID, handleMediaUploads, checkBlobExists, getImageAndUploadToBlob } from "./handle-media.js"
+import { djangoURL} from "./snm.js"
 
 
 export async function getAccessToken(auth_code) {

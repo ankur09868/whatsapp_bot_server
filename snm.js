@@ -99,7 +99,7 @@ export const pickCategoryMap = {
 };
 
   
-export async function sendLocationMessage(phone, bpid, body, access_token=null,tenant_id=null, fr_flag = false) {
+export async function sendLocationMessage(phone, bpid, body, access_token=null,tenant_id=null) {
     const { latitude, longitude, name, address } = body
     const messageData = {
         type: "location",
@@ -111,20 +111,20 @@ export async function sendLocationMessage(phone, bpid, body, access_token=null,t
         }
     }
 
-    return sendMessage(phone, bpid, messageData, access_token, fr_flag, tenant_id)
+    return sendMessage(phone, bpid, messageData, access_token, tenant_id)
 }
 
-export async function sendVideoMessage(phone, bpid, videoID, access_token=null, tenant_id=null, fr_flag = false) {
+export async function sendVideoMessage(phone, bpid, videoID, access_token=null, tenant_id=null) {
     const messageData = {
         type : "video",
         video : {
             id: videoID
         }
     }
-    return sendMessage(phone, bpid, messageData, access_token, fr_flag, tenant_id)
+    return sendMessage(phone, bpid, messageData, access_token, tenant_id)
 }
 
-export async function sendAudioMessage(phone, bpid, audioID, caption, access_token=null,tenant_id=null, fr_flag = false) {
+export async function sendAudioMessage(phone, bpid, audioID, caption, access_token=null,tenant_id=null) {
     const audioObject = {}
     if(audioID) audioObject.id = audioID
     if(caption) audioObject.caption = caption
@@ -132,19 +132,19 @@ export async function sendAudioMessage(phone, bpid, audioID, caption, access_tok
     type: "audio",
     audio: audioObject
   }
-  return sendMessage(phone, bpid, messageData, access_token, fr_flag, tenant_id)
+  return sendMessage(phone, bpid, messageData, access_token, tenant_id)
 }
   
-export async function sendTextMessage(userPhoneNumber, business_phone_number_id,message, access_token = null, tenant_id=null ,fr_flag = false){
+export async function sendTextMessage(userPhoneNumber, business_phone_number_id,message, access_token, tenant_id){
     console.log("cCess:token: ", access_token)
     const messageData = {
         type: "text",
         text: { body: message }
     }
-    return sendMessage(userPhoneNumber, business_phone_number_id, messageData, access_token, fr_flag, tenant_id)
+    return sendMessage(userPhoneNumber, business_phone_number_id, messageData, access_token, tenant_id)
 } 
  
-export async function sendImageMessage(phoneNumber, business_phone_number_id, imageID, caption, access_token = null, tenant_id=null, fr_flag= false) {
+export async function sendImageMessage(phoneNumber, business_phone_number_id, imageID, caption, access_token = null, tenant_id=null) {
     const imageObject = {}
     if(imageID) imageObject.id = imageID
     if(caption) imageObject.caption = caption
@@ -153,10 +153,10 @@ export async function sendImageMessage(phoneNumber, business_phone_number_id, im
         image: imageObject
     };
     console.log("IMAGEEEE");
-    return sendMessage(phoneNumber, business_phone_number_id, messageData, access_token, fr_flag ,tenant_id);
+    return sendMessage(phoneNumber, business_phone_number_id, messageData, access_token ,tenant_id);
 }
 
-export async function sendButtonMessage(buttons, message, phoneNumber, business_phone_number_id,  mediaID = null, access_token = null,tenant_id=null, fr_flag = false) {
+export async function sendButtonMessage(buttons, message, phoneNumber, business_phone_number_id,  mediaID = null, access_token = null,tenant_id=null) {
     console.log("phone number: ", phoneNumber, business_phone_number_id)
     const key = phoneNumber + business_phone_number_id
     // console.log("USER SESSIONS: ", userSessions, key)
@@ -184,22 +184,22 @@ export async function sendButtonMessage(buttons, message, phoneNumber, business_
             console.log("media id present")
             messageData.interactive['header'] = { type: 'image', image: {id: mediaID}}
         }
-        return sendMessage(phoneNumber, business_phone_number_id, messageData, access_token, fr_flag, tenant_id)
+        return sendMessage(phoneNumber, business_phone_number_id, messageData, access_token, tenant_id)
     } catch (error) {
         console.error('Failed to send button message:', error.response ? error.response.data : error.message);
         return { success: false, error: error.response ? error.response.data : error.message };
     }
 }
 
-export async function sendInputMessage(userPhoneNumber, business_phone_number_id,message, access_token = null,tenant_id=null, fr_flag = false){
+export async function sendInputMessage(userPhoneNumber, business_phone_number_id,message, access_token = null,tenant_id=null){
     const messageData = {
         type: "text",
         text: { body: message }
     }
-    return sendMessage(userPhoneNumber, business_phone_number_id, messageData, access_token, fr_flag, tenant_id)
+    return sendMessage(userPhoneNumber, business_phone_number_id, messageData, access_token, tenant_id)
 }
 
-export async function sendListMessage(list, message, phoneNumber, business_phone_number_id, access_token =  null,tenant_id=null, fr_flag = false) {
+export async function sendListMessage(list, message, phoneNumber, business_phone_number_id, access_token =  null,tenant_id=null) {
     const key = phoneNumber + business_phone_number_id
     // console.log("USER SESSIONS: ",  userSessions, key)
     const userSession = userSessions.get(key);
@@ -222,10 +222,10 @@ export async function sendListMessage(list, message, phoneNumber, business_phone
             }
         }
     };
-    return sendMessage(phoneNumber, business_phone_number_id, messageData, access_token, fr_flag, tenant_id);
+    return sendMessage(phoneNumber, business_phone_number_id, messageData, access_token, tenant_id);
 }
 
-export async function sendProductMessage(userSession, product_list, catalog_id, header, body, footer, section_title, tenant_id = null, fr_flag = false){
+export async function sendProductMessage(userSession, product_list, catalog_id, header, body, footer, section_title, tenant_id = null){
     let productMessageData;
     // single product
     if (product_list.length == 1){
@@ -276,7 +276,7 @@ export async function sendProductMessage(userSession, product_list, catalog_id, 
         if(footer) productMessageData.interactive['footer'] = {text: footer}
     }
     console.log("Message Data ", JSON.stringify(productMessageData, null, 4))
-    await sendMessage(userSession.userPhoneNumber, userSession.business_phone_number_id, productMessageData, userSession.accessToken, fr_flag, tenant_id)
+    await sendMessage(userSession.userPhoneNumber, userSession.business_phone_number_id, productMessageData, userSession.accessToken, tenant_id)
 }
 
 export async function sendNodeMessage(userPhoneNumber, business_phone_number_id) {
@@ -397,8 +397,7 @@ export async function sendNodeMessage(userPhoneNumber, business_phone_number_id)
 
                 if(api_placeholders.length > 0 || contact_placeholders.length > 0) node_message = await replacePlaceholders(node_message, userSession, api_placeholders, contact_placeholders)
                     
-                const fr_flag = false
-                await sendTextMessage(userPhoneNumber,business_phone_number_id, node_message, userSession.accessToken, userSession.tenant, fr_flag);
+                await sendTextMessage(userPhoneNumber,business_phone_number_id, node_message, userSession.accessToken, userSession.tenant);
                 // console.log(nextNode[0])
                 userSession.currNode = nextNode[0] !==undefined ? nextNode[0] : null;
                 console.log("string currNode: ", userSession.currNode)

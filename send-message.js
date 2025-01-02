@@ -5,7 +5,7 @@ import { userSessions, io } from "./server.js";
 import axios from "axios";
 import { getIndianCurrentTime, saveMessage } from "./misc.js";
 
-export async function sendMessage(phoneNumber, business_phone_number_id, messageData, access_token = null, fr_flag, tenant) {
+export async function sendMessage(phoneNumber, business_phone_number_id, messageData, access_token = null, tenant) {
 
     const key = phoneNumber + business_phone_number_id;
     // console.log("USESESES: ", userSessions, key)
@@ -72,7 +72,7 @@ export async function sendMessage(phoneNumber, business_phone_number_id, message
             });
             console.log("Emitted  Node Message: ", messageData)
             let formattedConversation = [{ text: messageData, sender: "bot" }];
-            saveMessage(userSession.userPhoneNumber, userSession.business_phone_number_id, formattedConversation, userSession.tenant, timestamp)
+            saveMessage(phoneNumber, business_phone_number_id, formattedConversation, tenant, timestamp)
 
             await mediaURLPromise
             // if(userSession) console.log("Current Node after sending message: ", userSession.currNode, "Next Node after sending message: ", userSession.nextNode)
@@ -88,7 +88,7 @@ export async function sendMessage(phoneNumber, business_phone_number_id, message
     }
 }
 
-export async function sendMessageTemplate(phoneNumber, business_phone_number_id, messageData, access_token = null, fr_flag, tenant) {
+export async function sendMessageTemplate(phoneNumber, business_phone_number_id, messageData, access_token = null, tenant) {
     const url = `https://graph.facebook.com/v18.0/${business_phone_number_id}/messages`;
 
     try {

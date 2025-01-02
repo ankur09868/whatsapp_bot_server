@@ -333,7 +333,7 @@ export async function updateStatus(status, message_id, business_phone_number_id,
   }
 }
 
-export async function sendMessageTemplate(phoneNumber, business_phone_number_id, messageData, access_token = null, fr_flag, tenant) {
+export async function sendMessageTemplate(phoneNumber, business_phone_number_id, messageData, access_token = null, tenant) {
   const url = `https://graph.facebook.com/v18.0/${business_phone_number_id}/messages`;
 
   try {

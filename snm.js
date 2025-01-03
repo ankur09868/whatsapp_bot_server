@@ -567,6 +567,9 @@ export async function sendNodeMessage(userPhoneNumber, business_phone_number_id)
                     if(userSession.language == "mr") templateName = "carouseldrishteemar"
                     if(userSession.language == "bn") templateName = "carouseldrishteeben"
                 }
+                else if(userSession.tenant == "leqcjsk"){
+                    if(userSession.language == "mr") templateName = "carouseldrishteemar"
+                }
                 console.log("Language: ", userSession.language, "Name: ", templateName)
                 await sendTemplateMessage(templateName, userSession)
 

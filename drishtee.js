@@ -413,7 +413,7 @@ export async function handleCatalogManagement(selectionID, userSession) {
         if(product_list.length>0){
             const header = await getKeyFromValue(local_reg, categoryID)
             // const body = userSession.language == "en" ? `Browse through our exclusive collection of ${header} products and find what suits your needs best. Shop now and enjoy amazing offers!` : `हमारे ${header} उत्पादों के विशेष संग्रह को ब्राउज़ करें और अपनी आवश्यकताओं के अनुसार सबसे उपयुक्त उत्पाद खोजें। अभी खरीदारी करें और शानदार ऑफ़र्स का आनंद लें!`
-            const catalog_id = 1134019438184024
+            const catalog_id = 1822573908147892
             const footer = null
             const section_title = header
             const chunkSize = 30;

@@ -1,9 +1,9 @@
 import { fastURL, djangoURL} from "./snm.js"
 
-import { getImageAndUploadToBlob } from "./handle-media.js"
+import { getImageAndUploadToBlob } from "./helpers/handle-media.js"
 import { userSessions, io } from "./server.js";
 import axios from "axios";
-import { getIndianCurrentTime, saveMessage } from "./misc.js";
+import { getIndianCurrentTime, saveMessage } from "./helpers/misc.js";
 
 export async function sendMessage(phoneNumber, business_phone_number_id, messageData, access_token = null, tenant) {
 

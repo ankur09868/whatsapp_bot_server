@@ -1,6 +1,6 @@
 import axios from "axios";
 
-import { djangoURL} from "./snm.js"
+import { djangoURL} from "../snm.js"
 
 
 export async function getAccessToken(auth_code) {

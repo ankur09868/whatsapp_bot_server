@@ -1,7 +1,6 @@
 
-import { sendTextMessage, fastURL, djangoURL} from "./snm.js"
-
-import { userSessions } from "./server.js";
+import { sendTextMessage, fastURL, djangoURL} from "../snm.js"
+import { userSessions, messageCache } from "../server.js";
 import axios from "axios";
 
 const fallback_messages = {
@@ -24,6 +23,7 @@ export async function executeFallback(userSession){
     if(fallback_count > 0){
         console.log("Fallback Count: ", fallback_count)
         const fallback_msg = userSession.language == null ? userSession.fallback_msg : fallback_messages?.[`${userSession.language}`]
+        console.log("Fallback Message: ", fallback_msg)
         const access_token = userSession.accessToken
         const response = await sendTextMessage(userPhoneNumber, business_phone_number_id, fallback_msg, access_token)
         fallback_count=fallback_count - 1;
@@ -35,15 +35,14 @@ export async function executeFallback(userSession){
     }
 }
 
-export async function addContact(phone, name, tenant) {
+export async function addContact(phone, name, bpid) {
     try{
-        console.log(`Saving ${name} with phone ${phone} under tenant ${tenant} to DB`)
         const c_data = {
             name: name,
             phone: phone
         }
         await axios.post(`${djangoURL}/contacts_by_tenant/`, c_data, {
-        headers: {'X-Tenant-Id': tenant}
+        headers: {'bpid': bpid}
         })
     }catch (error){
         console.error('Error Occured while adding contact: ', error.message)
@@ -76,12 +75,12 @@ export async function addDynamicModelInstance(modelName, updateData, tenant) {
     }
 }
 
-export async function replacePlaceholders(message, userSession, api_placeholders, contact_placeholders) {
+export async function replacePlaceholders(message, userSession) {
     
     console.log("message b4 replacement: ", message) 
 
     
-        // const placeholders = [...message.matchAll(/{{\s*[\w]+\s*}}/g)];
+    const contact_placeholders = [...message.matchAll(/{{\s*[\w]+\s*}}/g)];
         
     if(contact_placeholders && contact_placeholders.length > 0){
         console.log("Contact Placeholders: ", contact_placeholders)
@@ -112,35 +111,35 @@ export async function replacePlaceholders(message, userSession, api_placeholders
         }
     }
 
-    api_placeholders = [...message.matchAll(/{{\s*[\w._\[\]]+\s*}}/g)] || []; 
+    // api_placeholders = [...message.matchAll(/{{\s*[\w._\[\]]+\s*}}/g)] || []; 
     
-    if(api_placeholders && api_placeholders.length>0){
-        console.log("placeholders: ", api_placeholders)
+    // if(api_placeholders && api_placeholders.length>0){
+    //     console.log("placeholders: ", api_placeholders)
 
-        for (const placeholder of api_placeholders) {
-            const key = placeholder[0].slice(2, -2).trim();
-            console.log("ey: ", key);
+    //     for (const placeholder of api_placeholders) {
+    //         const key = placeholder[0].slice(2, -2).trim();
+    //         console.log("ey: ", key);
 
-            const value = key.split('.').reduce((acc, part) => {
-                if (part.includes('[')) {
-                    const [arrayKey, index] = part.split('[');
-                    const cleanIndex = index.replace(']', ''); 
-                    const acc_list = acc?.[arrayKey];
-                    const flow_data = acc_list[parseInt(cleanIndex)]
-                    return flow_data; 
-                }
-                return acc?.[part]; 
-            }, userSession.api.GET);
-            // const value = userSession.api.GET?.[key]
+    //         const value = key.split('.').reduce((acc, part) => {
+    //             if (part.includes('[')) {
+    //                 const [arrayKey, index] = part.split('[');
+    //                 const cleanIndex = index.replace(']', ''); 
+    //                 const acc_list = acc?.[arrayKey];
+    //                 const flow_data = acc_list[parseInt(cleanIndex)]
+    //                 return flow_data; 
+    //             }
+    //             return acc?.[part]; 
+    //         }, userSession.api.GET);
+    //         // const value = userSession.api.GET?.[key]
 
-            console.log("Value: ", value);
+    //         console.log("Value: ", value);
 
             
-            if (value !== undefined) {
-                message = message.replace(placeholder[0], value);
-            }
-        }
-    }
+    //         if (value !== undefined) {
+    //             message = message.replace(placeholder[0], value);
+    //         }
+    //     }
+    // }
 
 console.log("MEssage after replacing: " ,message)
 
@@ -324,4 +323,85 @@ export async function getIndianCurrentTime(){
     const indiaTime = new Intl.DateTimeFormat('en-GB', options).format(current_time);
     console.log("India Time: ", indiaTime)
     return indiaTime
+}
+
+export async function getSession(business_phone_number_id, contact) {
+  console.log("Contact: " ,contact)
+  const userPhoneNumber = contact?.wa_id
+  const userName = contact?.profile?.name || "Nuren User"
+
+  let userSession = userSessions.get(userPhoneNumber+business_phone_number_id);
+
+  if (!userSession) {
+    
+      addContact(userPhoneNumber, userName, business_phone_number_id)
+      console.log(`Creating new session for user ${userPhoneNumber}`);
+      try {
+      let responseData = messageCache.get(business_phone_number_id)
+      if(!responseData){
+      const response = await axios.get(`${fastURL}/whatsapp_tenant`,{
+          headers: {'bpid': business_phone_number_id}
+      });
+      responseData = response.data
+      messageCache.set(business_phone_number_id, responseData)
+      }
+      console.log("Tenant data received:", responseData);
+      const responseFlowData = responseData?.whatsapp_data
+      let multilingual = responseData?.whatsapp_data[0].multilingual;
+      let flowData;
+      if (multilingual) flowData = responseData?.whatsapp_data
+      else flowData = responseData?.whatsapp_data[0].flow_data
+
+      
+      const adjList = responseData?.whatsapp_data[0]?.adj_list
+      const startNode = responseData?.whatsapp_data[0]?.start !== null ? responseData?.whatsapp_data[0]?.start : 0;
+      const currNode = startNode
+      // const multilingual = flowData.length > 1 ? true : false
+      if(!flowData && !adjList) console.error("Flow Data is not present for bpid: ", business_phone_number_id)
+      userSession = {
+          type: "chatbot",
+          AIMode: false,
+          lastActivityTime: Date.now(),
+          flowData: flowData,
+          adjList: adjList,
+          accessToken: responseData.whatsapp_data[0].access_token,
+          accountID: responseData.whatsapp_data[0].business_account_id,
+          flowName : responseData.whatsapp_data[0].flow_name,
+          startNode : startNode,
+          currNode: currNode,
+          nextNode: adjList[currNode],
+          business_phone_number_id: responseData.whatsapp_data[0].business_phone_number_id,
+          tenant : responseData.whatsapp_data[0].tenant_id,
+          userPhoneNumber : userPhoneNumber,
+          userName: userName,
+          inputVariable : null,
+          inputVariableType: null,
+          fallback_msg : responseData.whatsapp_data[0].fallback_message || "please provide correct input",
+          fallback_count: responseData.whatsapp_data[0].fallback_count != null ? responseData.whatsapp_data[0].fallback_count : 1,
+          products: responseData.catalog_data,
+          language: "en",
+          multilingual: multilingual,
+          doorbell: responseData.whatsapp_data[0]?.introductory_msg || null,
+          api:  {
+            POST: {},
+            GET: {}
+          }
+      };
+
+      const key = userPhoneNumber + business_phone_number_id
+      
+      userSessions.set(key, userSession);
+      } catch (error) {
+      console.error(`Error fetching tenant data for user ${userPhoneNumber}:`, error);
+      throw error;
+      }
+  } else {
+      userSession.lastActivityTime = Date.now()
+      if(userSession.currNode != null) userSession.nextNode = userSession.adjList[userSession.currNode]
+      else {
+      userSession.currNode = userSession.startNode
+      userSession.nextNode = userSession.adjList[userSession.currNode]
+      }
+  }
+  return userSession;
 }

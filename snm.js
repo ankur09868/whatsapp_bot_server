@@ -2,8 +2,8 @@ import { userSessions, messageCache } from "./server.js";
 import {sendMessage} from "./send-message.js"
 import axios from "axios";
 
-import { replacePlaceholders, addDynamicModelInstance, addContact, executeFallback } from "./misc.js"
-import { getMediaID } from "./handle-media.js"
+import { replacePlaceholders, addDynamicModelInstance, addContact, executeFallback } from "./helpers/misc.js"
+import { getMediaID } from "./helpers/handle-media.js"
 import { json } from "express";
 
 
@@ -676,7 +676,7 @@ try {
 }
 }
 
-export async function sendTemplateMessage(templateName, userSession) {
+export async function setTemplateData(templateName, userSession){
     let responseData = messageCache.get(userSession.business_phone_number_id);
 
     // Fetch tenant data if not available in cache
@@ -728,15 +728,21 @@ export async function sendTemplateMessage(templateName, userSession) {
     
 
     const messageData = await setTemplateCar(
-    templateData, // Template data from job
+    templateData,
     userSession.userPhoneNumber,
     userSession.business_phone_number_id,
     userSession.accessToken
     );
 
     console.log("Message Data: ", messageData);
+    return messageData;
+}
 
+export async function sendTemplateMessage(templateName, userSession) {
+    
     // Send message template
+    const messageData = await setTemplateData(templateName, userSession);
+
     const sendMessageResponse = await sendMessageTemplate(
     userSession.userPhoneNumber,
     userSession.business_phone_number_id,
@@ -744,9 +750,8 @@ export async function sendTemplateMessage(templateName, userSession) {
     userSession.accessToken,
     userSession.tenant
     );
-
+    
 }
-
 
 
 export async function setTemplateCar(templateData, phone, bpid, access_token) {
@@ -909,7 +914,7 @@ export async function setTemplateCar(templateData, phone, bpid, access_token) {
         console.error("Error in setTemplate function:", error);
         throw error; // Rethrow the error to handle it further up the call stack if needed
     }
-    }
+}
   
   
 export async function sendMessageTemplate(phoneNumber, business_phone_number_id, messageData, access_token = null, tenant) {

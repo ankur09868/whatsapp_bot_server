@@ -5,7 +5,7 @@
 pm2 start server.js --name "server"
 
 # Start the worker.js script
-pm2 start worker.js --name "worker"
+pm2 start queues/worker.js --name "worker"
 
 # Save PM2 process list
 pm2 save

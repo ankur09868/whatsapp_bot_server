@@ -324,6 +324,7 @@ app.post("/webhook", async (req, res) => {
         updateStatus(status, id, null, null, null, null, timestamp)
         updateLastSeen("seen", timestamp, userPhone, business_phone_number_id)
       }
+      
     }
     console.log("Webhook Processing Complete")
     res.sendStatus(200)

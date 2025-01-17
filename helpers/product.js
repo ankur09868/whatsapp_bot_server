@@ -1,6 +1,6 @@
 
-import { sendNodeMessage} from "./snm.js"
-import { sendMessage  } from "./send-message.js";
+import { sendNodeMessage} from "../snm.js"
+import { sendMessage  } from "../send-message.js";
 
 export async function sendProduct_List() {
     const messageData = {

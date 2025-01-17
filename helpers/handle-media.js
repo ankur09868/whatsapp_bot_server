@@ -1,6 +1,6 @@
 import { getAccessToken, getWabaID, getPhoneNumberID, registerAccount, postRegister } from "./login-flow.js";
-import { setTemplate, sendNodeMessage, sendProductMessage, sendListMessage, sendInputMessage, sendButtonMessage, sendImageMessage, sendTextMessage, sendAudioMessage, sendVideoMessage, sendLocationMessage, fastURL, djangoURL } from "./snm.js";
-import { userSessions, io, messageCache } from "./server.js";
+import { setTemplate, sendNodeMessage, sendProductMessage, sendListMessage, sendInputMessage, sendButtonMessage, sendImageMessage, sendTextMessage, sendAudioMessage, sendVideoMessage, sendLocationMessage, fastURL, djangoURL } from "../snm.js";
+import { userSessions, io, messageCache } from "../server.js";
 import axios from "axios";
 import { BlobServiceClient } from '@azure/storage-blob';
 
@@ -139,7 +139,6 @@ try {
 }
 }
 
-
 export async function getMediaID(handle, bpid, access_token) {
   try {
     console.log("HANDLE: ", handle, bpid, access_token);
@@ -190,5 +189,24 @@ export async function getMediaID(handle, bpid, access_token) {
   }
 }
 
+export async function convertToDataframe(document) {
+  try {
+    const formData = new FormData();
 
+    formData.append("file", document); // Add directly if it's already a readable stream or Blob
+    
+
+    const response = await axios.post(`${fastURL}/upload_document`, formData, {
+      headers: {
+        ...formData.getHeaders(), // Set proper headers for multipart/form-data
+      },
+    });
+
+    console.log("Response from FastAPI:", response.data);
+    return response.data; // Return the response data if needed
+  } catch (error) {
+    console.error("Error uploading document:", error.message);
+    throw error; // Rethrow the error to handle it in the calling function
+  }
+}
 

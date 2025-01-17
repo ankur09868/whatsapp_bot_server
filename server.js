@@ -3,22 +3,27 @@ import axios from "axios";
 import NodeCache from 'node-cache';
 import cors from 'cors';
 import session from "express-session";
+import crypto from "crypto";
+import dotenv from "dotenv"
 import { createServer } from "http";
 import { Server } from "socket.io";
 
-import { getAccessToken, getWabaID, getPhoneNumberID, registerAccount, postRegister, addKey } from "./login-flow.js";
-import { setTemplate, sendNodeMessage, sendImageMessage, sendTextMessage, sendAudioMessage, sendVideoMessage, sendLocationMessage, fastURL, djangoURL, sendListMessage} from "./snm.js"
-import { sendMessage, sendMessageTemplate  } from "./send-message.js"; 
-import  { sendProduct, sendBill} from "./product.js"
-import { updateStatus, addDynamicModelInstance, addContact, executeFallback, saveMessage, sendNotification, updateLastSeen, getIndianCurrentTime } from "./misc.js"
-import { handleMediaUploads } from "./handle-media.js"
-import {Worker, workerData} from "worker_threads"
-import { messageQueue } from "./queues/messageQueue.js";
-import { DRISHTEE_PRODUCT_CAROUSEL_IDS, handleCatalogManagement }  from "./drishtee.js"
+import { decryptRequest, encryptResponse, FlowEndpointException } from "./flowsAPI/encryption.js";
+import { getNextScreen } from "./flowsAPI/flow.js";
+import { getAccessToken, getWabaID, getPhoneNumberID, registerAccount, postRegister, addKey } from "./helpers/login-flow.js";
+import { sendImageMessage, sendTextMessage, sendAudioMessage, sendVideoMessage, sendLocationMessage, fastURL, djangoURL} from "./snm.js"
+import { updateStatus, updateLastSeen, getIndianCurrentTime } from "./helpers/misc.js"
+import { Worker } from "worker_threads"
+import { messageQueue } from "./queues/workerQueues.js";
+import { nuren_users } from "./helpers/order.js"; 
+import { businessWebhook } from "./webhooks/businessWebhook.js";
+import { userWebhook } from "./webhooks/userWebhook.js";
+import { manualWebhook, testWebhook } from "./webhooks/manualWebhook.js";
+import { campaignWebhook, startCampaign, readData } from "./webhooks/campaignWebhook.js";
 
 
 export const messageCache = new NodeCache({ stdTTL: 600 });
-
+dotenv.config()
 const WEBHOOK_VERIFY_TOKEN = "COOL";
 const PORT = 8080;
 const app = express();
@@ -33,13 +38,22 @@ export const io = new Server(httpServer, {
 });
 
 export let userSessions = new Map();
+export const nurenConsumerMap = {}
 
 httpServer.listen(PORT, () => {
   console.log(`Server is listening on port: ${PORT}`);
 });
 
 
-app.use(express.json());
+app.use(
+  express.json({
+    // store the raw request body to use it for signature verification
+    verify: (req, res, buf, encoding) => {
+      req.rawBody = buf?.toString(encoding || "utf8");
+    },
+  }),
+);
+
 app.use(cors());
 
 app.use((req, res, next) => {
@@ -153,8 +167,6 @@ worker.on("error", (msg) => {
 console.log('hurreyy')
 })
 
-
-
 app.post("/send-template", async (req, res) => {
   const { bg_id, bg_name, template, business_phone_number_id, phoneNumbers } = req.body;
   // const tenant_id = req.headers["x-tenant-id"];
@@ -263,557 +275,58 @@ app.post("/reset-session", async (req, res) => {
   }
 });
 
-async function getSession(business_phone_number_id, contact) {
-  console.log("Contact: " ,contact)
-  const userPhoneNumber = contact?.wa_id
-  const userName = contact?.profile?.name || null
-
-  let userSession = userSessions.get(userPhoneNumber+business_phone_number_id);
-
-  if (!userSession) {
-      console.log(`Creating new session for user ${userPhoneNumber}`);
-      try {
-      let responseData = messageCache.get(business_phone_number_id)
-      if(!responseData){
-      const response = await axios.get(`${fastURL}/whatsapp_tenant`,{
-          headers: {'bpid': business_phone_number_id}
-      });
-      responseData = response.data
-      messageCache.set(business_phone_number_id, responseData)
-      }
-      console.log("Tenant data received:", responseData);
-      const responseFlowData = responseData?.whatsapp_data
-      let multilingual = responseData?.whatsapp_data[0].multilingual;
-      let flowData;
-      if (multilingual) flowData = responseData?.whatsapp_data
-      else flowData = responseData?.whatsapp_data[0].flow_data
-
-      
-      const adjList = responseData?.whatsapp_data[0]?.adj_list
-      const startNode = responseData?.whatsapp_data[0]?.start !== null ? responseData?.whatsapp_data[0]?.start : 0;
-      const currNode = startNode
-      // const multilingual = flowData.length > 1 ? true : false
-      if(!flowData && !adjList) console.error("Flow Data is not present for bpid: ", business_phone_number_id)
-      userSession = {
-          AIMode: false,
-          lastActivityTime: Date.now(),
-          flowData: flowData,
-          adjList: adjList,
-          accessToken: responseData.whatsapp_data[0].access_token,
-          flowName : responseData.whatsapp_data[0].flow_name,
-          startNode : startNode,
-          currNode: currNode,
-          nextNode: adjList[currNode],
-          business_phone_number_id: responseData.whatsapp_data[0].business_phone_number_id,
-          tenant : responseData.whatsapp_data[0].tenant_id,
-          userPhoneNumber : userPhoneNumber,
-          userName: userName,
-          inputVariable : null,
-          inputVariableType: null,
-          fallback_msg : responseData.whatsapp_data[0].fallback_message || "please provide correct input",
-          fallback_count: responseData.whatsapp_data[0].fallback_count != null ? responseData.whatsapp_data[0].fallback_count : 1,
-          products: responseData.catalog_data,
-          language: "en",
-          multilingual: multilingual,
-          doorbell: responseData.whatsapp_data[0]?.introductory_msg || null,
-          api:  {
-            POST: {},
-            GET: {}
-          }
-      };
-
-      const key = userPhoneNumber + business_phone_number_id
-      
-      userSessions.set(key, userSession);
-      } catch (error) {
-      console.error(`Error fetching tenant data for user ${userPhoneNumber}:`, error);
-      throw error;
-      }
-  } else {
-      userSession.lastActivityTime = Date.now()
-      if(userSession.currNode != null) userSession.nextNode = userSession.adjList[userSession.currNode]
-      else {
-      userSession.currNode = userSession.startNode
-      userSession.nextNode = userSession.adjList[userSession.currNode]
-      }
-  }
-
-  return userSession;
-}
-
-async function handleInput(userSession, message) {
-  if (userSession.inputVariable !== undefined && userSession.inputVariable !== null && userSession.inputVariable.length > 0){
-
-      // if (message?.type == "image" || message?.type == "document" || message?.type == "video") {
-      //   console.log("Processing media message:", message?.type);
-      //   const mediaID = message?.image?.id || message?.document?.id || message?.video?.id;
-      //   console.log("Media ID:", mediaID);
-      //   const doc_name = userSession.inputVariable
-      //   try {
-      //     console.log("Uploading file", userSession.tenant);
-      //     await handleMediaUploads(userName, userPhoneNumber, doc_name, mediaID, userSession, tenant);
-      //   } catch (error) {
-      //     console.error("Error retrieving media content:", error);
-      //   }
-      //   console.log("Webhook processing completed successfully");
-      // }
-      // console.log(`Input Variable: ${userSession.inputVariable}`);
-      // // console.log(`Input Variable Type: ${userSession.inputVariableType}`);
-      // try{
-      //   // let userSelection = message?.interactive?.button_reply?.title || message?.interactive?.list_reply?.title || message?.text?.body;
-      
-      //   // var validateResponse = await validateInput(userSession.inputVariable, userSelection)
-        
-      //   var validateResponse = "Yes"
-      //   if(validateResponse == "No." || validateResponse == "No"){
-      //     await executeFallback(userSession)
-      //     res.sendStatus(200)
-      //     return
-      //   }else{
-      //     let userSelection = message?.interactive?.button_reply?.title || message?.interactive?.list_reply?.title || message?.text?.body;
-      
-      //     const updateData = {
-      //       phone_no : userSession.userPhoneNumber,
-      //       [userSession.inputVariable] : userSelection
-      //     }
-      //     const modelName = userSession.flowName
-          
-      //     addDynamicModelInstance(modelName , updateData, userSession.tenant)
-
-      //     console.log(`Updated model instance with data: ${JSON.stringify(updateData)}`);
-      //     console.log(`Input Variable after update: ${userSession.inputVariable}`);
-      //   }
-      // } catch (error) {
-      //   console.error("An error occurred during processing:", error);
-      // }
-
-    const input_variable = userSession.inputVariable
-    userSession.api.POST[input_variable] = message?.text?.body
-    userSession.inputVariable = null
-  }
-  return userSession;
-}
-
-async function processOrderForDrishtee(userSession, products) {
-  const responseMessage_hi = "हमारी टीम को आपकी प्रतिक्रिया प्राप्त हो गई है। अब हम आपके ऑर्डर को प्लेस करने की प्रक्रिया को आगे बढ़ा रहे हैं।"
-  const responseMessage_en = "Your response is received. Let's continue further process to place your order"
-  const responseMessage_bn = "আপনার উত্তর পাওয়া গেছে। আসুন আপনার অর্ডার দেওয়ার পরবর্তী প্রক্রিয়া শুরু করি।"
-  const responseMessage_mr = "आपला प्रतिसाद मिळाला आहे. चला, तुमची ऑर्डर देण्याची पुढील प्रक्रिया सुरू करूया."
-  let responseMessage = responseMessage_en;
-
-  const language = userSession.language
-
-  if(language == "mr") responseMessage = responseMessage_mr
-  else if(language == "bn") responseMessage = responseMessage_bn
-  else if(language == "hi") responseMessage = responseMessage_hi
-
-  // const failureMessage = userSession.language == "en" ? failureMessage_en: failureMessage_hi
-  sendTextMessage(userSession.userPhoneNumber, userSession.business_phone_number_id, responseMessage, userSession.accessToken, userSession.tenant)
-  console.log("Products: ", products)
-  const url = "https://testexpenses.drishtee.in/rrp/nuren/savePreOrder"
-  const headers = {'Content-Type': 'application/json'}
-  const data = {
-    RRP_id: userSession.api.POST?.["RRP_ID"],
-    products: products.map(product => {
-      return {
-        product_id: product.product_retailer_id,
-        product_quantity: product.quantity
-      }
-    })
-  }
-  const response = await axios.post(url, data, {headers: headers})
-  console.log("Response: ", response.data)
-}
-
-async function processOrder(userSession, products) {
-  let totalAmount = 0;
-  const product_list = []
-  console.log("Products: ", products)
-  for (let product of products){
-      console.log("Product: ", product)
-      totalAmount+=product.item_price * product.quantity
-      const product_id = product.product_retailer_id;
-      console.log("product id: ", product_id)
-      const product_name = userSession.products.find(product_c => product_c.product_id === product_id)
-      console.log("product nameeeeee: ", product_name)
-      product_list.push({"id": product_id, "quantity": product.quantity, "product_name": product_name.title})
-  }
-  console.log("Total Amount = ", totalAmount)
-  // console.log(product_list)
-
-  const response = await axios.post(`${djangoURL}/process-order/`, {order: product_list},{
-      headers: {
-          'X-Tenant-Id': userSession.tenant
-      }
-  })
-  if (response.data.status == 'success'){
-      await sendBill(totalAmount, product_list, userSession)
-  }
-  else if (response.data.status == 'failure'){
-      const reason  = response.data.reason
-      var failureMessage;
-      if (reason == 'insufficient_quantity'){
-          failureMessage = "We regret to inform you that your order could not be processed due to insufficient stock availability. We are actively working to replenish our inventory as soon as possible. We apologize for any inconvenience this may have caused."
-          sendTextMessage(userSession.userPhoneNumber, userSession.business_phone_number_id, failureMessage, userSession.accessToken, userSession.tenant)
-      }
-  }
-}
-
-async function processOrder2(userSession, products) {
-  console.log("Products: ", products)
-}
-
-async function handleQuery(message, userSession) {
-  const query = message?.text?.body
-  const data = {query: query, phone: userSession.userPhoneNumber}
-  const headers = { 'X-Tenant-Id': userSession.tenant }
-
-  const response = await axios.post(`${djangoURL}/query-faiss/`, data, {headers:  headers})
-
-  let messageText = response.data
-  const fixedMessageText = messageText.replace(/"/g, "'");
-  const messageData = {
-  type: "interactive",
-  interactive: {
-      type: "button",
-      body: { text: fixedMessageText },
-      action: {
-      buttons: [
-          {
-          type: 'reply',
-          reply: {
-          id: "Exit AI",
-          title: "Exit"
-          } 
-          }
-      ]
-      }
-  }
-  }
-  sendMessage(userPhoneNumber, business_phone_number_id, messageData, userSession.accessToken, userSession.tenant)
-}
-
-const languageMap = {
-  'Hindi': 'hi',
-  'English': 'en',
-  'Marathi': 'mr',
-  'Tamil': 'ta',
-  'Telugu': 'te',
-  'Gujarati': 'gu',
-  'Bengali': 'bn',
-  'Punjabi': 'pa',
-  'Malayalam': 'ml',
-  'Kannada': 'kn',
-  'Odia': 'or',
-  'Assamese': 'as',
-  'Kashmiri': 'ks',
-  'Urdu': 'ur',
-  'Nepali': 'ne',
-  'Sanskrit': 'sa',
-  'Maithili': 'mai',
-  'Dogri': 'doi',
-  'Konkani': 'kok',
-  'Bodo': 'bodo',
-  'Sindhi': 'sd',
-  'Manipuri': 'mni',
-  'Santhali': 'sat',
-  'Bhojpuri': 'bho',
-  'Hinglish': 'hing'
-};
-
-const countryMobileCodes = {
-  "1": "United States",
-  "91": "India",
-  "86": "China",
-  "7": "Russia",
-  "81": "Japan",
-  "44": "United Kingdom",
-  "33": "France",
-  "49": "Germany",
-  "39": "Italy",
-  "61": "Australia",
-  "55": "Brazil",
-  "27": "South Africa",
-  "34": "Spain",
-  "90": "Turkey",
-  "82": "South Korea",
-  "62": "Indonesia",
-  "52": "Mexico",
-  "64": "New Zealand",
-  "971": "United Arab Emirates",
-  "66": "Thailand"
-};
-
-
 
 app.post("/webhook", async (req, res) => {
   try {
-      // console.log("Received Webhook: ", JSON.stringify(req.body, null, 6))
-      const business_phone_number_id = req.body.entry?.[0].changes?.[0].value?.metadata?.phone_number_id;
-      const contact = req.body.entry?.[0]?.changes[0]?.value?.contacts?.[0];
-      const message = req.body.entry?.[0]?.changes[0]?.value?.messages?.[0];
+    const contact = req.body.entry?.[0]?.changes[0]?.value?.contacts?.[0];
+    const message = req.body.entry?.[0]?.changes[0]?.value?.messages?.[0];
+    const statuses = req.body.entry?.[0]?.changes[0]?.value?.statuses?.[0];
+
+    // return testWebhook(req, res)
+    if (message) {
+
       const userPhoneNumber = contact?.wa_id || null;
-      const statuses = req.body.entry?.[0]?.changes[0]?.value?.statuses?.[0];
-      const userName = contact?.profile?.name || null
-      const products = message?.order?.product_items
-      const repliedTo = message?.context?.id || null
 
+      // return testWebhook(req,res)
+
+      if(Object.values(nuren_users).includes(userPhoneNumber)) return businessWebhook(req,res)
+      else return userWebhook(req, res )
+      
+    }
+
+    if (statuses) {
       let timestamp = await getIndianCurrentTime()
-      console.log("INDIANT CT: ", timestamp)
-
-      if (repliedTo !== null) updateStatus("replied", repliedTo, null, null, null, null, timestamp)
-
-
-      // console.log("Rcvd Req: ",req.body, business_phone_number_id,contact,message,userPhoneNumber, JSON.stringify(statuses), userName)
-      // console.log("Contact: ", userName)
-
-
-      
-      if (message) {
-
-        console.log("Country: ", countryMobileCodes[userPhoneNumber.slice(0,2)])
-      
-        const message_text = message?.text?.body || (message?.interactive ? (message?.interactive?.button_reply?.title || message?.interactive?.list_reply?.title) : null)
-
-        let userSession = await getSession(business_phone_number_id, contact)
-
-        addContact(userSession.userPhoneNumber, userSession.userName, userSession.tenant)
-        updateLastSeen("replied", timestamp, userSession.userPhoneNumber, userSession.business_phone_number_id)
-
-        let formattedConversation = [{
-          text: message_text,
-          sender: "user"
-        }];
-        saveMessage(userSession.userPhoneNumber, userSession.business_phone_number_id, formattedConversation, userSession.tenant, timestamp)
-        
-        const notif_body = {content: `${userSession.userPhoneNumber} | New meessage from ${userSession.userName || userSession.userPhoneNumber}: ${message_text}`, created_on: timestamp}
-        sendNotification(notif_body, userSession.tenant)
-        
-        const temp_user = message?.text?.body?.startsWith('*/') ? message.text.body.split('*/')[1]?.split(' ')[0] : null;
-        if(temp_user){
-            io.emit('temp-user', {
-                temp_user: temp_user,
-                phone_number_id: userSession.business_phone_number_id,
-                contactPhone: userSession.userPhoneNumber,
-                time: timestamp
-            });
-            // console.log("Emitted temp_user message: ", temp_user)
-        }
-
-        io.emit('new-message', {
-          message: {type: "text" ,text: {body: message_text}},
-          phone_number_id: userSession.business_phone_number_id,
-          contactPhone: userSession.userPhoneNumber,
-          name: userSession.userName,
-          time: timestamp
-        });
-
-        if (!userSession.multilingual){
-          if (!userSession.AIMode) {
-            handleInput(userSession, message)
-          
-            if (message?.type === "interactive") {
-                let userSelectionID = message?.interactive?.button_reply?.id || message?.interactive?.list_reply?.id;
-
-                if (userSelectionID.split('_')[0] == 'drishtee') handleCatalogManagement(userSelectionID, userSession)
-
-                else{try {
-                    // console.log("NextNode: ", userSession.nextNode)
-                    for (let i = 0; i < userSession.nextNode.length; i++) {
-                        // console.log(`Checking node ${userSession.nextNode[i]}:`, userSession.flowData[userSession.nextNode[i]]);
-                        if (userSession.flowData[userSession.nextNode[i]].id == userSelectionID) {
-                            userSession.currNode = userSession.nextNode[i];
-                            // console.log("Matched node found. New currNode:", userSession.currNode);
-                            userSession.nextNode = userSession.adjList[userSession.currNode];
-                            // console.log("Updated nextNode:", userSession.nextNode);
-                            userSession.currNode = userSession.nextNode[0];
-                            // console.log("Final currNode:", userSession.currNode);
-                            // console.log("Calling sendNodeMessage");
-                            sendNodeMessage(userSession.userPhoneNumber, userSession.business_phone_number_id);
-                            break; // Exit the loop when the condition is met
-                        }
-                    };
-                    if(isNaN(userSelectionID)) await sendProduct(userSession, userSelectionID)
-                } catch (error) {
-                    console.error('Error processing interactive message:', error);
-                }}
-            }
-            else if (message?.type === "text" || message?.type == "image") {
-                // console.log("Processing text or image message");
-                // console.log(userSession.currNode, userSession.startNode)
-                const flow = userSession.flowData
-                const type = flow[userSession.currNode].type
-                console.log("Curr Node: ", userSession.currNode, "Start Node: ", userSession.startNode)
-                console.log("Type: ", type)
-                if (userSession.currNode != userSession.startNode){
-                    if (['Text' ,'string', 'audio', 'video', 'location', 'image', 'AI'].includes(type)) {
-                        console.log(`Storing input for node ${userSession.currNode}:`, message?.text?.body);
-                        userSession.currNode = userSession.nextNode[0];
-                        // console.log("Updated currNode:", userSession.currNode);
-                    }
-                    else if(['Button', 'List'].includes(type)){
-                        await executeFallback(userSession)
-                        res.sendStatus(200)
-                        return
-                    }
-                }
-                // console.log("Calling sendNodeMessage");
-                sendNodeMessage(userPhoneNumber,business_phone_number_id);
-            }
-            else if (message?.type =="order"){
-                // await processOrder(userSession, products)
-              await processOrderForDrishtee(userSession, products)
-              // await processOrder2(userSession, products)
-              
-              // userSession.currNode = userSession.nextNode[0];
-              // console.log("Current node after processing order: ", userSession.currNode)
-              // sendNodeMessage(userPhoneNumber,business_phone_number_id);
-            }
-            else if (message?.type == "button"){
-              const userSelectionText = message?.button?.text
-              console.log("User Selection Text: ", userSelectionText)
-              if (DRISHTEE_PRODUCT_CAROUSEL_IDS.includes(userSelectionText)) await handleCatalogManagement(userSelectionText, userSession)
-            }
-          }
-          else {
-              if (message?.type == "interactive"){
-                  let userSelectionID = message?.interactive?.button_reply?.id || message?.interactive?.list_reply?.id;
-                  if (userSelectionID == "Exit AI"){
-                      userSession.AIMode = false;
-                      userSession.nextNode = userSession.adjList[userSession.currNode];
-                      userSession.currNode = userSession.nextNode[0];
-                      sendNodeMessage(userPhoneNumber,business_phone_number_id);
-                  }
-              }
-              else if(message?.type == "text"){
-                  handleQuery(message, userSession)
-              }
-              else if (message?.type == "image" || message?.type == "document" || message?.type == "video") {
-                  // console.log("Processing media message:", message?.type);
-                  const mediaID = message?.image?.id || message?.document?.id || message?.video?.id;
-                  // console.log("Media ID:", mediaID);
-                  const doc_name = userSession.inputVariable
-                  try {
-                      // console.log("Uploading file", userSession.tenant);
-                      await handleMediaUploads(userName, userPhoneNumber, doc_name, mediaID, userSession, tenant);
-                  } catch (error) {
-                      console.error("Error retrieving media content:", error);
-                  }
-              }
-          }
-        }
-        else{
-          if (message?.type === "text"){
-            const doorbell = userSession.doorbell
-            const doorbell_text = doorbell?.message
-            const language_data = doorbell?.languages
-            
-            const languageKeys = Object.keys(language_data);
-            const languageValues = Object.values(language_data)
-            
-            if (languageKeys.includes(message_text) || languageValues.includes(message_text)){
-              let lang_code;
-              if (languageKeys.includes(message_text)){
-                const language = language_data[message_text]
-                lang_code = languageMap[language]
-              }else{
-                lang_code = languageMap[message_text]
-              }
-              
-              const flowData = userSession.flowData
-              userSession.language = lang_code
-              const selectedFlowData = flowData.find(data => data.language === lang_code);
-
-              userSession.flowData = selectedFlowData?.flow_data
-              userSession.multilingual = false
-              
-              userSession.fallback_msg = selectedFlowData?.fallback_message
-              
-              sendNodeMessage(userPhoneNumber,business_phone_number_id);
-
-            }
-            else{
-              sendLanguageSelectionMessage(doorbell_text, userSession.accessToken, userSession.userPhoneNumber, userSession.business_phone_number_id, userSession.tenant)
-            }
-
-            
-
-            // if(languages.length<=3){
-            //   sendLanguageSelectionButtonMessage(languages, message_text, userSession.accessToken, userSession.userPhoneNumber, userSession.business_phone_number_id, userSession.tenant)
-            // }
-            // else if(languages.length>3 && languages.length<=10){
-            //   sendLanguageSelectionListMessage(languages, message_text, userSession.accessToken, userSession.userPhoneNumber, userSession.business_phone_number_id, userSession.tenant)
-            // }
-            // else{
-            //   sendLanguageSelectionMessage(message_text, userSession.accessToken, userSession.userPhoneNumber, userSession.business_phone_number_id, userSession.tenant)
-            // }
-
-            // const languages = [
-            //   {
-            //     id: "hi",
-            //     name: "Hindi"
-            //   },
-            //   {
-            //     id: "as",
-            //     name: "Assamese"
-            //   },
-            //   {
-            //     id: "mr",
-            //     name: "Marathi"
-            //   },
-            //   {
-            //     id: "bn",
-            //     name: "Bengali"
-            //   },
-            //   {
-            //     id: "or",
-            //     name: "Oriya"
-            //   }
-            // ]
-            
-          }
-          if (message?.type === "interactive") {
-            let userSelectionID = message?.interactive?.button_reply?.id || message?.interactive?.list_reply?.id;
-            userSession.language = userSelectionID;
-            const flowData = userSession.flowData
-            const selectedFlowData = flowData.find(data => data.language === userSelectionID);
-            
-            userSession.flowData = selectedFlowData?.flow_data
-            userSession.multilingual = false
-            userSession.fallback_msg = selectedFlowData?.fallback_message
-            sendNodeMessage(userPhoneNumber,business_phone_number_id);
-          }
-
-        }
+      const status = statuses?.status
+      const id = statuses?.id
+      const userPhone = statuses?.recipient_id
+      const business_phone_number_id = req.body.entry?.[0].changes?.[0].value?.metadata?.phone_number_id;
+      const activeCampaign = await readData()
+      // console.log("Active Campaign: ",typeof activeCampaign)
+      const key = `${business_phone_number_id}_${userPhone}`
+      if(key in activeCampaign) {
+        console.log("bpid is in campaign")
+        return campaignWebhook(req, res, activeCampaign[key])
       }
 
-      if (statuses) {
-          // console.log("Webhook received:", JSON.stringify(req.body, null, 2));
-          const status = statuses?.status
-          const id = statuses?.id
-          const userPhone = statuses?.recipient_id
-          const business_phone_number_id = req.body.entry?.[0].changes?.[0].value?.metadata?.phone_number_id;
-
-          if (status == "failed"){
-              updateStatus(status, id, null, null, null, null, timestamp)
-              const error = statuses?.errors[0]
-              console.log("Message failed: ", error)
-              io.emit('failed-response', error)
-              // res.status(400).json(error)
-          }
-          else if(status == "delivered"){
-              updateStatus(status, id, null, null, null, null, timestamp)
-              console.log("Delivered: ", userPhone)
-              updateLastSeen("delivered", timestamp, userPhone, business_phone_number_id)
-          }
-          else if(status == "read"){
-              updateStatus(status, id, null, null, null, null, timestamp)
-              updateLastSeen("seen", timestamp, userPhone, business_phone_number_id)
-          }
-          console.log("Webhook Processing Complete")
+      if (status == "failed"){
+        updateStatus(status, id, null, null, null, null, timestamp)
+        const error = statuses?.errors[0]
+        console.log("Message failed: ", error)
+        io.emit('failed-response', error)
+        // res.status(400).json(error)
       }
-      console.log("Webhook processing completed successfully");
-      res.sendStatus(200);
+      else if(status == "delivered"){
+        updateStatus(status, id, null, null, null, null, timestamp)
+        console.log("Delivered: ", userPhone)
+        updateLastSeen("delivered", timestamp, userPhone, business_phone_number_id)
+      }
+      else if(status == "read"){
+        updateStatus(status, id, null, null, null, null, timestamp)
+        updateLastSeen("seen", timestamp, userPhone, business_phone_number_id)
+      }
+    }
+    console.log("Webhook Processing Complete")
+    res.sendStatus(200)
   }
   catch (error) {
     console.error("Error in webhook handler:", error);
@@ -825,7 +338,7 @@ app.get("/webhook", (req, res) => {
   const mode = req.query["hub.mode"];
   const token = req.query["hub.verify_token"];
   const challenge = req.query["hub.challenge"];
-  
+  console.log("received req: ", req.body)
   if (mode === "subscribe" && token === WEBHOOK_VERIFY_TOKEN) {
     res.status(200).send(challenge);
     console.log("Webhook verified successfully!");
@@ -895,9 +408,6 @@ io.on('connection', (socket) => {
   });
 });
 
-
-
-
 function clearInactiveSessions() {
   const inactivityThreshold = 30 * 60 * 1000; // 30 minutes
   const now = Date.now();
@@ -910,58 +420,81 @@ function clearInactiveSessions() {
 
 setInterval(clearInactiveSessions, 60 * 60 * 1000);
 
-async function sendLanguageSelectionButtonMessage(language_list, message,access_token, phoneNumber, business_phone_number_id, tenant_id) {
-console.log("LANGUAGE LIST: ", language_list)
-  let button_rows = language_list.map(buttonNode => ({
-      type: 'reply',
-      reply: {
-          id: buttonNode.id,
-          title: buttonNode.name
-      }
-  }));
-  console.log("button_row:" ,button_rows)
-  const messageData = {
-      type: "interactive",
-      interactive: {
-          type: "button",
-          body: { text: message },
-          action: { buttons: button_rows }
-      }
-}
-return sendMessage(phoneNumber, business_phone_number_id, messageData, access_token, tenant_id)
-  }
+const { APP_SECRET, PRIVATE_KEY, PASSPHRASE } = process.env
 
-async function sendLanguageSelectionListMessage(language_list, message, access_token, phoneNumber, business_phone_number_id, tenant_id) {
+app.post("/data", async (req, res) => {
+  if (!PRIVATE_KEY) {
+    throw new Error(
+      'Private key is empty. Please check your env variable "PRIVATE_KEY".'
+    );
+  }
+  if(!isRequestSignatureValid(req)) {
+    // Return status code 432 if request signature does not match.
+    // To learn more about return error codes visit: https://developers.facebook.com/docs/whatsapp/flows/reference/error-codes#endpoint_error_codes
+    return res.status(432).send();
+  }
+  let decryptedRequest = null;
+  try {
+    decryptedRequest = decryptRequest(req.body, PRIVATE_KEY, PASSPHRASE);
+  } catch (err) {
+    console.error(err);
+    if (err instanceof FlowEndpointException) {
+      return res.status(err.statusCode).send();
+    }
+    return res.status(500).send();
+  }
+  const { aesKeyBuffer, initialVectorBuffer, decryptedBody } = decryptedRequest;
+  console.log("💬 Decrypted Request:", decryptedBody);
+
+  // TODO: Uncomment this block and add your flow token validation logic.
+  // If the flow token becomes invalid, return HTTP code 427 to disable the flow and show the message in `error_msg` to the user
+  // Refer to the docs for details https://developers.facebook.com/docs/whatsapp/flows/reference/error-codes#endpoint_error_codes
+
+  /*
+  if (!isValidFlowToken(decryptedBody.flow_token)) {
+    const error_response = {
+      error_msg: `The message is no longer available`,
+    };
+    return res
+      .status(427)
+      .send(
+        encryptResponse(error_response, aesKeyBuffer, initialVectorBuffer)
+      );
+  }
+  */
+
+  const screenResponse = await getNextScreen(decryptedBody);
+  console.log("👉 Response to Encrypt:", screenResponse);
+
+  res.send(encryptResponse(screenResponse, aesKeyBuffer, initialVectorBuffer));
+});
+
+function isRequestSignatureValid(req) {
+  if(!APP_SECRET) {
+    console.warn("App Secret is not set up. Please Add your app secret in /.env file to check for request validation");
+    return true;
+  }
+  const signatureHeader = req.get("x-hub-signature-256");
+  const signatureBuffer = Buffer.from(signatureHeader.replace("sha256=", ""), "utf-8");
+  const hmac = crypto.createHmac("sha256", APP_SECRET);
+  const digestString = hmac.update(req.rawBody).digest('hex');
+  const digestBuffer = Buffer.from(digestString, "utf-8");
+  if ( !crypto.timingSafeEqual(digestBuffer, signatureBuffer)) {
+    console.error("Error: Request Signature did not match");
+    return false;
+  }
+  return true;
+}
+
+app.post("/verify-payment", async (req, res) => {
+  // console.log(req)
+  console.log("Recieved body: ", JSON.stringify(req.body, null, 7))
+  res.sendStatus(200)
+});
+
+app.post("/start-campaign", async(req,res) => {
   
-  const rows = language_list.map((listNode) => ({
-    id: listNode.id,
-    title: listNode.name
-}));
-const messageData = {
-    type: "interactive",
-    interactive: {
-        type: "list",
-        body: { text: message },
-        action: {
-            button: "Choose Option",
-            sections: [{ title: "Section Title", rows }]
-        }
-    }
-};
-
-return sendMessage(phoneNumber, business_phone_number_id, messageData, access_token, tenant_id)
-
-}
-
-async function sendLanguageSelectionMessage(message_text, access_token, phoneNumber, business_phone_number_id, tenant_id) {
-  console.log("Doorbell Text: ", message_text)
-  const messageData = {
-    type: "text",
-    text: {
-      body: message_text
-    }
-  }
-
-return sendMessage(phoneNumber, business_phone_number_id, messageData, access_token, tenant_id)
-
-}
+  console.log("Recieved body: ", JSON.stringify(req.body, null, 7))
+  startCampaign(req.body.campaign_id)
+  res.sendStatus(200)
+})

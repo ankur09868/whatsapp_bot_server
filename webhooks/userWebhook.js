@@ -1,7 +1,7 @@
 import { getIndianCurrentTime, updateStatus, updateLastSeen, saveMessage, sendNotification, executeFallback, getSession  } from "../helpers/misc.js";
 import { nurenConsumerMap, io } from "../server.js";
 import { nuren_users } from "../helpers/order.js";
-import { sendNodeMessage, sendTextMessage } from "../snm.js";
+import { sendNodeMessage, sendTextMessage, sendProductMessage } from "../snm.js";
 import { sendProduct } from "../helpers/product.js";
 import { DRISHTEE_PRODUCT_CAROUSEL_IDS, handleCatalogManagement }  from "../drishtee.js"
 import { sendMessage } from "../send-message.js";
@@ -9,6 +9,14 @@ import { handleMediaUploads } from "../helpers/handle-media.js";
 import { languageMap } from "../dataStore/dictionary.js";
 import { sendMessagetoConsumer, sendMessagetoRetailer, orderToDB } from "../helpers/order.js";
 import { manualWebhook } from "./manualWebhook.js";
+import axios from "axios";
+import FormData from 'form-data';
+import https from 'https';
+
+const agent = new https.Agent({
+  rejectUnauthorized: false, // Disable SSL certificate verification //VERY VERY IMPORTANT SECURITY
+});
+
 
 export async function userWebhook(req, res) {
     const business_phone_number_id = req.body.entry?.[0].changes?.[0].value?.metadata?.phone_number_id;
@@ -110,6 +118,10 @@ export async function userWebhook(req, res) {
           const userSelectionText = message?.button?.text
           console.log("User Selection Text: ", userSelectionText)
           if (DRISHTEE_PRODUCT_CAROUSEL_IDS.includes(userSelectionText)) await handleCatalogManagement(userSelectionText, userSession)
+        }
+        else if(message?.type == "audio"){
+          if(userSession.tenant == 'leqcjsk') await handleAudioOrdersForDrishtee(message, userSession)
+
         }
       }
       else {
@@ -471,4 +483,64 @@ async function ioEmissions(message, userSession, timestamp){
     name: userSession.userName,
     time: timestamp
   });
+}
+
+async function handleAudioOrdersForDrishtee(message, userSession) {
+  console.log("Received audio message: ", message)
+  const mediaID = message?.audio?.id
+  let response = await axios.get(`https://graph.facebook.com/v18.0/${mediaID}`, {headers: {'Authorization': `Bearer ${userSession.accessToken}`}})
+  const mediaURL = response.data.url
+  response = await axios.get(mediaURL, {headers: {'Authorization': `Bearer ${userSession.accessToken}`}, responseType: 'arraybuffer'}) 
+  const audioFile = response.data
+  const formData = new FormData();
+  formData.append('file', audioFile, 'audio.mp4');// Attach the file stream to FormData
+
+  response = await axios.post(
+    'https://webpbx.in/api/process/drishtee/product/search/',
+    formData,
+    {
+      headers: { ...formData.getHeaders() }, // Include headers from FormData
+      httpsAgent: agent,
+    }
+  );
+  const product_list = response.data.data.data
+  
+  let product_body, fallback_message;
+  const language = userSession.language
+
+  if(language == "en"){
+    product_body = `Browse through our exclusive collection of products and find what suits your needs best. Shop now and enjoy amazing offers!`
+    fallback_message = "Oops! It looks like this item is currently out of stock. Don't worry, we're working hard to restock it soon! In the meantime, feel free to browse similar products or check back later."
+  }
+  else if(language == "bn"){
+    product_body = "আমাদের বিশেষ পণ্যের সংগ্রহ দেখুন এবং আপনার প্রয়োজন অনুযায়ী পছন্দ করুন। এখনই কেনাকাটা করুন এবং চমৎকার অফার উপভোগ করুন!"
+    fallback_message = "ওহ! এটা বর্তমানে স্টক আউট রয়েছে। চিন্তা করবেন না, আমরা শীঘ্রই এটি পুনরায় স্টক করব! এর মধ্যে, আপনি অনুরূপ পণ্যগুলি দেখতে পারেন অথবা পরে আবার চেক করতে পারেন।"
+  }
+  else if(language == "hi"){
+    product_body = "हमारे उत्पादों के विशेष संग्रह को ब्राउज़ करें और अपनी आवश्यकताओं के अनुसार सबसे उपयुक्त उत्पाद खोजें। अभी खरीदारी करें और शानदार ऑफ़र्स का आनंद लें!"
+    fallback_message = "क्षमा करें! यह उत्पाद वर्तमान में स्टॉक में उपलब्ध नहीं है। कृपया चिंता न करें, इसे शीघ्र ही स्टॉक में लाने के लिए हम प्रयासरत हैं। तब तक, आप समान उत्पाद ब्राउज़ कर सकते हैं या बाद में पुनः जांच सकते हैं।";
+  }
+  else if(language == "mr"){
+    product_body = "आमच्या खास उत्पादनांच्या संग्रहातून ब्राउज करा आणि तुमच्या गरजेनुसार सर्वोत्तम निवडा. आत्ताच खरेदी करा आणि आश्चर्यकारक ऑफर्सचा आनंद घ्या!"
+    fallback_message = "ओह! हे सध्या स्टॉकमध्ये नाही. काळजी करू नका, आम्ही लवकरच ते पुन्हा स्टॉक करू! तोपर्यंत, कृपया समान उत्पादने बघा किंवा नंतर पुन्हा तपासा."
+  }
+
+  if(product_list.length>0){
+    const header = "Items"
+    const catalog_id = 1822573908147892
+    const footer = null
+    const section_title = "Items"
+    const chunkSize = 30;
+    for (let i = 0; i < product_list.length; i += chunkSize) {
+      const chunk = product_list.slice(i, i + chunkSize);
+      await sendProductMessage(userSession, chunk, catalog_id, header, product_body, footer, section_title, userSession.tenant);
+    }
+  }
+  else{
+    const messageData = {
+      type: "text",
+      text: { body: fallback_message }
+    }
+    return sendMessage(userSession.userPhoneNumber, userSession.business_phone_number_id, messageData, userSession.accessToken ,userSession.tenant);
+  }
 }

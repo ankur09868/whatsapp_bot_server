@@ -257,6 +257,38 @@ try {
 
 async function sendCampaign(campaignData, access_token, tenant_id, account_id, bpid){
   console.log("Req rcvd in sendCampaign: ", campaignData, access_token, account_id, tenant_id, bpid)
+  const campaignId = campaignData.id
+  let name, contacts, templateName, templateIndex;
+  if(campaignData?.name && campaignData?.contacts && campaignData?.templateName){
+    name = campaignData.name
+    contacts = campaignData.contacts
+    templateName = campaignData.templateName
+    templateIndex = campaignData.templateIndex
+  }
+  else{
+    const response = await axios.get(`${djangoURL}/campaign?id=${campaignId}`, {headers: {'X-Tenant-Id': tenant_id}})
+    contacts = response.data.phone
+    name = response.data.name
+    templateName = response.data.templates_data[0].name
+    templateIndex = response.data.templates_data[0].index
+  }
+  
+  const cacheKey = `${account_id}_${templateName}`;
+  let templateData = messageCache.get(cacheKey);
+
+  if (!templateData) {
+    const response = await axios.get(
+      `https://graph.facebook.com/v16.0/${account_id}/message_templates?name=${templateName}`,
+      {headers: { Authorization: `Bearer ${access_token}` }}
+    );
+    templateData = response.data.data[0]
+    messageCache.set(cacheKey, templateData);
+  }
+
+  for(let contact in contacts){
+    
+  }
+  
 }
 
 async function sendTemplate(templateData, access_token, tenant_id, account_id, bpid) {
@@ -585,6 +617,7 @@ app.post("/start-campaign", async(req,res) => {
 //     "name": `${campaign_name}` || null,
 //     "contacts": `${contact_list}` || null,
 //     "templateName": `${template_name}` ||  null //first template's name
+//     "templateIndex": `${template_index}` || null //first template's index
 //   },
 //   "group": {
 //     "id": `${group_id}`,

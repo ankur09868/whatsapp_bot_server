@@ -104,7 +104,7 @@ app.post("/send-message", async (req, res) => {
     const sendPromises = phoneNumbers.map(async (phoneNumber) => {
       
       const formattedPhoneNumber = phoneNumber.length === 10 ? `91${phoneNumber}` : phoneNumber;
-      const cacheKey = `${business_phone_number_id}_${tenant_id}`;
+      const cacheKey = `${business_phone_number_id}`;
       
       let access_token = messageCache.get(cacheKey);
       if (!access_token) {
@@ -207,7 +207,7 @@ try {
       try {
         const response = await axios.get(
           `https://graph.facebook.com/v16.0/${account_id}/message_templates?name=${templateName}`,
-          { headers: { Authorization: `Bearer ${access_token}` } }
+          {headers: { Authorization: `Bearer ${access_token}` }}
         );
         graphResponse = response.data;
         messageCache.set(cacheKey, graphResponse);
@@ -254,6 +254,79 @@ try {
   }
 
 });
+
+async function sendCampaign(campaignData, access_token, tenant_id, account_id, bpid){
+  console.log("Req rcvd in sendCampaign: ", campaignData, access_token, account_id, tenant_id, bpid)
+}
+
+async function sendTemplate(templateData, access_token, tenant_id, account_id, bpid) {
+  console.log("Req rcvd in sendTemplate: ", templateData, access_token, account_id, tenant_id, bpid)
+}
+
+async function sendTemplateToGroup(groupData, access_token, tenant_id, account_id, bpid) {
+  console.log("Req rcvd in sendTempateToGroup: ", groupData, access_token, account_id, tenant_id, bpid)
+}
+
+// app.post("/send-template", async (req, res) => {
+//   const type = req.body.type;
+//   const bpid = req.headers['business_phone_number_id'];
+
+//   try {
+//     let responseData = messageCache.get(bpid);
+//     if (!responseData) {
+//       const response = await axios.get(`${fastURL}/whatsapp_tenant/`, {
+//         headers: { 'bpid': bpid }
+//       });
+
+//       responseData = response.data; 
+//       messageCache.set(bpid, responseData);
+//     }
+
+//     const whatsappData = responseData.whatsapp_data?.[0];
+//     if (!whatsappData) {
+//       return res.status(400).send({ status: 400, message: "Invalid WhatsApp data." });
+//     }
+
+//     const { access_token, tenant_id, business_account_id: account_id } = whatsappData;
+
+//     const handleType = {
+//       campaign: () => {
+//         const campaignData = req.body?.campaign;
+//         if (!campaignData) {
+//           return res.status(400).send({ status: 400, message: "Campaign data not found in request" });
+//         }
+//         sendCampaign(campaignData, access_token, tenant_id, account_id, bpid);
+//         return res.sendStatus(200);
+//       },
+//       template: () => {
+//         const templateData = req.body?.template;
+//         if (!templateData) {
+//           return res.status(400).send({ status: 400, message: "Template data not found in request" });
+//         }
+//         sendTemplate(templateData, access_token, tenant_id, account_id, bpid);
+//         return res.sendStatus(200);
+//       },
+//       group: () => {
+//         const groupData = req.body?.group;
+//         if (!groupData) {
+//           return res.status(400).send({ status: 400, message: "Group data not found in request" });
+//         }
+//         sendTemplateToGroup(groupData, access_token, tenant_id, account_id, bpid);
+//         return res.sendStatus(200);
+//       }
+//     };
+
+//     if (handleType[type]) {
+//       return handleType[type]();
+//     } else {
+//       return res.status(400).send({ status: 400, message: "Invalid type specified in request" });
+//     }
+//   } catch (error) {
+//     console.error("Error in /send-template:", error.message);
+//     res.status(500).send({ status: 500, message: "Internal server error" });
+//   }
+// });
+
 
 app.post("/reset-session", async (req, res) => {
   const bpid = req.body.business_phone_number_id;
@@ -324,7 +397,7 @@ app.post("/webhook", async (req, res) => {
         updateStatus(status, id, null, null, null, null, timestamp)
         updateLastSeen("seen", timestamp, userPhone, business_phone_number_id)
       }
-      
+
     }
     console.log("Webhook Processing Complete")
     res.sendStatus(200)
@@ -421,7 +494,8 @@ function clearInactiveSessions() {
 
 setInterval(clearInactiveSessions, 60 * 60 * 1000);
 
-const { APP_SECRET, PRIVATE_KEY, PASSPHRASE } = process.env
+const { APP_SECRET, PASSPHRASE } = process.env
+const PRIVATE_KEY = process.env.PRIVATE_KEY.replace(/\\n/g, '\n')
 
 app.post("/data", async (req, res) => {
   if (!PRIVATE_KEY) {
@@ -499,3 +573,23 @@ app.post("/start-campaign", async(req,res) => {
   startCampaign(req.body.campaign_id)
   res.sendStatus(200)
 })
+
+// req.body = {
+//   "type": "campaign" || "template" || "group",
+//   "template": {
+//     "name": `${template_name}`,
+//     "contacts": `${contact_list}`
+//   },
+//   "campaign": {
+//     "id": `${campaign_id}`,
+//     "name": `${campaign_name}` || null,
+//     "contacts": `${contact_list}` || null,
+//     "templateName": `${template_name}` ||  null //first template's name
+//   },
+//   "group": {
+//     "id": `${group_id}`,
+//     "name": `${group_name}` || null,
+//     "templateName": `${template_name}`,
+//     "contacts": `${contact_list}` || null
+//   }
+// }

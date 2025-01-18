@@ -3,7 +3,7 @@ import { sendMessage } from "../send-message.js";
 // const url = "https://x01xx96q-8000.inc1.devtunnels.ms"
 // const url = "http://localhost:3000"
 
-const url = "https://td9qc5vd-8000.inc1.devtunnels.ms"
+const url = "https://mfcentral-hfckakhnbqe0h6gp.canadacentral-01.azurewebsites.net"
 
 
 let signInQuestion = null;

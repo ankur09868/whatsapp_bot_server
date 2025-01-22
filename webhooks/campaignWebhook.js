@@ -3,76 +3,75 @@ import { replacePlaceholders } from "../queues/helpers.js";
 import { messageCache } from "../server.js";
 import axios from "axios";
 import { writeFile, readFile } from 'fs/promises';
-import { campaignQueue } from "../queues/workerQueues.js";
+import { getCampaignUserSession, setCampaignUserSession, deleteCampaignUserSession } from "../queues/workerQueues.js";
 
-const userSessions = new Map()
 
-const campaigns = [
-    {
-        "id": 1,
-        "name": "first_campaign",
-        "bpid": 506766522524506,
-        "access_token": "EAAPev2DrAvYBO7bQHKCZBVtGfXP9ZAhr03piaOEVnzQAtLCqlu8GPrZCtVWWOKinV4ymSZBtZCS71vcqEkjgZCFjK2RxvVTBB2dpoW2oGYyugrq5MOrA9CVSsNuV7UeY0Q91JZASpux9atPffzRepSi16ajl38rjtsMOSmH0ZCxEsZBX0M5ZBuMEyyxfPfUFXw9BDI",
-        "account_id": 502195886316412,
-        "tenant": "ai",
-        "contacts": [919548265904],
-        "templates_data": [
-            {
-                "index": 1,
-                "name": "hello_world",
-                "timeDelay": 5,
-                "status": "read",
-                "next": 2
-            },
-            {
-                "index": 2,
-                "name": "fav_artist_2",
-                "timeDelay": 5,
-                "status": "read",
-                "next": 3
-            },
-            {
-                "index": 3,
-                "name": "hello_world",
-                "timeDelay": 5,
-                "status": "read",
-                "next":4
-            },
-            {
-                "index": 4,
-                "name":"fav_artist_2",
-                "terminal": true
-            }
-        ],
-        "init": 1
-    },
-    {
-        "id": 2,
-        "name": "second_campaign",
-        "bpid": 506766522524506,
-        "access_token": "EAAPev2DrAvYBO7bQHKCZBVtGfXP9ZAhr03piaOEVnzQAtLCqlu8GPrZCtVWWOKinV4ymSZBtZCS71vcqEkjgZCFjK2RxvVTBB2dpoW2oGYyugrq5MOrA9CVSsNuV7UeY0Q91JZASpux9atPffzRepSi16ajl38rjtsMOSmH0ZCxEsZBX0M5ZBuMEyyxfPfUFXw9BDI",
-        "account_id": 502195886316412,
-        "tenant": "ai",
-        "contacts": [919643393874],
-        "templates_data": [
-            {
-                "index": 1,
-                "name": "hello_world",
-                "timeDelay": 30,
-                "status": "read",
-                "next": 2
-            },
-            {
-                "index": 2,
-                "name":"fav_artist_2",
-                "terminal": true
-            }
-        ],
-        "init": 1
-    }
-]
+// const campaigns = [
+//     {
+//         "id": 1,
+//         "name": "first_campaign",
+//         "bpid": 506766522524506,
+//         "access_token": "EAAPev2DrAvYBO7bQHKCZBVtGfXP9ZAhr03piaOEVnzQAtLCqlu8GPrZCtVWWOKinV4ymSZBtZCS71vcqEkjgZCFjK2RxvVTBB2dpoW2oGYyugrq5MOrA9CVSsNuV7UeY0Q91JZASpux9atPffzRepSi16ajl38rjtsMOSmH0ZCxEsZBX0M5ZBuMEyyxfPfUFXw9BDI",
+//         "account_id": 502195886316412,
+//         "tenant": "ai",
+//         "contacts": [919548265904],
+//         "templates_data": [
+//             {
+//                 "index": 1,
+//                 "name": "hello_world",
+//                 "timeDelay": 5,
+//                 "status": "read",
+//                 "next": 2
+//             },
+//             {
+//                 "index": 2,
+//                 "name": "fav_artist_2",
+//                 "timeDelay": 5,
+//                 "status": "read",
+//                 "next": 3
+//             },
+//             {
+//                 "index": 3,
+//                 "name": "hello_world",
+//                 "timeDelay": 5,
+//                 "status": "read",
+//                 "next":4
+//             },
+//             {
+//                 "index": 4,
+//                 "name":"fav_artist_2",
+//                 "terminal": true
+//             }
+//         ],
+//         "init": 1
+//     },
+//     {
+//         "id": 2,
+//         "name": "second_campaign",
+//         "bpid": 506766522524506,
+//         "access_token": "EAAPev2DrAvYBO7bQHKCZBVtGfXP9ZAhr03piaOEVnzQAtLCqlu8GPrZCtVWWOKinV4ymSZBtZCS71vcqEkjgZCFjK2RxvVTBB2dpoW2oGYyugrq5MOrA9CVSsNuV7UeY0Q91JZASpux9atPffzRepSi16ajl38rjtsMOSmH0ZCxEsZBX0M5ZBuMEyyxfPfUFXw9BDI",
+//         "account_id": 502195886316412,
+//         "tenant": "ai",
+//         "contacts": [919643393874],
+//         "templates_data": [
+//             {
+//                 "index": 1,
+//                 "name": "hello_world",
+//                 "timeDelay": 30,
+//                 "status": "read",
+//                 "next": 2
+//             },
+//             {
+//                 "index": 2,
+//                 "name":"fav_artist_2",
+//                 "terminal": true
+//             }
+//         ],
+//         "init": 1
+//     }
+// ]
 
-export async function campaignWebhook(req, res, campaign_id){
+export async function campaignWebhook(req, res, campaignData){
     res.sendStatus(200)
     const bpid = req.body.entry?.[0].changes?.[0].value?.metadata?.phone_number_id;
 
@@ -85,35 +84,45 @@ export async function campaignWebhook(req, res, campaign_id){
         const phone = statuses.recipient_id
         const key = `${bpid}_${phone}`
 
-        const userSession = await getSession(key)
+        const userSession = await getCampaignUserSession(key)
+        console.log("User Sessssssssssssion: ", userSession)
+        console.log("lst message id: ", userSession?.lastMessageID, "and received message id: ", receivedMessageId)
+        console.log("expected message status: ", userSession?.templateInfo?.status, "receuved message status: ", receivedMessageStatus)
         if(userSession?.lastMessageID == receivedMessageId && userSession?.templateInfo?.status == receivedMessageStatus){
-            const campaign = campaigns.find(campaign => campaign.id == campaign_id)
+            
             await delay(userSession?.templateInfo?.timeDelay * 1000 || 0)
-            sendDelayedTemplate(userSession?.templateInfo?.next , campaign, phone)
+            sendDelayedTemplate(userSession?.templateInfo?.next , campaignData, key)
+        }
+        else{
+            console.log("message id did not match")
         }
     }
 }
 
-async function sendDelayedTemplate(index, campaign, recipient) {
-    const key = `${campaign.bpid}_${recipient}`
+async function sendDelayedTemplate(index, campaign, key) {
+    const [bpid, recipient] = key.split('_')
+
     const templateInfo = campaign.templates_data.find(template => template.index === index)
-    if(templateInfo?.terminal) {
-        deleteData(key)
-    }
     const response = await axios.get(
         `https://graph.facebook.com/v16.0/${campaign.account_id}/message_templates?name=${templateInfo.name}`,
         { headers: { Authorization: `Bearer ${campaign.access_token}` } }
     );
     const templateData = response.data.data[0]
 
-    const userSession = await getSession(key)
     const messageData = await setTemplateData(templateData, recipient, campaign.bpid, campaign.access_token)
     const message_id = await sendMessage(recipient, campaign.bpid, messageData, campaign.access_token, campaign.tenant)
     
-    userSession.templateInfo = templateInfo
-    userSession.lastMessageID = message_id
-    userSessions[key] = userSession
-    
+    if(templateInfo?.terminal) {
+        deleteData(key)
+        deleteCampaignUserSession(key)
+    }
+    else{
+        const userSession = await getCampaignUserSession(key)
+
+        userSession.templateInfo = templateInfo
+        userSession.lastMessageID = message_id
+        setCampaignUserSession(key, userSession)
+    }
 }
 
 function delay(ms) {
@@ -121,12 +130,6 @@ function delay(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-export async function startCampaign(id) {
-    const campaign = campaigns.find(campaign => campaign.id == id)
-    console.log("Found Campaign: ", campaign)
-    const init_index = campaign.init
-    sendTemplate(init_index, campaign)
-}
 
 async function getSession(key) {
     const [bpid, phone] = key.split("_");
@@ -346,7 +349,7 @@ export async function readData() {
 async function writeData(data) {
     try {
         await writeFile(filePath, JSON.stringify(data, null, 2), 'utf8');
-        console.log('Data successfully written to file');
+        // console.log('Data successfully written to file');
     } catch (err) {
         console.error('Error writing to the file:', err);
     }
@@ -357,7 +360,7 @@ async function addData(key, value) {
         const data = await readData();
         data[key] = value;
         await writeData(data);
-        console.log(`Data added successfully for key: ${key}`);
+        // console.log(`Data added successfully for key: ${key}`);
     } catch (err) {
         console.error('Error adding data:', err);
     }
@@ -369,7 +372,7 @@ async function deleteData(key) {
         if (data[key]) {
             delete data[key];
             await writeData(data);
-            console.log(`Data deleted for key: ${key}`);
+            // console.log(`Data deleted for key: ${key}`);
         } else {
             console.log(`Key not found: ${key}`);
         }

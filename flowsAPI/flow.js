@@ -344,7 +344,7 @@ async function updatePassword(phone, newPassword) {
 import { promises as fs } from "fs"; // Import fs.promises module
 import { postRegister } from "../helpers/login-flow.js";
 
-const convertImageToBase64 = async (filePath) => {
+export const convertImageToBase64 = async (filePath) => {
   try {
     const data = await fs.readFile(filePath); // Read the file asynchronously
     const base64 = data.toString("base64"); // Convert the binary data to Base64

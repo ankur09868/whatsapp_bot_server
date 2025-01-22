@@ -2,11 +2,11 @@ import axios from "axios";
 import NodeCache from 'node-cache';
 import FormData from 'form-data';
 
-const fastURL = "https://fastapione-gue2c5ecc9c4b8hy.centralindia-01.azurewebsites.net"
+// const fastURL = "https://fastapione-gue2c5ecc9c4b8hy.centralindia-01.azurewebsites.net"
 
-const djangoURL = "https://backeng4whatsapp-dxbmgpakhzf9bped.centralindia-01.azurewebsites.net"
-// const fastURL = "http://localhost:8000"
-// const djangoURL = 'http://localhost:8001'
+// const djangoURL = "https://backeng4whatsapp-dxbmgpakhzf9bped.centralindia-01.azurewebsites.net"
+const fastURL = "http://localhost:8000"
+const djangoURL = 'http://localhost:8001'
 
 const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 

@@ -41,7 +41,6 @@ const viewItemsMap = {
     'hing': 'View Items', // Hinglish
 };
 
-
 export const chooseOptionMap = {
     'hi': 'विकल्प चुनें', // Hindi
     'en': 'Choose Option', // English

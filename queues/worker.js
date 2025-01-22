@@ -2,7 +2,8 @@ import { messageQueue, getCampaignUserSession, setCampaignUserSession } from "./
 import axios from "axios";
 import { writeFile, readFile } from 'fs/promises';
 
-const djangoURL = 'http://localhost:8001'
+// const djangoURL = 'http://localhost:8001'
+const djangoURL = "https://backeng4whatsapp-dxbmgpakhzf9bped.centralindia-01.azurewebsites.net"
 
 // messageQueue.process('message' ,async (job) => {
 //   const { bg_id, bg_name, templateData, business_phone_number_id, access_token, otp, tenant_id, phoneNumbers, batchSize} = job.data;

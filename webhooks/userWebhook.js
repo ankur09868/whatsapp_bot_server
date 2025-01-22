@@ -1,5 +1,5 @@
 import { getIndianCurrentTime, updateStatus, updateLastSeen, saveMessage, sendNotification, executeFallback, getSession  } from "../helpers/misc.js";
-import { nurenConsumerMap, io } from "../server.js";
+import { nurenConsumerMap, io, customWebhook } from "../server.js";
 import { nuren_users } from "../helpers/order.js";
 import { sendNodeMessage, sendTextMessage, sendProductMessage } from "../snm.js";
 import { sendProduct } from "../helpers/product.js";
@@ -12,6 +12,7 @@ import { manualWebhook } from "./manualWebhook.js";
 import axios from "axios";
 import FormData from 'form-data';
 import https from 'https';
+import { financeBotWebhook } from "./financeBotWebhook.js";
 
 const agent = new https.Agent({
   rejectUnauthorized: false, // Disable SSL certificate verification //VERY VERY IMPORTANT SECURITY
@@ -37,9 +38,12 @@ export async function userWebhook(req, res) {
       manualWebhook(req, userSession)
       return res.sendStatus(200)
     }
+    else if(userSession.type == 'finance'){
+      return financeBotWebhook(req, res, userSession)
+    }
   
     const message_text = message?.text?.body || (message?.interactive ? (message?.interactive?.button_reply?.title || message?.interactive?.list_reply?.title) : null)
-  
+
     if(message_text == "manual") {
       const nuren = nuren_users[userSession.tenant]
       userSession.type = "whatsapp"
@@ -47,6 +51,10 @@ export async function userWebhook(req, res) {
       nurenConsumerMap[nuren] = userSession.userPhoneNumber
       sendWelcomeMessage(userSession)
       return res.sendStatus(200)
+    }
+    else if(message_text == '/finance'){
+      userSession.type = 'finance'
+      return financeBotWebhook(req, res, userSession)
     }
   
     updateLastSeen("replied", timestamp, userSession.userPhoneNumber, userSession.business_phone_number_id)
@@ -184,20 +192,20 @@ export async function userWebhook(req, res) {
         
       }
       if (message?.type === "interactive") {
-        let userSelectionID = message?.interactive?.button_reply?.id || message?.interactive?.list_reply?.id;
+        // let userSelectionID = message?.interactive?.button_reply?.id || message?.interactive?.list_reply?.id;
   
-        if(userSelectionID.includes('confirm') || userSelectionID.includes('cancel')) {
-          return handleOrderManagement(userSession, userSelectionID)
-        }
+        // if(userSelectionID.includes('confirm') || userSelectionID.includes('cancel')) {
+        //   return handleOrderManagement(userSession, userSelectionID)
+        // }
   
-        userSession.language = userSelectionID;
-        const flowData = userSession.flowData
-        const selectedFlowData = flowData.find(data => data.language === userSelectionID);
+        // userSession.language = userSelectionID;
+        // const flowData = userSession.flowData
+        // const selectedFlowData = flowData.find(data => data.language === userSelectionID);
         
-        userSession.flowData = selectedFlowData?.flow_data
-        userSession.multilingual = false
-        userSession.fallback_msg = selectedFlowData?.fallback_message
-        sendNodeMessage(userPhoneNumber,business_phone_number_id);
+        // userSession.flowData = selectedFlowData?.flow_data
+        // userSession.multilingual = false
+        // userSession.fallback_msg = selectedFlowData?.fallback_message
+        // sendNodeMessage(userPhoneNumber,business_phone_number_id);
         
       }
   

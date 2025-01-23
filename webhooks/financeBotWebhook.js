@@ -140,7 +140,7 @@ async function handleLogin(userSession, responses) {
                     question: question,
                 },
             };
-    
+            
             messageData = await flowData(
                 'Security Question',
                 'Please answer the security question to login:',
@@ -563,7 +563,7 @@ async function handleDataCollection(userSession, responses) {
         risk: responses?.risk_tolerance,
         goals: responses?.goal
     }
-    const response = await axios.post('https://x01xx96q-8000.inc1.devtunnels.ms/evalution', data, {headers: headers})
+    const response = await axios.post(`${url}/evalution`, data, {headers: headers})
     console.log("Response rcvd in data collection: ", response.data)
     const base64Image = response.data.image
     const base64Data = base64Image.split(';base64,').pop();

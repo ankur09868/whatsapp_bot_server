@@ -306,16 +306,12 @@ export async function sendNodeMessage(userPhoneNumber, business_phone_number_id)
         let node_message = flow[currNode]?.body;
         console.log("flowlfolwolfowl: ", flow[currNode])
 
-        let api_placeholders
-        let contact_placeholders
         
                 
         switch (flow[currNode]?.type) {
             case "Button":
                 const buttons = nextNode
-
-                // var placeholders = [...node_message.matchAll(/{{\s*[\w]+\s*}}/g)];
-                // if(placeholders.length > 0) node_message = await replacePlaceholders(node_message, userSession)
+                node_message = await replacePlaceholders(node_message, userSession)
                 
                 var variable = flow[currNode]?.variable
                 if(variable) {
@@ -327,21 +323,15 @@ export async function sendNodeMessage(userPhoneNumber, business_phone_number_id)
                     var modelName = userSession.flowName
                     addDynamicModelInstance(modelName, data, userSession.tenant)
                 }
-                        
-                api_placeholders = [...node_message.matchAll(/{{\s*[\w._\[\]]+\s*}}/g)] || []; 
-                contact_placeholders = [...node_message.matchAll(/{{\s*[\w]+\s*}}/g)] || [];
 
-                if(api_placeholders.length > 0 || contact_placeholders.length > 0) node_message = await replacePlaceholders(node_message, userSession, api_placeholders, contact_placeholders)
-                    
                 let mediaID = flow[currNode]?.mediaID
                 await sendButtonMessage(buttons, node_message, userPhoneNumber,business_phone_number_id, mediaID );
                 break;
                 
             case "List":
                 const list = nextNode
+                node_message = await replacePlaceholders(node_message, userSession)
 
-                // var placeholders = [...node_message.matchAll(/{{\s*[\w]+\s*}}/g)];
-                // if(placeholders.length > 0) node_message = await replacePlaceholders(node_message, userSession)
                 
                 var variable = flow[currNode]?.variable
                 if(variable) {
@@ -352,20 +342,13 @@ export async function sendNodeMessage(userPhoneNumber, business_phone_number_id)
                     var modelName = userSession.flowName
                     addDynamicModelInstance(modelName, data, userSession.tenant)
                 }
-                        
-                api_placeholders = [...node_message.matchAll(/{{\s*[\w._\[\]]+\s*}}/g)] || []; 
-                contact_placeholders = [...node_message.matchAll(/{{\s*[\w]+\s*}}/g)] || [];
-
-                if(api_placeholders.length > 0 || contact_placeholders.length > 0) node_message = await replacePlaceholders(node_message, userSession, api_placeholders, contact_placeholders)
-
                 await sendListMessage(list, node_message, userPhoneNumber,business_phone_number_id, accessToken);
                 break;
             
             // text with variable
             case "Text":
+                node_message = await replacePlaceholders(node_message, userSession)
 
-                // var placeholders = [...node_message.matchAll(/{{\s*[\w]+\s*}}/g)];
-                // if(placeholders.length > 0) node_message = await replacePlaceholders(node_message, userSession)
                  
                 var variable = flow[currNode]?.variable
                 if(variable) {
@@ -376,12 +359,7 @@ export async function sendNodeMessage(userPhoneNumber, business_phone_number_id)
                     var modelName = userSession.flowName
                     addDynamicModelInstance(modelName, data, userSession.tenant)
                 }
-                    
-                api_placeholders = [...node_message.matchAll(/{{\s*[\w._\[\]]+\s*}}/g)] || []; 
-                contact_placeholders = [...node_message.matchAll(/{{\s*[\w]+\s*}}/g)] || [];
 
-                if(api_placeholders.length > 0 || contact_placeholders.length > 0) node_message = await replacePlaceholders(node_message, userSession, api_placeholders, contact_placeholders)
-                    
                 await sendInputMessage(userPhoneNumber,business_phone_number_id, node_message);
                 
                 // userSession.currNode = nextNode[0] !==undefined ? nextNode[0] : null;
@@ -391,11 +369,8 @@ export async function sendNodeMessage(userPhoneNumber, business_phone_number_id)
             // text without variable
             case "string":
                     
-                api_placeholders = [...node_message.matchAll(/{{\s*[\w._\[\]]+\s*}}/g)] || []; 
-                contact_placeholders = [...node_message.matchAll(/{{\s*[\w]+\s*}}/g)] || [];
+                node_message = await replacePlaceholders(node_message, userSession)
 
-                if(api_placeholders.length > 0 || contact_placeholders.length > 0) node_message = await replacePlaceholders(node_message, userSession, api_placeholders, contact_placeholders)
-                    
                 await sendTextMessage(userPhoneNumber,business_phone_number_id, node_message, userSession.accessToken, userSession.tenant);
                 // console.log(nextNode[0])
                 userSession.currNode = nextNode[0] !==undefined ? nextNode[0] : null;
@@ -409,16 +384,7 @@ export async function sendNodeMessage(userPhoneNumber, business_phone_number_id)
             case "image":
                 var caption =flow[currNode]?.body?.caption
 
-                // if(caption !== undefined){
-                //     var placeholders = [...caption.matchAll(/{{\s*[\w]+\s*}}/g)];
-                //     if(placeholders.length > 0) caption = await replacePlaceholders(node_message, userSession)
-                // }
-
-                const api_placeholders_img = [...caption.matchAll(/{{\s*[\w._\[\]]+\s*}}/g)] || []; 
-                const contact_placeholders_img = [...caption.matchAll(/{{\s*[\w]+\s*}}/g)] || [];
-
-                if(api_placeholders_img.length > 0 || contact_placeholders_img.length > 0) caption = await replacePlaceholders(caption, userSession, api_placeholders, contact_placeholders)
-                        
+                caption = await replacePlaceholders(caption, userSession)
                 
                 await sendImageMessage(userPhoneNumber,business_phone_number_id, flow[currNode]?.body?.id, caption ,accessToken);
                 userSession.currNode = nextNode[0] !==undefined ? nextNode[0] : null;
@@ -432,17 +398,8 @@ export async function sendNodeMessage(userPhoneNumber, business_phone_number_id)
                 const audioID = flow[currNode]?.body?.audioID
 
                 var caption = flow[currNode]?.body?.caption
-                // if(caption !== undefined){
-                //     var placeholders = [...caption.matchAll(/{{\s*[\w]+\s*}}/g)];
-                //     if(placeholders.length > 0) caption = await replacePlaceholders(node_message, userSession)
-                // }
-                
-                const api_placeholders_aud = [...caption.matchAll(/{{\s*[\w._\[\]]+\s*}}/g)] || []; 
-                const contact_placeholders_aud = [...caption.matchAll(/{{\s*[\w]+\s*}}/g)] || [];
+                caption = await replacePlaceholders(caption, userSession)
 
-                if(api_placeholders_aud.length > 0 || contact_placeholders_aud.length > 0) caption = await replacePlaceholders(caption, userSession, api_placeholders, contact_placeholders)
-
-                
 
                 await sendAudioMessage(userPhoneNumber, business_phone_number_id, audioID, caption, accessToken);
                 userSession.currNode = nextNode[0] !==undefined ? nextNode[0] : null;
@@ -455,9 +412,8 @@ export async function sendNodeMessage(userPhoneNumber, business_phone_number_id)
             case "video":
 
                 var caption = flow[currNode]?.body?.caption
-                var placeholders = [...caption.matchAll(/{{\s*[\w.]+\s*}}/g)];
-                if(placeholders.length > 0) caption = await replacePlaceholders(node_message, userSession, placeholders)
-                
+                caption = await replacePlaceholders(caption, userSession)
+
                 await sendVideoMessage(userPhoneNumber, business_phone_number_id, flow[currNode]?.body?.videoID, accessToken);
                 userSession.currNode = nextNode[0] !==undefined ? nextNode[0] : null;
                 console.log("video currNode: ", userSession.currNode)
@@ -467,9 +423,8 @@ export async function sendNodeMessage(userPhoneNumber, business_phone_number_id)
                 break;
             
             case "location":
-                var placeholders = [...node_message.matchAll(/{{\s*[\w.]+\s*}}/g)];
-                if(placeholders.length > 0) node_message = await replacePlaceholders(node_message, userSession, placeholders)
-                
+                node_message = await replacePlaceholders(node_message, userSession)
+
                 sendLocationMessage(userPhoneNumber, business_phone_number_id, flow[currNode]?.body , accessToken)
                 userSession.currNode = nextNode[0] !==undefined ? nextNode[0] : null;
                 console.log("image currNode: ", userSession.currNode)
@@ -481,9 +436,7 @@ export async function sendNodeMessage(userPhoneNumber, business_phone_number_id)
             case "AI":
                 console.log("AI Node")
                 if(node_message){
-                    var placeholders = [...node_message.matchAll(/{{\s*[\w.]+\s*}}/g)];
-                    if(placeholders.length > 0) node_message = await replacePlaceholders(node_message, userSession, placeholders)
-                    
+                    node_message = await replacePlaceholders(node_message, userSession)
                     await sendTextMessage(userPhoneNumber,business_phone_number_id, node_message);
                 }
                 var variable = flow[currNode]?.variable
@@ -528,8 +481,6 @@ export async function sendNodeMessage(userPhoneNumber, business_phone_number_id)
                     userSession.api.GET[`${variable_name}`] = response.data
                     console.log("User Session after GET: ", userSession)
                 }
-                // userSession.api.POST = {name: "Shreyas", age: 19}
-                // data = {variable: name}
                 else if(method == 'POST'){
                     console.log("Entering API-POST")
                     const variables = api?.variable
@@ -540,7 +491,7 @@ export async function sendNodeMessage(userPhoneNumber, business_phone_number_id)
 
                     for (const variable of variableList){
                         console.log("Var: ", variable)
-                        const value = userSession.api.POST?.[variable] //Shreyas
+                        const value = userSession.api.POST?.[variable] 
                         console.log(value)
                         dataToSend[variable] = value
                     }
@@ -588,92 +539,92 @@ export async function sendNodeMessage(userPhoneNumber, business_phone_number_id)
     
 }
 
-export async function setTemplate(templateData, phone, bpid, access_token, otp) {
+// async function setTemplate(templateData, phone, bpid, access_token, otp) {
 
-try {
-    console.log("otp rcvd: ", otp)
-    const components = templateData?.components;
-    const template_name = templateData.name;
-    const cacheKey = `${template_name}_${phone}_${bpid}_${otp}`
-    let messageData = messageCache.get(cacheKey)
-    if(!messageData){
-    const res_components = [];
+// try {
+//     console.log("otp rcvd: ", otp)
+//     const components = templateData?.components;
+//     const template_name = templateData.name;
+//     const cacheKey = `${template_name}_${phone}_${bpid}_${otp}`
+//     let messageData = messageCache.get(cacheKey)
+//     if(!messageData){
+//     const res_components = [];
 
-    for (const component of components) {
-    if (component.type === "HEADER") {
-        const header_handle = component?.example?.header_handle || [];
-        const header_text = component?.example?.header_text || [];
-        const parameters = [];
+//     for (const component of components) {
+//     if (component.type === "HEADER") {
+//         const header_handle = component?.example?.header_handle || [];
+//         const header_text = component?.example?.header_text || [];
+//         const parameters = [];
 
-        for (const handle of header_handle) {
-        const mediaID = await getMediaID(handle, bpid, access_token)
-        parameters.push({
-            type: "image",
-            image: { id: mediaID }
-        });
-        }
-        for (const text of header_text) {
-        // let modified_text = await replacePlaceholders(text, null, phone, bpid)
-        parameters.push({
-            type: "text",
-            text: text
-        });
-        }
-        if(parameters.length> 0){
-        const header_component = {
-        type: "header",
-        parameters: parameters
-        };
-        res_components.push(header_component);
-    }
-    }
+//         for (const handle of header_handle) {
+//         const mediaID = await getMediaID(handle, bpid, access_token)
+//         parameters.push({
+//             type: "image",
+//             image: { id: mediaID }
+//         });
+//         }
+//         for (const text of header_text) {
+//         // let modified_text = await replacePlaceholders(text, null, phone, bpid)
+//         parameters.push({
+//             type: "text",
+//             text: text
+//         });
+//         }
+//         if(parameters.length> 0){
+//         const header_component = {
+//         type: "header",
+//         parameters: parameters
+//         };
+//         res_components.push(header_component);
+//     }
+//     }
 
-    // userSession.api.GET = {data1: {}, data2: {}, data3:{}}
-    else if (component.type === "BODY") {
-        const body_text = component?.example?.body_text[0] || [];
-        const parameters = [];
+//     // userSession.api.GET = {data1: {}, data2: {}, data3:{}}
+//     else if (component.type === "BODY") {
+//         const body_text = component?.example?.body_text[0] || [];
+//         const parameters = [];
         
-        for (const text of body_text) {
-        let modified_text
-        if(otp) modified_text = otp
-        else modified_text = await replacePlaceholders(text, null, phone, bpid)
+//         for (const text of body_text) {
+//         let modified_text
+//         if(otp) modified_text = otp
+//         else modified_text = await replacePlaceholders(text, undefined, phone)
 
-        parameters.push({
-            type: "text",
-            text: modified_text
-        });
-        }
-        if(parameters.length > 0){
-        const body_component = {
-        type: "body",
-        parameters: parameters
-        };
-        res_components.push(body_component);
-    }
-    } else {
-        console.warn(`Unknown component type: ${component.type}`);
-    }
-    }
+//         parameters.push({
+//             type: "text",
+//             text: modified_text
+//         });
+//         }
+//         if(parameters.length > 0){
+//         const body_component = {
+//         type: "body",
+//         parameters: parameters
+//         };
+//         res_components.push(body_component);
+//     }
+//     } else {
+//         console.warn(`Unknown component type: ${component.type}`);
+//     }
+//     }
 
-    messageData = {
-    type: "template",
-    template: {
-        name: template_name,
-        language: {
-        code: "en_US"
-        },
-        components: res_components
-    }
-    }
-    messageCache.set(cacheKey, messageData)
-    };
+//     messageData = {
+//     type: "template",
+//     template: {
+//         name: template_name,
+//         language: {
+//         code: "en_US"
+//         },
+//         components: res_components
+//     }
+//     }
+//     messageCache.set(cacheKey, messageData)
+//     };
 
-    return messageData;
-} catch (error) {
-    console.error("Error in setTemplate function:", error);
-    throw error; // Rethrow the error to handle it further up the call stack if needed
-}
-}
+//     return messageData;
+// } catch (error) {
+//     console.error("Error in setTemplate function:", error);
+//     throw error; // Rethrow the error to handle it further up the call stack if needed
+// }
+// }
 
 export async function setTemplateData(templateName, userSession){
     let responseData = messageCache.get(userSession.business_phone_number_id);
@@ -752,7 +703,6 @@ export async function sendTemplateMessage(templateName, userSession) {
     
 }
 
-
 export async function setTemplateCar(templateData, phone, bpid, access_token) {
     try {
         const components = templateData?.components || []; // Fallback to empty array if components are missing
@@ -777,7 +727,7 @@ export async function setTemplateCar(templateData, phone, bpid, access_token) {
                 });
             }
             for (const text of header_text) {
-                let modified_text = await replacePlaceholders(text, null, phone, bpid);
+                let modified_text = await replacePlaceholders(text, undefined, phone);
                 parameters.push({
                 type: "text",
                 text: modified_text,
@@ -795,7 +745,7 @@ export async function setTemplateCar(templateData, phone, bpid, access_token) {
             const parameters = [];
 
             for (const text of body_text) {
-                let modified_text= await replacePlaceholders(text, null, phone, bpid);
+                let modified_text= await replacePlaceholders(text, undefined, phone);
 
                 parameters.push({
                 type: "text",
@@ -844,7 +794,7 @@ export async function setTemplateCar(templateData, phone, bpid, access_token) {
                     for (const text of body_text) {
                     let modified_text;
                     if (otp) modified_text = otp;
-                    else modified_text = await replacePlaceholders(text, null, phone, bpid);
+                    else modified_text = await replacePlaceholders(text, undefined, phone);
         
                     parameters.push({
                         type: "text",

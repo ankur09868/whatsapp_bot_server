@@ -75,75 +75,93 @@ export async function addDynamicModelInstance(modelName, updateData, tenant) {
     }
 }
 
-export async function replacePlaceholders(message, userSession) {
-    
-    console.log("message b4 replacement: ", message) 
+// export async function replacePlaceholders(message, userSession) {
+//     const placeholders = [...message.matchAll(/{{\s*[\w._\[\]]+\s*}}/g)] || [];
+//     if(placeholders && placeholders.length > 0){
+//         console.log("Placeholders: ", placeholders)
+//         for (const placeholder of placeholders){
+//             let key = placeholder[0].slice(2, -2).trim();
+//             var url = `${djangoURL}/contacts-by-phone/${userSession.userPhoneNumber}`;
+//             const tenant_id = userSession.tenant
+//             try {
+//                 const response = await axios.get(url, {
+//                     headers: {
+//                         "X-Tenant-Id": tenant_id
+//                     }
+//                 });
+//                 const responseData = response.data?.[0]
+//                 console.log("response : " ,responseData)
+                
+//             } catch (error) {
+//                 console.error('Error fetching data for placeholder replacement:', error);
 
+//             }
+//         }
+//     }
+// }
+
+export async function replacePlaceholders(message, userSession = {}, contact = null, tenant = null) {
     
-    const contact_placeholders = [...message.matchAll(/{{\s*[\w]+\s*}}/g)];
-        
-    if(contact_placeholders && contact_placeholders.length > 0){
-        console.log("Contact Placeholders: ", contact_placeholders)
-        for (const placeholder of contact_placeholders) {
+    console.log("message b4 replacement: ", message)
+    const placeholders = [...message.matchAll(/{{\s*[\w._\[\]]+\s*}}/g)] || [];
+
+    if(userSession && !contact) contact = userSession.userPhoneNumber
+    if(userSession && !tenant) tenant = userSession.tenant
+
+    if(placeholders && placeholders.length > 0){
+        console.log("Placeholders: ", placeholders)
+        for (const placeholder of placeholders){
             let key = placeholder[0].slice(2, -2).trim();
-            console.log("key:", key)
-            if(['id', 'name', 'phone', 'createdOn', 'isActive', 'bg_id', 'bg_name', 'tenant'].includes(key))
-            {
-                var url = `${djangoURL}/contacts-by-phone/${userSession.userPhoneNumber}`;
-                const tenant_id = userSession.tenant
-                try {
-                    const response = await axios.get(url, {
-                        headers: {
-                            "X-Tenant-Id": tenant_id
-                        }
-                    });
-                    const responseData = response.data?.[0]
-                    console.log("response : " ,responseData)
-                    const replacementValue = responseData?.[key] !== undefined ? responseData[key] : '';
-
-                    message = message.replace(placeholder[0], replacementValue);
-                    
-                } catch (error) {
-                    console.error('Error fetching data for placeholder replacement:', error);
-
+            const keys = key.split('.')
+            if(keys[0] == 'contact'){
+                let contactData = messageCache.get(contact)
+                if(!contactData){
+                    const response = await axios.get(`${djangoURL}/contacts-by-phone/${contact}`, {headers: {'X-Tenant-Id': tenant}})
+                    contactData = response.data[0]
+                    messageCache.set(contact, contactData)
                 }
+                if (keys.length > 1) {
+                    const keyPlaceholder = keys[1];
+                    const replacementValue = contactData?.[keyPlaceholder] !== undefined ? contactData[keyPlaceholder] : '';
+                    message = message.replace(placeholder[0], replacementValue);
+                } else {
+                    console.warn("Invalid contact placeholder: ", placeholder[0]);
+                }
+            }
+            else if(keys[0] =='api'){
+                const data_source = userSession.api.GET
+                const nestedKeyPath = keys.slice(1).join('.');
+                const replacementValue = await getNestedValue(data_source, nestedKeyPath) || '';
+
+                message = message.replace(placeholder[0], replacementValue);
+            }
+            else{
+                console.log("Unrecognized Placeholder: ", keys[0])
             }
         }
     }
+    console.log("MEssage after replacing: " ,message)
+    return message;
+}
 
-    // api_placeholders = [...message.matchAll(/{{\s*[\w._\[\]]+\s*}}/g)] || []; 
-    
-    // if(api_placeholders && api_placeholders.length>0){
-    //     console.log("placeholders: ", api_placeholders)
+async function getNestedValue(obj, keyPath) {
+    if (!obj || !keyPath || typeof keyPath !== 'string') {
+        return undefined; // Return undefined if obj or keyPath is invalid
+    }
 
-    //     for (const placeholder of api_placeholders) {
-    //         const key = placeholder[0].slice(2, -2).trim();
-    //         console.log("ey: ", key);
+    // Split the key path into parts (e.g., "responseData1.user.name" -> ["responseData1", "user", "name"])
+    const keys = keyPath.split('.');
 
-    //         const value = key.split('.').reduce((acc, part) => {
-    //             if (part.includes('[')) {
-    //                 const [arrayKey, index] = part.split('[');
-    //                 const cleanIndex = index.replace(']', ''); 
-    //                 const acc_list = acc?.[arrayKey];
-    //                 const flow_data = acc_list[parseInt(cleanIndex)]
-    //                 return flow_data; 
-    //             }
-    //             return acc?.[part]; 
-    //         }, userSession.api.GET);
-    //         // const value = userSession.api.GET?.[key]
+    // Traverse the object to get the value
+    let current = obj;
+    for (const key of keys) {
+        if (current[key] === undefined) {
+            return undefined; // Key not found
+        }
+        current = current[key];
+    }
 
-    //         console.log("Value: ", value);
-
-            
-    //         if (value !== undefined) {
-    //             message = message.replace(placeholder[0], value);
-    //         }
-    //     }
-    // }
-
-console.log("MEssage after replacing: " ,message)
-
-return message;
+    return current;
 }
 
 export async function  updateStatus(status, message_id, business_phone_number_id, user_phone, broadcastGroup, tenant, timestamp) {

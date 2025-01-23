@@ -12,7 +12,7 @@ import { decryptRequest, encryptResponse, FlowEndpointException } from "./flowsA
 import { getNextScreen } from "./flowsAPI/flow.js";
 import { getAccessToken, getWabaID, getPhoneNumberID, registerAccount, postRegister, addKey } from "./helpers/login-flow.js";
 import { sendImageMessage, sendTextMessage, sendAudioMessage, sendVideoMessage, sendLocationMessage, fastURL, djangoURL} from "./snm.js"
-import { updateStatus, updateLastSeen, getIndianCurrentTime } from "./helpers/misc.js"
+import { updateStatus, updateLastSeen, getIndianCurrentTime, replacePlaceholders } from "./helpers/misc.js"
 import { Worker } from "worker_threads"
 import { messageQueue } from "./queues/workerQueues.js";
 import { nuren_users } from "./helpers/order.js"; 
@@ -196,7 +196,7 @@ try {
             });
         }
         for (const text of header_text) {
-            let modified_text = await replacePlaceholders(text, phone, bpid);
+            let modified_text = await replacePlaceholders(text, undefined, phone, tenant);
             parameters.push({
             type: "text",
             text: modified_text,
@@ -216,7 +216,7 @@ try {
         for (const text of body_text) {
             let modified_text;
             if (otp) modified_text = otp;
-            else modified_text = await replacePlaceholders(text, phone, bpid);
+            else modified_text = await replacePlaceholders(text, undefined, phone, tenant);
 
             parameters.push({
             type: "text",
@@ -265,7 +265,7 @@ try {
                 for (const text of body_text) {
                 let modified_text;
                 if (otp) modified_text = otp;
-                else modified_text = await replacePlaceholders(text, phone, bpid);
+                else modified_text = await replacePlaceholders(text, undefined, phone, tenant);
     
                 parameters.push({
                     type: "text",
@@ -453,7 +453,7 @@ async function sendTemplateToGroup(groupData, access_token, tenant_id, account_i
     const messageData = await setTemplate(templateDetails, contact, bpid, access_token, tenant_id, null);
     groupData = {
       ...groupData,
-      name: templateName,
+      templateName,
       access_token,
       tenant_id,
       account_id,

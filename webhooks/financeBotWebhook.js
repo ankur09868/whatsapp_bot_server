@@ -1,6 +1,8 @@
 import { sendMessage } from "../send-message.js";
 import axios from "axios";
 import { convertImageToBase64 } from "../flowsAPI/flow.js";
+import FormData from 'form-data';
+
 
 
 // const url = 'https://x01xx96q-8000.inc1.devtunnels.ms'
@@ -25,6 +27,7 @@ export async function financeBotWebhook(req, res, userSession) {
         let responses = nfm_reply?.response_json
         // console.log("Responses: ",typeof responses)
         responses = JSON.parse(responses)
+        console.log("Responseseseses: ", responses)
         const nfm_type = responses?.type
 
         switch(nfm_type){
@@ -46,6 +49,9 @@ export async function financeBotWebhook(req, res, userSession) {
             case "QUESTIONS":
                 handleQuestions(userSession, responses)
                 break;
+            case "DATA_COLLECTION":
+                handleDataCollection(userSession, responses)
+                break;
             default:
                 console.log("Unhandled nfm type: ", nfm_type)
         }
@@ -64,6 +70,11 @@ async function sendGreetingMessage(userSession) {
     sendMessage(userSession.userPhoneNumber, userSession.business_phone_number_id, messageData, userSession.accessToken, userSession.tenant)
 
     messageData = await flowData("Sign In", "Get all your portfolio info just in a few clicks!!", {screen: "WELCOME", data: {image: await convertImageToBase64("./flowsAPI/login-form-2.png")}})
+    // const payload = {
+    //     screen: "DATA_COLLECTION"
+    // }
+    // messageData = await flowData("Enter Details", "We also offer expert reccommendations based on your portfolio. Please fill out these details:", payload);
+
     sendMessage(userSession.userPhoneNumber, userSession.business_phone_number_id, messageData, userSession.accessToken, userSession.tenant)
 }
 
@@ -543,4 +554,56 @@ async function handleQuestions(userSession, responses) {
             userSession.tenant
         );
     }
+}
+
+async function handleDataCollection(userSession, responses) {
+    const headers = {key: `${userSession.business_phone_number_id}_${userSession.userPhoneNumber}`}
+    const data = {
+        age: responses?.age_group,
+        risk: responses?.risk_tolerance,
+        goals: responses?.goal
+    }
+    const response = await axios.post('https://x01xx96q-8000.inc1.devtunnels.ms/evalution', data, {headers: headers})
+    console.log("Response rcvd in data collection: ", response.data)
+    const base64Image = response.data.image
+    const base64Data = base64Image.split(';base64,').pop();
+    const imageBuffer = Buffer.from(base64Data, 'base64');
+
+    const formData = new FormData();
+    formData.append('file', imageBuffer, { filename: 'image.png' });
+    formData.append('type', 'image');
+    formData.append('messaging_product', 'whatsapp');
+    let mediaID;
+    try {
+        const mediaResponse = await axios.post(
+            `https://graph.facebook.com/v16.0/${userSession.business_phone_number_id}/media`,
+            formData,
+            {
+            headers: {
+                ...formData.getHeaders(), // Include FormData headers
+                Authorization: `Bearer ${userSession.accessToken}`,
+            },
+            }
+        );
+        console.log("Response: ", mediaResponse.data)
+        console.log('Media ID:', mediaResponse.data.id);
+        mediaID = mediaResponse.data.id
+    } catch (error) {
+        console.error('Error uploading image:', error.response?.data || error.message);
+    }
+    
+    const messageData = {
+        type: "image",
+        image: {
+            id: mediaID,
+            caption: response.data.analysis
+        }
+    };
+    await sendMessage(
+        userSession.userPhoneNumber,
+        userSession.business_phone_number_id,
+        messageData,
+        userSession.accessToken,
+        userSession.tenant
+    );
 }

@@ -7,7 +7,7 @@ import FormData from 'form-data';
 
 // const url = 'https://x01xx96q-8000.inc1.devtunnels.ms'
 // const url = 'http://localhost:8002'
-const url = 'https://mfcentral-hfckakhnbqe0h6gp.canadacentral-01.azurewebsites.net'
+const url = 'https://mfcentralvm.centralindia.cloudapp.azure.com'
 
 export async function financeBotWebhook(req, res, userSession) {
     const business_phone_number_id = req.body.entry?.[0].changes?.[0].value?.metadata?.phone_number_id;

@@ -91,7 +91,7 @@ messageQueue.process('campaign', numberOfWorkers, async(job) => {
     await setCampaignUserSession(key, campaignUserSession)
     addData(key, campaignData)
     
-    const data = {message_id: messageID, status: "sent", type: "campaign", type_identifier: campaignData.campaignId, template_name: templateInfo.name, userPhone: contact, tenant_id: campaignData.tenant_id}
+    const data = {message_id: messageID, status: "sent", type: "campaign", type_identifier: campaignData.name, template_name: templateInfo.name, userPhone: contact, tenant_id: campaignData.tenant_id}
     const res = await axios.post(`${djangoURL}/individual_message_statistics/`, data, {headers: {'bpid': campaignData.bpid}})
     
   }catch(err){

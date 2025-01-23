@@ -1,5 +1,5 @@
 import { getMediaID } from "../helpers/handle-media.js";
-import { replacePlaceholders } from "../queues/helpers.js";
+import { replacePlaceholders } from "../helpers/misc.js";
 import { messageCache } from "../server.js";
 import axios from "axios";
 import { writeFile, readFile } from 'fs/promises';
@@ -109,7 +109,7 @@ async function sendDelayedTemplate(index, campaign, key) {
     );
     const templateData = response.data.data[0]
 
-    const messageData = await setTemplateData(templateData, recipient, campaign.bpid, campaign.access_token)
+    const messageData = await setTemplateData(templateData, recipient, campaign.bpid, campaign.access_token, campaign.tenant_id)
     const message_id = await sendMessage(recipient, campaign.bpid, messageData, campaign.access_token, campaign.tenant)
     
     if(templateInfo?.terminal) {
@@ -148,7 +148,7 @@ async function getSession(key) {
 
 
 
-async function setTemplateData(templateData, phone, bpid, access_token) {
+async function setTemplateData(templateData, phone, bpid, access_token, tenant) {
     try {
         const components = templateData?.components || []; // Fallback to empty array if components are missing
         const template_name = templateData.name || "defaultTemplateName"; // Fallback if template name is missing
@@ -172,7 +172,7 @@ async function setTemplateData(templateData, phone, bpid, access_token) {
                 });
             }
             for (const text of header_text) {
-                let modified_text = await replacePlaceholders(text, phone, bpid);
+                let modified_text = await replacePlaceholders(text, undefined, phone, tenant);
                 parameters.push({
                 type: "text",
                 text: modified_text,
@@ -190,7 +190,7 @@ async function setTemplateData(templateData, phone, bpid, access_token) {
             const parameters = [];
 
             for (const text of body_text) {
-                let modified_text= await replacePlaceholders(text, phone, bpid);
+                let modified_text= await replacePlaceholders(text, undefined, phone, tenant);
 
                 parameters.push({
                 type: "text",
@@ -239,7 +239,7 @@ async function setTemplateData(templateData, phone, bpid, access_token) {
                     for (const text of body_text) {
                     let modified_text;
                     if (otp) modified_text = otp;
-                    else modified_text = await replacePlaceholders(text, phone, bpid);
+                    else modified_text = await replacePlaceholders(text, undefined, phone, tenant);
         
                     parameters.push({
                         type: "text",

@@ -44,7 +44,7 @@ export async function addContact(phone, name, bpid) {
         await axios.post(`${djangoURL}/contacts_by_tenant/`, c_data, {
         headers: {'bpid': bpid}
         })
-    }catch (error){
+    }catch (error){ 
         console.error('Error Occured while adding contact: ', error.message)
     }
 }
@@ -118,6 +118,7 @@ export async function replacePlaceholders(message, userSession = {}, contact = n
                 if(!contactData){
                     const response = await axios.get(`${djangoURL}/contacts-by-phone/${contact}`, {headers: {'X-Tenant-Id': tenant}})
                     contactData = response.data[0]
+                    console.log("Received Data: ", contactData)
                     messageCache.set(contact, contactData)
                 }
                 if (keys.length > 1) {

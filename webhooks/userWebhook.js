@@ -13,6 +13,7 @@ import axios from "axios";
 import FormData from 'form-data';
 import https from 'https';
 import { financeBotWebhook } from "./financeBotWebhook.js";
+import { type } from "os";
 
 const agent = new https.Agent({
   rejectUnauthorized: false, // Disable SSL certificate verification //VERY VERY IMPORTANT SECURITY
@@ -224,10 +225,10 @@ async function sendWelcomeMessage(userSession){
 }
 
 async function processOrderForDrishtee(userSession, products) {
-  const responseMessage_hi = "हमारी टीम को आपकी प्रतिक्रिया प्राप्त हो गई है। अब हम आपके ऑर्डर को प्लेस करने की प्रक्रिया को आगे बढ़ा रहे हैं।"
-  const responseMessage_en = "Your response is received. Let's continue further process to place your order"
-  const responseMessage_bn = "আপনার উত্তর পাওয়া গেছে। আসুন আপনার অর্ডার দেওয়ার পরবর্তী প্রক্রিয়া শুরু করি।"
-  const responseMessage_mr = "आपला प्रतिसाद मिळाला आहे. चला, तुमची ऑर्डर देण्याची पुढील प्रक्रिया सुरू करूया."
+  const responseMessage_hi = "धन्यवाद! आपकी प्रतिक्रिया हमें मिल गई है। अब हम आपके ऑर्डर को आगे बढ़ा रहे हैं। हमें फिर से सेवा का मौका दें, यह हमारा सौभाग्य होगा।";
+  const responseMessage_en = "Thank you! We've received your response. We're now moving ahead to place your order. Looking forward to serving you again!";
+  const responseMessage_bn = "আপনার উত্তর পাওয়া গেছে, ধন্যবাদ! আমরা এখন আপনার অর্ডার প্রসেস করার কাজ এগিয়ে নিচ্ছি। আবার আপনাকে সাহায্য করতে পারলে ভালো লাগবে।";
+  const responseMessage_mr = "धन्यवाद! तुमचा प्रतिसाद आम्हाला मिळाला आहे. आता तुमची ऑर्डर पुढे नेण्याची प्रक्रिया सुरू करत आहोत. कृपया पुन्हा भेट द्या, आम्हाला आनंद होईल.";
   let responseMessage = responseMessage_en;
 
   const language = userSession.language
@@ -242,7 +243,7 @@ async function processOrderForDrishtee(userSession, products) {
   const url = "https://testexpenses.drishtee.in/rrp/nuren/savePreOrder"
   const headers = {'Content-Type': 'application/json'}
   const data = {
-    RRP_id: userSession.api.POST?.["RRP_ID"],
+    RRP_id: userSession.userPhoneNumber,
     products: products.map(product => {
       return {
         product_id: product.product_retailer_id,
@@ -250,8 +251,24 @@ async function processOrderForDrishtee(userSession, products) {
       }
     })
   }
-  const response = await axios.post(url, data, {headers: headers})
-  console.log("Response: ", response.data)
+  await axios.post(url, data, {headers: headers})
+
+  const messageData = {
+    type: "image",
+    image: {
+      id: 481154868087797,
+      caption: captionLanguage?.[`${userSession.language}`]
+    }
+  }
+  await sendMessage(userSession.userPhoneNumber, userSession.business_phone_number_id, messageData, userSession.accessToken, userSession.tenant)
+}
+
+const captionLanguage = {
+  en : "Scan the QR code to complete your payment for the order. Thank you!",
+  mr : "आपला ऑर्डरचा पेमेंट पूर्ण करण्यासाठी QR कोड स्कॅन करा. धन्यवाद!",
+  as : "আপোনাৰ অৰ্ডাৰৰ পৰিশোধ সম্পূৰ্ণ কৰিবলৈ QR কোড স্কেন কৰক। ধন্যবাদ!",
+  hi : "अपने ऑर्डर के भुगतान के लिए QR कोड स्कैन करें। धन्यवाद!",
+  bn : "আপনার অর্ডারের অর্থপ্রদান সম্পূর্ণ করতে QR কোডটি স্ক্যান করুন। ধন্যবাদ!"
 }
 
 async function processOrder(userSession, products) {
@@ -512,7 +529,7 @@ async function handleAudioOrdersForDrishtee(message, userSession) {
     }
   );
   const product_list = response.data.data.data
-  
+  console.log("Product List: ", product_list)
   let product_body, fallback_message;
   const language = userSession.language
 
@@ -533,7 +550,64 @@ async function handleAudioOrdersForDrishtee(message, userSession) {
     fallback_message = "ओह! हे सध्या स्टॉकमध्ये नाही. काळजी करू नका, आम्ही लवकरच ते पुन्हा स्टॉक करू! तोपर्यंत, कृपया समान उत्पादने बघा किंवा नंतर पुन्हा तपासा."
   }
 
-  if(product_list.length>0){
+  if(Array.isArray(product_list) && product_list.length>0){
+    const header = "Items"
+    const catalog_id = 1822573908147892
+    const footer = null
+    const section_title = "Items"
+    const chunkSize = 30;
+    for (let i = 0; i < product_list.length; i += chunkSize) {
+      const chunk = product_list.slice(i, i + chunkSize);
+      await sendProductMessage(userSession, chunk, catalog_id, header, product_body, footer, section_title, userSession.tenant);
+    }
+  }
+  else{
+    const messageData = {
+      type: "text",
+      text: { body: fallback_message }
+    }
+    return sendMessage(userSession.userPhoneNumber, userSession.business_phone_number_id, messageData, userSession.accessToken ,userSession.tenant);
+  }
+}
+
+export async function handleTextOrdersForDrishtee(message, userSession) {
+  console.log("Received text message: ", message)
+
+  const formData = new FormData();
+  formData.append('query', message);// Attach the file stream to FormData
+
+  const response = await axios.post(
+    'https://webpbx.in/api/process/drishtee/product/search/',
+    formData,
+    {
+      headers: { ...formData.getHeaders() }, // Include headers from FormData
+      httpsAgent: agent,
+    }
+  );
+  console.log("Rsponse: ", response.data)
+  const product_list = response.data.data.data
+  console.log("Product List: ", product_list, typeof product_list)
+  let product_body, fallback_message;
+  const language = userSession.language
+
+  if(language == "en"){
+    product_body = `Browse through our exclusive collection of products and find what suits your needs best. Shop now and enjoy amazing offers!`
+    fallback_message = "Oops! It looks like this item is currently out of stock. Don't worry, we're working hard to restock it soon! In the meantime, feel free to browse similar products or check back later."
+  }
+  else if(language == "bn"){
+    product_body = "আমাদের বিশেষ পণ্যের সংগ্রহ দেখুন এবং আপনার প্রয়োজন অনুযায়ী পছন্দ করুন। এখনই কেনাকাটা করুন এবং চমৎকার অফার উপভোগ করুন!"
+    fallback_message = "ওহ! এটা বর্তমানে স্টক আউট রয়েছে। চিন্তা করবেন না, আমরা শীঘ্রই এটি পুনরায় স্টক করব! এর মধ্যে, আপনি অনুরূপ পণ্যগুলি দেখতে পারেন অথবা পরে আবার চেক করতে পারেন।"
+  }
+  else if(language == "hi"){
+    product_body = "हमारे उत्पादों के विशेष संग्रह को ब्राउज़ करें और अपनी आवश्यकताओं के अनुसार सबसे उपयुक्त उत्पाद खोजें। अभी खरीदारी करें और शानदार ऑफ़र्स का आनंद लें!"
+    fallback_message = "क्षमा करें! यह उत्पाद वर्तमान में स्टॉक में उपलब्ध नहीं है। कृपया चिंता न करें, इसे शीघ्र ही स्टॉक में लाने के लिए हम प्रयासरत हैं। तब तक, आप समान उत्पाद ब्राउज़ कर सकते हैं या बाद में पुनः जांच सकते हैं।";
+  }
+  else if(language == "mr"){
+    product_body = "आमच्या खास उत्पादनांच्या संग्रहातून ब्राउज करा आणि तुमच्या गरजेनुसार सर्वोत्तम निवडा. आत्ताच खरेदी करा आणि आश्चर्यकारक ऑफर्सचा आनंद घ्या!"
+    fallback_message = "ओह! हे सध्या स्टॉकमध्ये नाही. काळजी करू नका, आम्ही लवकरच ते पुन्हा स्टॉक करू! तोपर्यंत, कृपया समान उत्पादने बघा किंवा नंतर पुन्हा तपासा."
+  }
+
+  if(Array.isArray(product_list) && product_list.length>0){
     const header = "Items"
     const catalog_id = 1822573908147892
     const footer = null

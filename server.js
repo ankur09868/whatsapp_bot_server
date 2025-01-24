@@ -10,6 +10,7 @@ import { Server } from "socket.io";
 
 import { decryptRequest, encryptResponse, FlowEndpointException } from "./flowsAPI/encryption.js";
 import { getNextScreen } from "./flowsAPI/flow.js";
+import { getMediaID } from "./helpers/handle-media.js";
 import { getAccessToken, getWabaID, getPhoneNumberID, registerAccount, postRegister, addKey } from "./helpers/login-flow.js";
 import { sendImageMessage, sendTextMessage, sendAudioMessage, sendVideoMessage, sendLocationMessage, fastURL, djangoURL} from "./snm.js"
 import { updateStatus, updateLastSeen, getIndianCurrentTime, replacePlaceholders } from "./helpers/misc.js"

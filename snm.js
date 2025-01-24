@@ -2,9 +2,10 @@ import { userSessions, messageCache } from "./server.js";
 import {sendMessage} from "./send-message.js"
 import axios from "axios";
 
-import { replacePlaceholders, addDynamicModelInstance, addContact, executeFallback } from "./helpers/misc.js"
+import { replacePlaceholders, addDynamicModelInstance, executeFallback } from "./helpers/misc.js"
 import { getMediaID } from "./helpers/handle-media.js"
 import { json } from "express";
+import { handleTextOrdersForDrishtee } from "./webhooks/userWebhook.js";
 
 
 export const fastURL = "https://fastapione-gue2c5ecc9c4b8hy.centralindia-01.azurewebsites.net"
@@ -469,14 +470,14 @@ export async function sendNodeMessage(userPhoneNumber, business_phone_number_id)
                 const method = api?.method
 
                 const headers = api?.headers
-                const header_json = JSON.parse(headers)
-                console.log("Type of headers: ", typeof(header_json))
+                if(headers) headers = JSON.parse(headers)
+                console.log("Type of headers: ", typeof(headers))
                 const url = api?.endpoint
 
                 if(method == "GET"){
                     const variable_name = api?.variable
                     console.log("Variable Name: ", variable_name)
-                    const response = await axios.get(url, {headers: header_json})
+                    const response = await axios.get(url, {headers: headers})
                     console.log("Received Response from GET req: ", response.data)
                     userSession.api.GET[`${variable_name}`] = response.data
                     console.log("User Session after GET: ", userSession)
@@ -496,7 +497,7 @@ export async function sendNodeMessage(userPhoneNumber, business_phone_number_id)
                         dataToSend[variable] = value
                     }
                     console.log("Data to Send: ", dataToSend)
-                    axios.post(url, dataToSend, {headers: header_json})
+                    axios.post(url, dataToSend, {headers: head})
                     console.log("Sending POST req with data: ", dataToSend)
                 }
                 else if(method == "DELETE"){
@@ -522,6 +523,18 @@ export async function sendNodeMessage(userPhoneNumber, business_phone_number_id)
                 }
                 console.log("Language: ", userSession.language, "Name: ", templateName)
                 await sendTemplateMessage(templateName, userSession)
+                break;
+            
+            case "custom":
+                const customCode = flow[currNode]?.customCode
+                handleCustomNode(customCode, userSession)
+
+                userSession.currNode = nextNode[0] !==undefined ? nextNode[0] : null;
+
+                if(userSession.currNode!=null) {
+                    sendNodeMessage(userPhoneNumber,business_phone_number_id)
+                }
+                break;
 
             default:
                 console.log(`Unknown node type: ${flow[currNode]?.type}`);
@@ -953,4 +966,16 @@ export async function getIndianCurrentTime(){
     const indiaTime = new Intl.DateTimeFormat('en-GB', options).format(current_time);
     console.log("India Time: ", indiaTime)
     return indiaTime
+}
+
+const customMap = {
+
+}
+
+async function handleCustomNode(customCode, userSession) {
+    if(customCode == 1){
+        const message = userSession?.api?.POST?.product
+        console.log("MESSAGE TO HANDLE: ", message)
+        handleTextOrdersForDrishtee(message, userSession)
+    }
 }

@@ -13,6 +13,7 @@ import axios from "axios";
 import FormData from 'form-data';
 import https from 'https';
 import { financeBotWebhook } from "./financeBotWebhook.js";
+import { promptWebhook } from "./customCommandsWebhooks.js";
 import { type } from "os";
 
 const agent = new https.Agent({
@@ -42,6 +43,9 @@ export async function userWebhook(req, res) {
     else if(userSession.type == 'finance'){
       return financeBotWebhook(req, res, userSession)
     }
+    else if(userSession.type == 'prompt'){
+      return promptWebhook(req, res, userSession)
+    }
   
     const message_text = message?.text?.body || (message?.interactive ? (message?.interactive?.button_reply?.title || message?.interactive?.list_reply?.title) : null)
 
@@ -56,6 +60,10 @@ export async function userWebhook(req, res) {
     else if(message_text == '/finance'){
       userSession.type = 'finance'
       return financeBotWebhook(req, res, userSession)
+    }
+    else if(message_text == '/prompt'){
+      userSession.type = 'prompt'
+      return promptWebhook(req, res, userSession)
     }
   
     updateLastSeen("replied", timestamp, userSession.userPhoneNumber, userSession.business_phone_number_id)

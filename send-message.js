@@ -22,7 +22,7 @@ export async function sendMessage(phoneNumber, business_phone_number_id, message
     phoneNumber = String(phoneNumber).trim();
     if(phoneNumber.length == 10) phoneNumber = `91${phoneNumber}`
 
-    console.log('Message Data:', JSON.stringify(messageData, null, 7));
+    // console.log('Message Data:', JSON.stringify(messageData, null, 7));
 
     // Use session access token if not provided
     if (access_token == null) access_token = userSession.accessToken;
@@ -63,7 +63,7 @@ export async function sendMessage(phoneNumber, business_phone_number_id, message
 
             let timestamp = await getIndianCurrentTime()
 
-            console.log("MESSAGE DATA: ", JSON.stringify(messageData, null, 4))
+            // console.log("MESSAGE DATA: ", JSON.stringify(messageData, null, 4))
             io.emit('node-message', {
                 message: messageData,
                 phone_number_id: business_phone_number_id,

@@ -68,7 +68,7 @@ export const chooseOptionMap = {
     'sat': 'ᱥᱟᱹᱵᱟᱭ ᱢᱤᱭᱤᱭ ᱵᱤᱦᱤᱭ', // Santhali
     'bho': 'विकल्प चुनीं', // Bhojpuri
     'hing': 'Choose Option', // Hinglish
-  };
+};
 
 export const pickCategoryMap = {
 'hi': 'कृपया एक श्रेणी चुनें', // Hindi

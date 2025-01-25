@@ -171,7 +171,7 @@ console.log('hurreyy')
 })
 
 
-export async function setTemplate(templateData, phone, bpid, access_token, tenant, otp) {
+export async function setTemplate(templateData, phone, bpid, access_token, tenant, otp, link) {
 try {
     console.log("otp received: ", otp);
     console.log("Template Data rcvd: ", templateData)
@@ -231,8 +231,7 @@ try {
             };
             res_components.push(body_component);
         }
-        }
-        else if (component.type === "CAROUSEL") {
+        } else if (component.type === "CAROUSEL") {
         const cards = component?.cards || [];
         const cards_content = [];
 
@@ -311,6 +310,14 @@ try {
             cards: cards_content
         };
         res_components.push(carousel_component);
+        } else if(component.type == "BUTTONS"){
+          if(tenant == 'qqeeusz' && link){
+            const parameters = [{type: "text", text: link}]
+            const button_component = {type: "button", sub_type: "url", index: 0, parameters: parameters}
+            console.log("Button Component: ", button_component)
+
+            res_components.push(button_component)
+          }
         }
         else {
         console.warn(`Unknown component type: ${component.type}`);

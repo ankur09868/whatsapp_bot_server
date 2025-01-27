@@ -96,20 +96,16 @@ async function handlePrompt(userSession, responses) {
     if(responses?.id) responses = getTopicDetails(responses?.id, responses?.platform)
         console.log("Responses: " ,responses)
     const link = await generateUrl(responses?.topic, responses?.focus, responses?.context, responses?.platform)
+    console.log("Link: ", link)
     const templateName = "prompt";
-    const cacheKey = `${userSession.accountID}_${templateName}`;
-    let templateDetails = messageCache.get(cacheKey);
 
-    if (!templateDetails) {
-        const response = await axios.get(
-        `https://graph.facebook.com/v16.0/${userSession.accountID}/message_templates?name=${templateName}`,
-        { headers: { Authorization: `Bearer ${userSession.accessToken}` } }
-        );
-        // console.log("Response: ", response.data);
-        templateDetails = response.data.data[0];
-        messageCache.set(cacheKey, templateDetails);
-    }
-
+    const response = await axios.get(
+    `https://graph.facebook.com/v16.0/${userSession.accountID}/message_templates?name=${templateName}`,
+    { headers: { Authorization: `Bearer ${userSession.accessToken}` } }
+    );
+    // console.log("Response: ", response.data);
+    const templateDetails = response.data.data[0];
+    
     const contact = userSession.userPhoneNumber
 
     const messageData = await setTemplate(templateDetails, contact, userSession.business_phone_number_id, userSession.accessToken, userSession.tenant, null, link);
@@ -118,14 +114,36 @@ async function handlePrompt(userSession, responses) {
 }
 
 async function generateUrl(topic, main_focus, context, platform) {
-    console.log("rcvd data: ", topic, main_focus, context, platform)
-    const query = `Create a ${platform} post that effectively engages your audience on the topic of {${topic}}, highlighting {${main_focus}} in {${context}}. 
-        Instructions: Return only the post content. 
-        Steps
-        1. Introduction: Start with a compelling hook that captures attention. Mention the significance of {${main_focus}} in {${context}}.
-        2. Main Content: Discuss the potential of {${topic}} and how it can enhance user experience. Highlight specific benefits or use cases.
-        3. Call to Action: Encourage engagement by asking a question or inviting opinions on the topic.
-        4. Conclusion: Summarize the key points`;
+    console.log("Received data: ", topic, main_focus, context, platform);
+
+    const query = `Create a highly engaging ${platform} post about {${topic}}, with a focus on {${main_focus}} in the context of {${context}}. Follow the structure and guidelines below:
+
+        **Objective**: 
+        - Craft a post that captures attention, educates the audience, and encourages interaction.
+
+        **Structure**:
+        1. **Introduction (Hook)**:
+           - Start with a compelling statement, question, or fact that grabs attention.
+           - Briefly introduce the significance of {${main_focus}} in {${context}}.
+
+        2. **Main Content**:
+           - Explain the relevance of {${topic}} and its connection to {${main_focus}}.
+           - Highlight key benefits, use cases, or examples that demonstrate its value.
+           - Keep the tone conversational and relatable for the ${platform} audience.
+
+        3. **Call to Action (CTA)**:
+           - Encourage engagement by asking a thought-provoking question, inviting opinions, or prompting the audience to share their experiences.
+           - Use a clear and actionable phrase (e.g., "What do you think?", "Share your thoughts below!", "Let’s discuss this!").
+
+        4. **Conclusion**:
+           - Summarize the key points in a concise and memorable way.
+           - End with a positive note or a reminder of the value of {${topic}}.
+
+        **Tone**:
+        - Use a tone that aligns with ${platform}'s audience (e.g., professional for LinkedIn, casual for Twitter, visually descriptive for Instagram).
+
+        **Output**:
+        - Return only the post content. Do not include any additional explanations or notes.`;
 
     let encodedQuery = encodeURIComponent(query);
     

@@ -177,10 +177,7 @@ try {
     console.log("Template Data rcvd: ", templateData)
     const components = templateData?.components || [];
     const template_name = templateData.name || "defaultTemplateName";
-    const cacheKey = `${template_name}_${phone}_${bpid}_${otp}`;
-    let messageData = messageCache.get(cacheKey);
-
-    if (!messageData) {
+    let messageData;
     const res_components = [];
 
     for (const component of components) {
@@ -334,8 +331,6 @@ try {
         components: res_components,
         },
     };
-    messageCache.set(cacheKey, messageData);
-    }
 
     return messageData;
 } catch (error) {

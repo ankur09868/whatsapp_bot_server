@@ -5,7 +5,7 @@ import axios from "axios";
 import { replacePlaceholders, addDynamicModelInstance, executeFallback } from "./helpers/misc.js"
 import { getMediaID } from "./helpers/handle-media.js"
 import { json } from "express";
-import { handleTextOrdersForDrishtee } from "./webhooks/userWebhook.js";
+import { handleTextOrdersForDrishtee, handleAudioOrdersForDrishtee } from "./webhooks/userWebhook.js";
 
 
 export const fastURL = "https://fastapione-gue2c5ecc9c4b8hy.centralindia-01.azurewebsites.net"
@@ -527,7 +527,7 @@ export async function sendNodeMessage(userPhoneNumber, business_phone_number_id)
             
             case "custom":
                 const customCode = flow[currNode]?.customCode
-                handleCustomNode(customCode, userSession)
+                await handleCustomNode(customCode, userSession)
 
                 userSession.currNode = nextNode[0] !==undefined ? nextNode[0] : null;
 
@@ -974,8 +974,12 @@ const customMap = {
 
 async function handleCustomNode(customCode, userSession) {
     if(customCode == 1){
-        const message = userSession?.api?.POST?.product
-        console.log("MESSAGE TO HANDLE: ", message)
-        handleTextOrdersForDrishtee(message, userSession)
+        const message = userSession?.api?.POST?.text_product
+        await handleTextOrdersForDrishtee(message, userSession)
+    }
+    else if(customCode == 2){
+        console.log("Custom code 2 ")
+        const mediaID = userSession?.api?.POST?.audio_product
+        await handleAudioOrdersForDrishtee(mediaID, userSession)
     }
 }

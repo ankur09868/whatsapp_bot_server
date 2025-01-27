@@ -65,25 +65,25 @@ export async function userWebhook(req, res) {
       userSession.type = 'prompt'
       return promptWebhook(req, res, userSession)
     }
-  
+
     updateLastSeen("replied", timestamp, userSession.userPhoneNumber, userSession.business_phone_number_id)
-  
+
     let formattedConversation = [{
       text: message_text,
       sender: "user"
     }];
     saveMessage(userSession.userPhoneNumber, userSession.business_phone_number_id, formattedConversation, userSession.tenant, timestamp)
-    
+
     const notif_body = {content: `${userSession.userPhoneNumber} | New meessage from ${userSession.userName || userSession.userPhoneNumber}: ${message_text}`, created_on: timestamp}
     sendNotification(notif_body, userSession.tenant)
-    
+
     ioEmissions(message, userSession, timestamp)
-  
+    if(userSession.tenant == 'leqcjsk' && message?.type === "order"){
+      await processOrderForDrishtee(userSession, products)
+    }
     if (!userSession.multilingual){
-  
       if (!userSession.AIMode) {
         handleInput(userSession, message)
-      
         if (message?.type === "interactive") {
             let userSelectionID = message?.interactive?.button_reply?.id || message?.interactive?.list_reply?.id;
   
@@ -112,7 +112,6 @@ export async function userWebhook(req, res) {
             const type = flow[userSession.currNode].type
             if (userSession.currNode != userSession.startNode){
                 if (['Text' ,'string', 'audio', 'video', 'location', 'image', 'AI'].includes(type)) {
-                    console.log(`Storing input for node ${userSession.currNode}:`, message?.text?.body);
                     userSession.currNode = userSession.nextNode[0];
                 }
                 else if(['Button', 'List'].includes(type)){
@@ -123,46 +122,41 @@ export async function userWebhook(req, res) {
             }
             sendNodeMessage(userPhoneNumber,business_phone_number_id);
         }
-        else if (message?.type =="order"){
-          if(userSession.tenant == "leqcjsk") await processOrderForDrishtee(userSession, products)
-          else await processOrder2(userSession, products)
-          
-          // userSession.currNode = userSession.nextNode[0];
-          // console.log("Current node after processing order: ", userSession.currNode)
-          // sendNodeMessage(userPhoneNumber,business_phone_number_id);
-        }
+        
         else if (message?.type == "button"){
           const userSelectionText = message?.button?.text
           console.log("User Selection Text: ", userSelectionText)
           if (DRISHTEE_PRODUCT_CAROUSEL_IDS.includes(userSelectionText)) await handleCatalogManagement(userSelectionText, userSession)
         }
         else if(message?.type == "audio"){
-          if(userSession.tenant == 'leqcjsk') await handleAudioOrdersForDrishtee(message, userSession)
+          // if(userSession.tenant == 'leqcjsk') await handleAudioOrdersForDrishtee(message, userSession)
+          userSession.currNode = userSession.nextNode[0];
+          sendNodeMessage(userPhoneNumber,business_phone_number_id);
 
         }
       }
       else {
-          if (message?.type == "interactive"){
-              let userSelectionID = message?.interactive?.button_reply?.id || message?.interactive?.list_reply?.id;
-              if (userSelectionID == "Exit AI"){
-                  userSession.AIMode = false;
-                  userSession.nextNode = userSession.adjList[userSession.currNode];
-                  userSession.currNode = userSession.nextNode[0];
-                  sendNodeMessage(userPhoneNumber,business_phone_number_id);
-              }
-          }
-          else if(message?.type == "text"){
-              handleQuery(message, userSession)
-          }
-          else if (message?.type == "image" || message?.type == "document" || message?.type == "video") {
-              const mediaID = message?.image?.id || message?.document?.id || message?.video?.id;
-              const doc_name = userSession.inputVariable
-              try {
-                  await handleMediaUploads(userName, userPhoneNumber, doc_name, mediaID, userSession, tenant);
-              } catch (error) {
-                  console.error("Error retrieving media content:", error);
-              }
-          }
+        if (message?.type == "interactive"){
+            let userSelectionID = message?.interactive?.button_reply?.id || message?.interactive?.list_reply?.id;
+            if (userSelectionID == "Exit AI"){
+                userSession.AIMode = false;
+                userSession.nextNode = userSession.adjList[userSession.currNode];
+                userSession.currNode = userSession.nextNode[0];
+                sendNodeMessage(userPhoneNumber,business_phone_number_id);
+            }
+        }
+        else if(message?.type == "text"){
+            handleQuery(message, userSession)
+        }
+        else if (message?.type == "image" || message?.type == "document" || message?.type == "video") {
+            const mediaID = message?.image?.id || message?.document?.id || message?.video?.id;
+            const doc_name = userSession.inputVariable
+            try {
+                await handleMediaUploads(userName, userPhoneNumber, doc_name, mediaID, userSession, tenant);
+            } catch (error) {
+                console.error("Error retrieving media content:", error);
+            }
+        }
       }
     }
     else{
@@ -200,7 +194,7 @@ export async function userWebhook(req, res) {
         }
         
       }
-      if (message?.type === "interactive") {
+      else if (message?.type === "interactive") {
         // let userSelectionID = message?.interactive?.button_reply?.id || message?.interactive?.list_reply?.id;
   
         // if(userSelectionID.includes('confirm') || userSelectionID.includes('cancel')) {
@@ -217,7 +211,6 @@ export async function userWebhook(req, res) {
         // sendNodeMessage(userPhoneNumber,business_phone_number_id);
         
       }
-  
     }
     
     console.log("Webhook processing completed successfully");
@@ -246,7 +239,7 @@ async function processOrderForDrishtee(userSession, products) {
   else if(language == "hi") responseMessage = responseMessage_hi
 
   // const failureMessage = userSession.language == "en" ? failureMessage_en: failureMessage_hi
-  sendTextMessage(userSession.userPhoneNumber, userSession.business_phone_number_id, responseMessage, userSession.accessToken, userSession.tenant)
+  // sendTextMessage(userSession.userPhoneNumber, userSession.business_phone_number_id, responseMessage, userSession.accessToken, userSession.tenant)
   console.log("Products: ", products)
   const url = "https://testexpenses.drishtee.in/rrp/nuren/savePreOrder"
   const headers = {'Content-Type': 'application/json'}
@@ -260,7 +253,7 @@ async function processOrderForDrishtee(userSession, products) {
     })
   }
   await axios.post(url, data, {headers: headers})
-
+  await  generateBill(products, userSession)
   const messageData = {
     type: "image",
     image: {
@@ -425,51 +418,9 @@ async function handleOrderManagement(userSession, userSelectionID){
 async function handleInput(userSession, message) {
   if (userSession.inputVariable !== undefined && userSession.inputVariable !== null && userSession.inputVariable.length > 0){
 
-      // if (message?.type == "image" || message?.type == "document" || message?.type == "video") {
-      //   console.log("Processing media message:", message?.type);
-      //   const mediaID = message?.image?.id || message?.document?.id || message?.video?.id;
-      //   console.log("Media ID:", mediaID);
-      //   const doc_name = userSession.inputVariable
-      //   try {
-      //     console.log("Uploading file", userSession.tenant);
-      //     await handleMediaUploads(userName, userPhoneNumber, doc_name, mediaID, userSession, tenant);
-      //   } catch (error) {
-      //     console.error("Error retrieving media content:", error);
-      //   }
-      //   console.log("Webhook processing completed successfully");
-      // }
-      // console.log(`Input Variable: ${userSession.inputVariable}`);
-      // // console.log(`Input Variable Type: ${userSession.inputVariableType}`);
-      // try{
-      //   // let userSelection = message?.interactive?.button_reply?.title || message?.interactive?.list_reply?.title || message?.text?.body;
-      
-      //   // var validateResponse = await validateInput(userSession.inputVariable, userSelection)
-        
-      //   var validateResponse = "Yes"
-      //   if(validateResponse == "No." || validateResponse == "No"){
-      //     await executeFallback(userSession)
-      //     res.sendStatus(200)
-      //     return
-      //   }else{
-      //     let userSelection = message?.interactive?.button_reply?.title || message?.interactive?.list_reply?.title || message?.text?.body;
-      
-      //     const updateData = {
-      //       phone_no : userSession.userPhoneNumber,
-      //       [userSession.inputVariable] : userSelection
-      //     }
-      //     const modelName = userSession.flowName
-          
-      //     addDynamicModelInstance(modelName , updateData, userSession.tenant)
-
-      //     console.log(`Updated model instance with data: ${JSON.stringify(updateData)}`);
-      //     console.log(`Input Variable after update: ${userSession.inputVariable}`);
-      //   }
-      // } catch (error) {
-      //   console.error("An error occurred during processing:", error);
-      // }
-
     const input_variable = userSession.inputVariable
-    userSession.api.POST[input_variable] = message?.text?.body
+    userSession.api.POST[input_variable] = message?.text?.body || message?.audio?.id
+    console.log("Setting input variable: ", message?.text?.body || message?.audio?.id)
     userSession.inputVariable = null
   }
   return userSession;
@@ -518,63 +469,65 @@ async function ioEmissions(message, userSession, timestamp){
   });
 }
 
-async function handleAudioOrdersForDrishtee(message, userSession) {
-  console.log("Received audio message: ", message)
-  const mediaID = message?.audio?.id
-  let response = await axios.get(`https://graph.facebook.com/v18.0/${mediaID}`, {headers: {'Authorization': `Bearer ${userSession.accessToken}`}})
-  const mediaURL = response.data.url
-  response = await axios.get(mediaURL, {headers: {'Authorization': `Bearer ${userSession.accessToken}`}, responseType: 'arraybuffer'}) 
-  const audioFile = response.data
-  const formData = new FormData();
-  formData.append('file', audioFile, 'audio.mp4');// Attach the file stream to FormData
+export async function handleAudioOrdersForDrishtee(mediaID, userSession) {
+  try{
+    let response = await axios.get(`https://graph.facebook.com/v18.0/${mediaID}`, {headers: {'Authorization': `Bearer ${userSession.accessToken}`}})
+    const mediaURL = response.data.url
+    response = await axios.get(mediaURL, {headers: {'Authorization': `Bearer ${userSession.accessToken}`}, responseType: 'arraybuffer'}) 
+    const audioFile = response.data
+    const formData = new FormData();
+    formData.append('file', audioFile, 'audio.mp4');// Attach the file stream to FormData
 
-  response = await axios.post(
-    'https://webpbx.in/api/process/drishtee/product/search/',
-    formData,
-    {
-      headers: { ...formData.getHeaders() }, // Include headers from FormData
-      httpsAgent: agent,
-    }
-  );
-  const product_list = response.data.data.data
-  console.log("Product List: ", product_list)
-  let product_body, fallback_message;
-  const language = userSession.language
+    response = await axios.post(
+      'https://webpbx.in/api/process/drishtee/product/search/',
+      formData,
+      {
+        headers: { ...formData.getHeaders() }, // Include headers from FormData
+        httpsAgent: agent,
+      }
+    );
+    const product_list = response.data.data.data
+    console.log("Product List: ", product_list)
+    let product_body, fallback_message;
+    const language = userSession.language
 
-  if(language == "en"){
-    product_body = `Browse through our exclusive collection of products and find what suits your needs best. Shop now and enjoy amazing offers!`
-    fallback_message = "Oops! It looks like this item is currently out of stock. Don't worry, we're working hard to restock it soon! In the meantime, feel free to browse similar products or check back later."
-  }
-  else if(language == "bn"){
-    product_body = "আমাদের বিশেষ পণ্যের সংগ্রহ দেখুন এবং আপনার প্রয়োজন অনুযায়ী পছন্দ করুন। এখনই কেনাকাটা করুন এবং চমৎকার অফার উপভোগ করুন!"
-    fallback_message = "ওহ! এটা বর্তমানে স্টক আউট রয়েছে। চিন্তা করবেন না, আমরা শীঘ্রই এটি পুনরায় স্টক করব! এর মধ্যে, আপনি অনুরূপ পণ্যগুলি দেখতে পারেন অথবা পরে আবার চেক করতে পারেন।"
-  }
-  else if(language == "hi"){
-    product_body = "हमारे उत्पादों के विशेष संग्रह को ब्राउज़ करें और अपनी आवश्यकताओं के अनुसार सबसे उपयुक्त उत्पाद खोजें। अभी खरीदारी करें और शानदार ऑफ़र्स का आनंद लें!"
-    fallback_message = "क्षमा करें! यह उत्पाद वर्तमान में स्टॉक में उपलब्ध नहीं है। कृपया चिंता न करें, इसे शीघ्र ही स्टॉक में लाने के लिए हम प्रयासरत हैं। तब तक, आप समान उत्पाद ब्राउज़ कर सकते हैं या बाद में पुनः जांच सकते हैं।";
-  }
-  else if(language == "mr"){
-    product_body = "आमच्या खास उत्पादनांच्या संग्रहातून ब्राउज करा आणि तुमच्या गरजेनुसार सर्वोत्तम निवडा. आत्ताच खरेदी करा आणि आश्चर्यकारक ऑफर्सचा आनंद घ्या!"
-    fallback_message = "ओह! हे सध्या स्टॉकमध्ये नाही. काळजी करू नका, आम्ही लवकरच ते पुन्हा स्टॉक करू! तोपर्यंत, कृपया समान उत्पादने बघा किंवा नंतर पुन्हा तपासा."
-  }
+    if(language == "en"){
+      product_body = `Browse through our exclusive collection of products and find what suits your needs best. Shop now and enjoy amazing offers!`
+      fallback_message = "Oops! It looks like this item is currently out of stock. Don't worry, we're working hard to restock it soon! In the meantime, feel free to browse similar products or check back later."
+    }
+    else if(language == "bn"){
+      product_body = "আমাদের বিশেষ পণ্যের সংগ্রহ দেখুন এবং আপনার প্রয়োজন অনুযায়ী পছন্দ করুন। এখনই কেনাকাটা করুন এবং চমৎকার অফার উপভোগ করুন!"
+      fallback_message = "ওহ! এটা বর্তমানে স্টক আউট রয়েছে। চিন্তা করবেন না, আমরা শীঘ্রই এটি পুনরায় স্টক করব! এর মধ্যে, আপনি অনুরূপ পণ্যগুলি দেখতে পারেন অথবা পরে আবার চেক করতে পারেন।"
+    }
+    else if(language == "hi"){
+      product_body = "हमारे उत्पादों के विशेष संग्रह को ब्राउज़ करें और अपनी आवश्यकताओं के अनुसार सबसे उपयुक्त उत्पाद खोजें। अभी खरीदारी करें और शानदार ऑफ़र्स का आनंद लें!"
+      fallback_message = "क्षमा करें! यह उत्पाद वर्तमान में स्टॉक में उपलब्ध नहीं है। कृपया चिंता न करें, इसे शीघ्र ही स्टॉक में लाने के लिए हम प्रयासरत हैं। तब तक, आप समान उत्पाद ब्राउज़ कर सकते हैं या बाद में पुनः जांच सकते हैं।";
+    }
+    else if(language == "mr"){
+      product_body = "आमच्या खास उत्पादनांच्या संग्रहातून ब्राउज करा आणि तुमच्या गरजेनुसार सर्वोत्तम निवडा. आत्ताच खरेदी करा आणि आश्चर्यकारक ऑफर्सचा आनंद घ्या!"
+      fallback_message = "ओह! हे सध्या स्टॉकमध्ये नाही. काळजी करू नका, आम्ही लवकरच ते पुन्हा स्टॉक करू! तोपर्यंत, कृपया समान उत्पादने बघा किंवा नंतर पुन्हा तपासा."
+    }
 
-  if(Array.isArray(product_list) && product_list.length>0){
-    const header = "Items"
-    const catalog_id = 1822573908147892
-    const footer = null
-    const section_title = "Items"
-    const chunkSize = 30;
-    for (let i = 0; i < product_list.length; i += chunkSize) {
-      const chunk = product_list.slice(i, i + chunkSize);
-      await sendProductMessage(userSession, chunk, catalog_id, header, product_body, footer, section_title, userSession.tenant);
+    if(Array.isArray(product_list) && product_list.length>0){
+      const header = "Items"
+      const catalog_id = 1822573908147892
+      const footer = null
+      const section_title = "Items"
+      const chunkSize = 30;
+      for (let i = 0; i < product_list.length; i += chunkSize) {
+        const chunk = product_list.slice(i, i + chunkSize);
+        await sendProductMessage(userSession, chunk, catalog_id, header, product_body, footer, section_title, userSession.tenant);
+      }
     }
-  }
-  else{
-    const messageData = {
-      type: "text",
-      text: { body: fallback_message }
+    else{
+      const messageData = {
+        type: "text",
+        text: { body: fallback_message }
+      }
+      return sendMessage(userSession.userPhoneNumber, userSession.business_phone_number_id, messageData, userSession.accessToken ,userSession.tenant);
     }
-    return sendMessage(userSession.userPhoneNumber, userSession.business_phone_number_id, messageData, userSession.accessToken ,userSession.tenant);
+  }catch(error){
+    console.error("An Error occured in handleAudioForDrishtee: ", error)
   }
 }
 
@@ -634,3 +587,137 @@ export async function handleTextOrdersForDrishtee(message, userSession) {
     return sendMessage(userSession.userPhoneNumber, userSession.business_phone_number_id, messageData, userSession.accessToken ,userSession.tenant);
   }
 }
+
+import { GoogleAuth } from 'google-auth-library';
+import { google } from 'googleapis';
+
+async function generateBill(products, userSession) {
+  const language = userSession.language;
+  
+  const spreadsheetIds = {
+    en: '1EuXHDggvZIVtdfowNJceXIHjJjpKwr1Z-k6fpoo3u_M',
+    hi: '1F_nEekNQfxPGkeqzSfQMHjXBF0VOfbfs-1uvN13oj0U',
+    bn: '16NK-etS2LsOgQINWCf8HbossHq6-qtrEhspS0uc956c',
+    mr: '1egMI_4FUYj8TPypa1F_p-YW13jT2ewFGsxV2RqBU6rg',
+  };
+
+
+  const spreadsheetId = spreadsheetIds[language];
+  console.log(spreadsheetId)
+  if (!spreadsheetId) {
+    throw new Error(`Invalid language code: ${language}`);
+  }
+
+  const auth = new GoogleAuth({
+    credentials: JSON.parse(Buffer.from(process.env.GOOGLE_SERVICE_ACCOUNT_BASE64, 'base64').toString('utf-8')),
+    scopes: 'https://www.googleapis.com/auth/spreadsheets',
+  });
+
+  const range = 'Sheet1!A:D'; // Range for columns A to D
+
+  const service = google.sheets({ version: 'v4', auth });
+
+  let rows;
+  try {
+    const result = await service.spreadsheets.values.get({
+      spreadsheetId,
+      range,
+    });
+    rows = result.data.values || [];
+  } catch (error) {
+    console.error('Error retrieving data:', error.message);
+    throw error;
+  }
+  let totalAmount = 0;
+  const productList = products.map(product => {
+    const productID = product.product_retailer_id
+    const productData = rows.find(row => row[0] === productID); // Assuming column A contains the product ID
+    const productName = productData[3]
+    const regex = /\[(\d+)\s*(Units?|यूनिट्स?|युनिट्स?|ইউনিটস?|ইউনিট)\]/;
+    const match = productName.match(regex);
+
+    let units = 1;
+    if (match) {
+      units = parseInt(match[1], 10); // Extract the number and convert it to an integer
+    }
+
+    totalAmount += product.item_price * product.quantity * units
+    if (productData) {
+      return {
+        id: product.id,
+        name: productData[3],  
+        quantity: product.quantity,
+        unitPrice: product.item_price
+      };
+    }
+    return null; 
+  }).filter(item => item !== null); 
+
+  totalAmount = Math.round(totalAmount * 100) / 100;
+  totalAmount = Math.ceil(totalAmount);
+  totalAmount = totalAmount.toFixed(2);
+
+
+  const messages = {
+    en: `Thank you for shopping with us! 🙏\n\n💰 *Total Amount:* *₹${totalAmount}*\n\n*Items Purchased:*\n${productList.map(item => `🔹 ${item.name} \n   Quantity: *${item.quantity}*  |  Unit Price: *₹${item.unitPrice}*`).join('\n\n')}\n\nPlease scan the QR code below to complete your payment. 👇`,
+    
+    hi: `हमारे स्टोर से खरीदारी करने के लिए धन्यवाद! 🙏\n\n💰 *कुल राशि:* *₹${totalAmount}*\n\n*खरीदी गई वस्तुएं:*\n${productList.map(item => `🔹 ${item.name} \n   मात्रा: *${item.quantity}*  |  यूनिट प्राइस: *₹${item.unitPrice}*`).join('\n\n')}\n\nकृपया भुगतान पूरा करने के लिए नीचे दिए गए QR कोड को स्कैन करें। 👇`,
+  
+    bn: `আমাদের স্টোর থেকে কেনাকাটা করার জন্য ধন্যবাদ! 🙏\n\n💰 *মোট পরিমাণ:* *₹${totalAmount}*\n\n*কেনা জিনিসপত্র:*\n${productList.map(item => `🔹 ${item.name} \n   পরিমাণ: *${item.quantity}*  |  একক দাম: *₹${item.unitPrice}*`).join('\n\n')}\n\nঅনুগ্রহ করে পেমেন্ট সম্পূর্ণ করতে নীচের QR কোডটি স্ক্যান করুন। 👇`,
+  
+    mr: `आमच्या स्टोअरवरून खरेदी केल्याबद्दल धन्यवाद! 🙏\n\n💰 *एकूण रक्कम:* *₹${totalAmount}*\n\n*खरेदी केलेली वस्तू:* \n${productList.map(item => `🔹 ${item.name} \n   प्रमाण: *${item.quantity}*  |  युनिट किमत: *₹${item.unitPrice}*`).join('\n\n')}\n\nकृपया पेमेंट पूर्ण करण्यासाठी खालील QR कोड स्कॅन करा. 👇`,
+  };
+  
+  
+
+  const textMessageData = {
+    type: "text",
+    text: {
+      body: messages[language] || messages.en,
+    },
+  };
+  sendMessage(userSession.userPhoneNumber, userSession.business_phone_number_id, textMessageData, userSession.accessToken, userSession.tenant)
+}
+
+
+async function getNameById(spreadsheetId, range, targetId) {
+  const auth = new GoogleAuth({
+    keyFile: './nurenai-cef4f2574608.json',
+    scopes: 'https://www.googleapis.com/auth/spreadsheets',
+  });
+
+  const service = google.sheets({ version: 'v4', auth });
+  try {
+    const result = await service.spreadsheets.values.get({
+      spreadsheetId,
+      range,
+    });
+
+    const rows = result.data.values || [];
+    console.log(`${rows.length} rows retrieved.`);
+
+    const matchingRow = rows.find((row) => parseInt(row[0]) === targetId);
+    console.log("Matching Row: ", matchingRow)
+    if (matchingRow) {
+      const name = matchingRow[3];
+      console.log(`Name for ID ${targetId}: ${name}`);
+      return name;
+    } else {
+      console.log(`No row found with ID ${targetId}`);
+      return null;
+    }
+  } catch (err) {
+    console.error('Error retrieving data:', err);
+    throw err;
+  }
+}
+
+// // Example Usage
+// (async () => {
+//   const spreadsheetId = '1F_nEekNQfxPGkeqzSfQMHjXBF0VOfbfs-1uvN13oj0U'; // Replace with your Spreadsheet ID
+//   const range = 'Sheet1!A:D'; // Replace with your range
+//   const targetId = 300; // ID to search for
+
+//   const name = await getNameById(spreadsheetId, range, targetId);
+//   console.log('Result:', name);
+// })()

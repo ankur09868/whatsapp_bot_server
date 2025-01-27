@@ -167,7 +167,6 @@ const productMessageData = {
     }
 }
 await sendMessage(userSession.userPhoneNumber, userSession.business_phone_number_id, productMessageData, userSession.accessToken, userSession.tenant)
-console.log("take my whiskey neeeeeat")
 userSession.currNode = 6
 sendNodeMessage(userSession.userPhoneNumber, userSession.business_phone_number_id)
 }

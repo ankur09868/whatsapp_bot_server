@@ -183,14 +183,15 @@ try {
     for (const component of components) {
         if (component.type === "HEADER") {
         const header_handle = component?.example?.header_handle || [];
+        const format = component?.format.toLowerCase()
         const header_text = component?.example?.header_text || [];
         const parameters = [];
 
         for (const handle of header_handle) {
             const mediaID = await getMediaID(handle, bpid, access_token);
             parameters.push({
-            type: "image",
-            image: { id: mediaID },
+            type: format,
+            [`${format}`]: { id: mediaID },
             });
         }
         for (const text of header_text) {

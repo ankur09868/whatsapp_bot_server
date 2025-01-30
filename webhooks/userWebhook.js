@@ -244,7 +244,7 @@ async function processOrderForDrishtee(userSession, products) {
   const url = "https://testexpenses.drishtee.in/rrp/nuren/savePreOrder"
   const headers = {'Content-Type': 'application/json'}
   const data = {
-    RRP_id: userSession.userPhoneNumber,
+    rrp_phone_no: userSession.userPhoneNumber,
     products: products.map(product => {
       return {
         product_id: product.product_retailer_id,

@@ -147,19 +147,19 @@ export async function getMediaID(handle, bpid, access_token) {
 
     if(!mediaID){
     // Fetch the image as an arraybuffer
-    const imageResponse = await axios.get(handle, { responseType: 'arraybuffer' });
-    console.log("Image response received.");
-    
+    const mediaResponse = await axios.get(handle, { responseType: 'arraybuffer' });
+    // console.log("response received: ", mediaResponse.data);
+    const contentType = mediaResponse.headers?.['content-type']
+    console.log("Content Type: ", contentType)
 
     // Create FormData instance
     const formData = new FormData();
     
-    // Append the image buffer with filename and MIME type
-    formData.append('file', Buffer.from(imageResponse.data), {
-      filename: 'image.jpeg',      // specify a name for the file
-      contentType: 'image/jpeg',   // specify the MIME type
+    formData.append('file', Buffer.from(mediaResponse.data), {
+      filename: 'image.jpeg',
+      contentType: contentType,
     });
-    formData.append('type', 'image/jpeg');
+    formData.append('type', contentType);
     formData.append('messaging_product', 'whatsapp');
 
     // Send the request to Facebook Graph API to upload media

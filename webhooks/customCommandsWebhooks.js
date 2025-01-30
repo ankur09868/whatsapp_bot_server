@@ -115,35 +115,20 @@ async function handlePrompt(userSession, responses) {
 
 async function generateUrl(topic, main_focus, context, platform) {
     console.log("Received data: ", topic, main_focus, context, platform);
-
-    const query = `Create a highly engaging ${platform} post about {${topic}}, with a focus on {${main_focus}} in the context of {${context}}. Follow the structure and guidelines below:
-
-        **Objective**: 
-        - Craft a post that captures attention, educates the audience, and encourages interaction.
-
-        **Structure**:
-        1. **Introduction (Hook)**:
-           - Start with a compelling statement, question, or fact that grabs attention.
-           - Briefly introduce the significance of {${main_focus}} in {${context}}.
-
-        2. **Main Content**:
-           - Explain the relevance of {${topic}} and its connection to {${main_focus}}.
-           - Highlight key benefits, use cases, or examples that demonstrate its value.
-           - Keep the tone conversational and relatable for the ${platform} audience.
-
-        3. **Call to Action (CTA)**:
-           - Encourage engagement by asking a thought-provoking question, inviting opinions, or prompting the audience to share their experiences.
-           - Use a clear and actionable phrase (e.g., "What do you think?", "Share your thoughts below!", "Let’s discuss this!").
-
-        4. **Conclusion**:
-           - Summarize the key points in a concise and memorable way.
-           - End with a positive note or a reminder of the value of {${topic}}.
-
-        **Tone**:
-        - Use a tone that aligns with ${platform}'s audience (e.g., professional for LinkedIn, casual for Twitter, visually descriptive for Instagram).
-
-        **Output**:
-        - Return only the post content. Do not include any additional explanations or notes.`;
+    const query = 
+    
+    `Create an engaging ${platform} post about {${topic}}, focusing on {${main_focus}} in the context of {${context}}. Follow the structure below:
+    
+    Objective:
+    
+    Craft a post that grabs attention, educates, and sparks interaction.
+    Structure:
+    
+    Introduction (Hook): Start with a compelling statement or question that draws attention, introducing the importance of {${main_focus}} in {${context}}.
+    Main Content: Explain the relevance of {${topic}} and its connection to {${main_focus}}, highlighting key benefits and use cases.
+    Call to Action (CTA): Encourage engagement with a question or invite opinions (e.g., “What do you think?”).
+    Conclusion: Summarize the key points and end with a positive note or reminder of the value of {${topic}}.
+    Tone: Adjust tone to match ${platform} audience (e.g., professional for LinkedIn, casual for Twitter).`
 
     let encodedQuery = encodeURIComponent(query);
     

@@ -106,44 +106,43 @@ export async function userWebhook(req, res) {
             let userSelectionID = message?.interactive?.button_reply?.id || message?.interactive?.list_reply?.id;
   
             if (userSelectionID.split('_')[0] == 'drishtee') handleCatalogManagement(userSelectionID, userSession)
-            else if(userSelectionID.includes('confirm') || userSelectionID.includes('cancel')) {
-              handleOrderManagement(userSession, userSelectionID)
-            }
+            else if(userSelectionID.includes('confirm') || userSelectionID.includes('cancel')) handleOrderManagement(userSession, userSelectionID)
             else{
               try {
                 for (let i = 0; i < userSession.nextNode.length; i++) {
-                    if (userSession.flowData[userSession.nextNode[i]].id == userSelectionID) {
-                      userSession.currNode = userSession.nextNode[i];
-                      userSession.nextNode = userSession.adjList[userSession.currNode];
-                      userSession.currNode = userSession.nextNode[0];
-                      sendNodeMessage(userSession.userPhoneNumber, userSession.business_phone_number_id);
-                      break;
-                    }
+                  if (userSession.flowData[userSession.nextNode[i]].id == userSelectionID) {
+                    userSession.currNode = userSession.nextNode[i];
+                    userSession.nextNode = userSession.adjList[userSession.currNode];
+                    userSession.currNode = userSession.nextNode[0];
+                    break;
+                  }
                 };
                 if(isNaN(userSelectionID)) await sendProduct(userSession, userSelectionID)
-            } catch (error) {
+              } catch (error) {
                 console.error('Error processing interactive message:', error);
-            }}
+              }
+            }
         }
         else if (message?.type === "text" || message?.type == "image") {
-            const flow = userSession.flowData
-            const type = flow[userSession.currNode].type
-            if (userSession.currNode != userSession.startNode){
-              console.log("Type: ", type)
-                if (['Text' ,'string', 'audio', 'video', 'location', 'image', 'AI'].includes(type)) {
-                  userSession.currNode = userSession.nextNode[0];
-                }
-                else if(['Button', 'List'].includes(type)){
-                    await executeFallback(userSession)
-                    res.sendStatus(200)
-                    return
-                }
+          const flow = userSession.flowData
+          const type = flow[userSession.currNode].type
+          if (userSession.currNode != userSession.startNode){
+            console.log("Type: ", type)
+            if (['Text' ,'string', 'audio', 'video', 'location', 'image', 'AI'].includes(type)) {
+              userSession.currNode = userSession.nextNode[0];
             }
+            else if(['Button', 'List'].includes(type)){
+              await executeFallback(userSession)
+              res.sendStatus(200)
+              return
+            }
+          }
         }
         else if (message?.type == "button"){
           const userSelectionText = message?.button?.text
           console.log("User Selection Text: ", userSelectionText)
           if (DRISHTEE_PRODUCT_CAROUSEL_IDS.includes(userSelectionText)) await handleCatalogManagement(userSelectionText, userSession)
+          userSession.currNode = userSession.nextNode[0];
         }
         else if(message?.type == "audio"){
           // if(userSession.tenant == 'leqcjsk') await handleAudioOrdersForDrishtee(message, userSession)

@@ -176,7 +176,7 @@ try {
     console.log("otp received: ", otp);
     console.log("Template Data rcvd: ", templateData)
     const components = templateData?.components || [];
-    const template_name = templateData.name || "defaultTemplateName";
+    const template_name = templateData?.name || "defaultTemplateName";
     let messageData;
     const res_components = [];
 

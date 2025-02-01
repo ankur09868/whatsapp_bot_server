@@ -5,7 +5,7 @@ import { sendNodeMessage, sendTextMessage, sendProductMessage } from "../snm.js"
 import { sendProduct } from "../helpers/product.js";
 import { DRISHTEE_PRODUCT_CAROUSEL_IDS, handleCatalogManagement }  from "../drishtee.js"
 import { sendMessage } from "../send-message.js";
-import { handleMediaUploads } from "../helpers/handle-media.js";
+import { handleMediaUploads, getImageAndUploadToBlob } from "../helpers/handle-media.js";
 import { languageMap } from "../dataStore/dictionary.js";
 import { sendMessagetoConsumer, sendMessagetoRetailer, orderToDB } from "../helpers/order.js";
 import { manualWebhook } from "./manualWebhook.js";
@@ -46,8 +46,8 @@ export async function userWebhook(req, res) {
     else if(userSession.type == 'prompt'){
       return promptWebhook(req, res, userSession)
     }
-  
-    const message_text = message?.text?.body || (message?.interactive ? (message?.interactive?.button_reply?.title || message?.interactive?.list_reply?.title) : null)
+    const message_type = message?.type
+    const message_text = message?.text?.body || (message?.interactive ? (message?.interactive?.button_reply?.title || message?.interactive?.list_reply?.title) : null) || message?.button?.text
 
     if(message_text == "manual") {
       const nuren = nuren_users[userSession.tenant]
@@ -68,10 +68,28 @@ export async function userWebhook(req, res) {
 
     updateLastSeen("replied", timestamp, userSession.userPhoneNumber, userSession.business_phone_number_id)
 
-    let formattedConversation = [{
-      text: message_text,
-      sender: "user"
-    }];
+    let formattedConversation;
+    console.log("Message: ", message)
+    if(message_type == "text" || message_type == "interactive" || message_type == "button"){
+      formattedConversation= [{
+        text: message_text,
+        sender: "user"
+      }];
+    }
+    else{
+      console.log("MESSAGE: ", JSON.stringify(message, null, 4))
+      const mediaID = message?.image?.id || message?.audio?.id || message?.document?.id || message?.video?.id
+      console.log("Media ID: ", mediaID)
+      if (mediaID != undefined){
+        const mediaURL = await getImageAndUploadToBlob(mediaID, userSession.accessToken)
+        const mediaData = {type: message_type, [`${message_type}`]: {id: mediaURL}}
+        formattedConversation = [{
+          text: JSON.stringify(mediaData),
+          sender: "user"
+        }]
+      }    
+    }
+    console.log("Formatted Conv: ", formattedConversation)
     saveMessage(userSession.userPhoneNumber, userSession.business_phone_number_id, formattedConversation, userSession.tenant, timestamp)
 
     const notif_body = {content: `${userSession.userPhoneNumber} | New meessage from ${userSession.userName || userSession.userPhoneNumber}: ${message_text}`, created_on: timestamp}
@@ -95,11 +113,11 @@ export async function userWebhook(req, res) {
               try {
                 for (let i = 0; i < userSession.nextNode.length; i++) {
                     if (userSession.flowData[userSession.nextNode[i]].id == userSelectionID) {
-                        userSession.currNode = userSession.nextNode[i];
-                        userSession.nextNode = userSession.adjList[userSession.currNode];
-                        userSession.currNode = userSession.nextNode[0];
-                        sendNodeMessage(userSession.userPhoneNumber, userSession.business_phone_number_id);
-                        break;
+                      userSession.currNode = userSession.nextNode[i];
+                      userSession.nextNode = userSession.adjList[userSession.currNode];
+                      userSession.currNode = userSession.nextNode[0];
+                      sendNodeMessage(userSession.userPhoneNumber, userSession.business_phone_number_id);
+                      break;
                     }
                 };
                 if(isNaN(userSelectionID)) await sendProduct(userSession, userSelectionID)
@@ -111,8 +129,9 @@ export async function userWebhook(req, res) {
             const flow = userSession.flowData
             const type = flow[userSession.currNode].type
             if (userSession.currNode != userSession.startNode){
+              console.log("Type: ", type)
                 if (['Text' ,'string', 'audio', 'video', 'location', 'image', 'AI'].includes(type)) {
-                    userSession.currNode = userSession.nextNode[0];
+                  userSession.currNode = userSession.nextNode[0];
                 }
                 else if(['Button', 'List'].includes(type)){
                     await executeFallback(userSession)
@@ -120,9 +139,7 @@ export async function userWebhook(req, res) {
                     return
                 }
             }
-            sendNodeMessage(userPhoneNumber,business_phone_number_id);
         }
-        
         else if (message?.type == "button"){
           const userSelectionText = message?.button?.text
           console.log("User Selection Text: ", userSelectionText)
@@ -131,9 +148,11 @@ export async function userWebhook(req, res) {
         else if(message?.type == "audio"){
           // if(userSession.tenant == 'leqcjsk') await handleAudioOrdersForDrishtee(message, userSession)
           userSession.currNode = userSession.nextNode[0];
-          sendNodeMessage(userPhoneNumber,business_phone_number_id);
-
         }
+        else if(message?.type == "document"){
+          userSession.currNode = userSession.nextNode[0];
+        }
+        sendNodeMessage(userPhoneNumber,business_phone_number_id);
       }
       else {
         if (message?.type == "interactive"){
@@ -160,7 +179,7 @@ export async function userWebhook(req, res) {
       }
     }
     else{
-      if (message?.type === "text"){
+      if (message?.type === "text" || message_type == "button"){
         const doorbell = userSession.doorbell
         const doorbell_text = doorbell?.message
         const language_data = doorbell?.languages
@@ -398,7 +417,6 @@ async function sendLanguageSelectionMessage(message_text, access_token, phoneNum
     }
   
   return sendMessage(phoneNumber, business_phone_number_id, messageData, access_token, tenant_id)
-  
 }
  
 async function handleOrderManagement(userSession, userSelectionID){

@@ -6,7 +6,7 @@ import { BlobServiceClient } from '@azure/storage-blob';
 
 import FormData from 'form-data';
 
-export async function getImageAndUploadToBlob(imageID, access_token) {
+export async function getImageAndUploadToBlob(mediaID, access_token) {
     try {
       const account = "pdffornurenai";
       const sas = "sv=2022-11-02&ss=bfqt&srt=co&sp=rwdlacupiytfx&se=2025-06-01T16:13:31Z&st=2024-06-01T08:13:31Z&spr=https&sig=8s7IAdQ3%2B7zneCVJcKw8o98wjXa12VnKNdylgv02Udk%3D";
@@ -15,40 +15,39 @@ export async function getImageAndUploadToBlob(imageID, access_token) {
       const blobServiceClient = new BlobServiceClient(`https://${account}.blob.core.windows.net/?${sas}`);
       const containerClient = blobServiceClient.getContainerClient(containerName);
       
-      // const fileExtension = contentType.split('/').pop();
-      const newFileName = `image_${imageID}`;
+      const newFileName = `media_${mediaID}`;
   
       const blockBlobClient = containerClient.getBlockBlobClient(newFileName);
       const exists = await checkBlobExists(blockBlobClient);
       if (exists == false){
         console.log("blob doesnt exist")
-        const url = `https://graph.facebook.com/v16.0/${imageID}`;
+        const url = `https://graph.facebook.com/v16.0/${mediaID}`;
         const response = await axios.get(url, {
           headers: { "Authorization": `Bearer ${access_token}` }
         });
   
-        const imageURL = response.data?.url;
-        if (!imageURL) {
-          throw new Error('Image URL not found');
+        const mediaURL = response.data?.url;
+        if (!mediaURL) {
+          throw new Error('Media URL not found');
         }
   
-        console.log("Image URL: ", imageURL);
+        console.log("Media URL: ", mediaURL);
   
-        const imageResponse = await axios.get(imageURL, {
+        const mediaResponse = await axios.get(mediaURL, {
           headers: { "Authorization": `Bearer ${access_token}` },
           responseType: 'arraybuffer'
         });
   
-        const imageBuffer = imageResponse.data;
-        const contentType = imageResponse.headers['content-type'];
+        const mediaBuffer = mediaResponse.data;
+        const contentType = mediaResponse.headers['content-type'];
   
-        const uploadBlobResponse = await blockBlobClient.uploadData(imageBuffer, {
+        const uploadBlobResponse = await blockBlobClient.uploadData(mediaBuffer, {
           blobHTTPHeaders: {
             blobContentType: contentType,
           },
         });
   
-        console.log(`Uploaded image ${newFileName} successfully, request ID: ${uploadBlobResponse.requestId}`);
+        console.log(`Uploaded media ${newFileName} successfully, request ID: ${uploadBlobResponse.requestId}`);
       }
       return blockBlobClient.url;
   

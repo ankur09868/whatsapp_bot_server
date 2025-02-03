@@ -98,7 +98,6 @@ export const pickCategoryMap = {
 'hing': 'Please pick a category', // Hinglish
 };
 
-  
 export async function sendLocationMessage(phone, bpid, body, access_token=null,tenant_id=null) {
     const { latitude, longitude, name, address } = body
     const messageData = {

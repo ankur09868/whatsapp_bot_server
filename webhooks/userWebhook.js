@@ -258,10 +258,11 @@ async function processOrderForDrishtee(userSession, products) {
   // const failureMessage = userSession.language == "en" ? failureMessage_en: failureMessage_hi
   // sendTextMessage(userSession.userPhoneNumber, userSession.business_phone_number_id, responseMessage, userSession.accessToken, userSession.tenant)
   console.log("Products: ", products)
+  const phone = userSession.userPhoneNumber.slice(2)
   const url = "https://testexpenses.drishtee.in/rrp/nuren/savePreOrder"
   const headers = {'Content-Type': 'application/json'}
   const data = {
-    rrp_phone_no: userSession.userPhoneNumber,
+    rrp_phone_no: phone,
     products: products.map(product => {
       return {
         product_id: product.product_retailer_id,

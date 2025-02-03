@@ -30,7 +30,7 @@ export async function userWebhook(req, res) {
     const products = message?.order?.product_items
     
     const message_type = message?.type
-    const message_text = message?.text?.body || (message?.interactive ? (message?.interactive?.button_reply?.title || message?.interactive?.list_reply?.title) : null) || message?.button?.text
+    const message_text = message?.text?.body || (message?.interactive ? (message?.interactive?.button_reply?.title || message?.interactive?.list_reply?.title) : null) || message?.button?.text || message?.audio?.id || message?.document?.id
 
     let timestamp = await getIndianCurrentTime()
     
@@ -97,7 +97,7 @@ export async function userWebhook(req, res) {
 
     ioEmissions(message, userSession, timestamp)
     if(userSession.tenant == 'leqcjsk' && message?.type === "order"){
-      await processOrderForDrishtee(userSession, products)
+      return processOrderForDrishtee(userSession, products, res)
     }
     if (!userSession.multilingual){
       if (!userSession.AIMode) {
@@ -242,7 +242,7 @@ async function sendWelcomeMessage(userSession){
     sendMessage(userSession.nuren, userSession.business_phone_number_id, {type: "text", text: {body: welcomeMessageForRetailer}}, userSession.accessToken, userSession.tenant)
 }
 
-async function processOrderForDrishtee(userSession, products) {
+async function processOrderForDrishtee(userSession, products, res) {
   const responseMessage_hi = "धन्यवाद! आपकी प्रतिक्रिया हमें मिल गई है। अब हम आपके ऑर्डर को आगे बढ़ा रहे हैं। हमें फिर से सेवा का मौका दें, यह हमारा सौभाग्य होगा।";
   const responseMessage_en = "Thank you! We've received your response. We're now moving ahead to place your order. Looking forward to serving you again!";
   const responseMessage_bn = "আপনার উত্তর পাওয়া গেছে, ধন্যবাদ! আমরা এখন আপনার অর্ডার প্রসেস করার কাজ এগিয়ে নিচ্ছি। আবার আপনাকে সাহায্য করতে পারলে ভালো লাগবে।";
@@ -284,6 +284,7 @@ async function processOrderForDrishtee(userSession, products) {
     }
   }
   await sendMessage(userSession.userPhoneNumber, userSession.business_phone_number_id, messageData, userSession.accessToken, userSession.tenant)
+  res.sendStatus(200)
 }
 
 const captionLanguage = {

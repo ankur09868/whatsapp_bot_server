@@ -313,7 +313,6 @@ try {
             const parameters = [{type: "text", text: link}]
             const button_component = {type: "button", sub_type: "url", index: 0, parameters: parameters}
             console.log("Button Component: ", button_component)
-
             res_components.push(button_component)
           }
         }

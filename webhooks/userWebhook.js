@@ -454,19 +454,19 @@ async function handleInput(userSession, value) {
       userSession.inputVariable = null;
       console.log("Cleared inputVariable after storing value");
 
-      // const payload = { flow_name, input_variable, value, phone };
-      // console.log("Constructed payload:", payload);
+      const payload = { flow_name, input_variable, value, phone };
+      console.log("Constructed payload:", payload);
 
-      // try {
-      //   console.log("Sending data to API:", `${djangoURL}/add-dynamic-data/`);
-      //   const response = await axios.post(`${djangoURL}/add-dynamic-data/`, payload, {
-      //     headers: { 'X-Tenant-Id': userSession.tenant }
-      //   });
+      try {
+        console.log("Sending data to API:", `${djangoURL}/add-dynamic-data/`);
+        const response = await axios.post(`${djangoURL}/add-dynamic-data/`, payload, {
+          headers: { 'X-Tenant-Id': userSession.tenant }
+        });
 
-      //   console.log("Data sent successfully! Response:", response.data);
-      // } catch (error) {
-      //   console.error("Error while sending data in handleInput:", error.response?.data || error.message);
-      // }
+        console.log("Data sent successfully! Response:", response.data);
+      } catch (error) {
+        console.error("Error while sending data in handleInput:", error.response?.data || error.message);
+      }
     } else {
       console.log("No valid inputVariable found, skipping API call.");
     }

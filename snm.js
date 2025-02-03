@@ -320,9 +320,9 @@ export async function sendNodeMessage(userPhoneNumber, business_phone_number_id)
 
                     // userSession.inputVariableType = flow[currNode]?.InputType[0]
                     console.log("input variable: ", userSession.inputVariable)
-                    var data = {phone_no : BigInt(userPhoneNumber).toString()}
-                    var modelName = userSession.flowName
-                    addDynamicModelInstance(modelName, data, userSession.tenant)
+                    // var data = {phone_no : BigInt(userPhoneNumber).toString()}
+                    // var modelName = userSession.flowName
+                    // addDynamicModelInstance(modelName, data, userSession.tenant)
                 }
 
                 let mediaID = flow[currNode]?.mediaID
@@ -339,9 +339,9 @@ export async function sendNodeMessage(userPhoneNumber, business_phone_number_id)
                     userSession.inputVariable = variable
                 
                     console.log("input variable: ", userSession.inputVariable)
-                    var data = {phone_no : BigInt(userPhoneNumber).toString()}
-                    var modelName = userSession.flowName
-                    addDynamicModelInstance(modelName, data, userSession.tenant)
+                    // var data = {phone_no : BigInt(userPhoneNumber).toString()}
+                    // var modelName = userSession.flowName
+                    // addDynamicModelInstance(modelName, data, userSession.tenant)
                 }
                 await sendListMessage(list, node_message, userPhoneNumber,business_phone_number_id, accessToken);
                 break;
@@ -356,9 +356,9 @@ export async function sendNodeMessage(userPhoneNumber, business_phone_number_id)
                     userSession.inputVariable = variable
                     
                     console.log("input variable: ", userSession.inputVariable)
-                    var data = {phone_no : BigInt(userPhoneNumber).toString()}
-                    var modelName = userSession.flowName
-                    addDynamicModelInstance(modelName, data, userSession.tenant)
+                //     var data = {phone_no : BigInt(userPhoneNumber).toString()}
+                //     var modelName = userSession.flowName
+                //     addDynamicModelInstance(modelName, data, userSession.tenant)
                 }
 
                 await sendInputMessage(userPhoneNumber,business_phone_number_id, node_message);
@@ -469,7 +469,7 @@ export async function sendNodeMessage(userPhoneNumber, business_phone_number_id)
                 const api = flow[currNode]?.api
                 const method = api?.method
 
-                const headers = api?.headers
+                let headers = api?.headers
                 if(headers) headers = JSON.parse(headers)
                 console.log("Type of headers: ", typeof(headers))
                 const url = api?.endpoint

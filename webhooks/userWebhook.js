@@ -1,7 +1,7 @@
 import { getIndianCurrentTime, updateStatus, updateLastSeen, saveMessage, sendNotification, executeFallback, getSession  } from "../helpers/misc.js";
 import { nurenConsumerMap, io, customWebhook } from "../server.js";
 import { nuren_users } from "../helpers/order.js";
-import { sendNodeMessage, sendTextMessage, sendProductMessage } from "../snm.js";
+import { sendNodeMessage, sendTextMessage, sendProductMessage, djangoURL } from "../snm.js";
 import { sendProduct } from "../helpers/product.js";
 import { DRISHTEE_PRODUCT_CAROUSEL_IDS, handleCatalogManagement }  from "../drishtee.js"
 import { sendMessage } from "../send-message.js";
@@ -29,6 +29,9 @@ export async function userWebhook(req, res) {
     const userName = contact?.profile?.name || null
     const products = message?.order?.product_items
     
+    const message_type = message?.type
+    const message_text = message?.text?.body || (message?.interactive ? (message?.interactive?.button_reply?.title || message?.interactive?.list_reply?.title) : null) || message?.button?.text
+
     let timestamp = await getIndianCurrentTime()
     
     const repliedTo = message?.context?.id || null
@@ -46,9 +49,6 @@ export async function userWebhook(req, res) {
     else if(userSession.type == 'prompt'){
       return promptWebhook(req, res, userSession)
     }
-    const message_type = message?.type
-    const message_text = message?.text?.body || (message?.interactive ? (message?.interactive?.button_reply?.title || message?.interactive?.list_reply?.title) : null) || message?.button?.text
-
     if(message_text == "manual") {
       const nuren = nuren_users[userSession.tenant]
       userSession.type = "whatsapp"
@@ -69,7 +69,7 @@ export async function userWebhook(req, res) {
     updateLastSeen("replied", timestamp, userSession.userPhoneNumber, userSession.business_phone_number_id)
 
     let formattedConversation;
-    console.log("Message: ", message)
+    // console.log("Message: ", message)
     if(message_type == "text" || message_type == "interactive" || message_type == "button"){
       formattedConversation= [{
         text: message_text,
@@ -77,9 +77,9 @@ export async function userWebhook(req, res) {
       }];
     }
     else{
-      console.log("MESSAGE: ", JSON.stringify(message, null, 4))
+      // console.log("MESSAGE: ", JSON.stringify(message, null, 4))
       const mediaID = message?.image?.id || message?.audio?.id || message?.document?.id || message?.video?.id
-      console.log("Media ID: ", mediaID)
+      // console.log("Media ID: ", mediaID)
       if (mediaID != undefined){
         const mediaURL = await getImageAndUploadToBlob(mediaID, userSession.accessToken)
         const mediaData = {type: message_type, [`${message_type}`]: {id: mediaURL}}
@@ -89,7 +89,7 @@ export async function userWebhook(req, res) {
         }]
       }    
     }
-    console.log("Formatted Conv: ", formattedConversation)
+    // console.log("Formatted Conv: ", formattedConversation)
     saveMessage(userSession.userPhoneNumber, userSession.business_phone_number_id, formattedConversation, userSession.tenant, timestamp)
 
     const notif_body = {content: `${userSession.userPhoneNumber} | New meessage from ${userSession.userName || userSession.userPhoneNumber}: ${message_text}`, created_on: timestamp}
@@ -101,7 +101,7 @@ export async function userWebhook(req, res) {
     }
     if (!userSession.multilingual){
       if (!userSession.AIMode) {
-        handleInput(userSession, message)
+        handleInput(userSession, message_text)
         if (message?.type === "interactive") {
             let userSelectionID = message?.interactive?.button_reply?.id || message?.interactive?.list_reply?.id;
   
@@ -152,8 +152,7 @@ export async function userWebhook(req, res) {
           userSession.currNode = userSession.nextNode[0];
         }
         sendNodeMessage(userPhoneNumber,business_phone_number_id);
-      }
-      else {
+      }else {
         if (message?.type == "interactive"){
             let userSelectionID = message?.interactive?.button_reply?.id || message?.interactive?.list_reply?.id;
             if (userSelectionID == "Exit AI"){
@@ -432,14 +431,50 @@ async function handleOrderManagement(userSession, userSelectionID){
     }
 }
 
-async function handleInput(userSession, message) {
-  if (userSession.inputVariable !== undefined && userSession.inputVariable !== null && userSession.inputVariable.length > 0){
+async function handleInput(userSession, value) {
+  console.log("handleInput called with value:", value);
+  
+  try {
+    if (
+      userSession.inputVariable !== undefined && 
+      userSession.inputVariable !== null && 
+      userSession.inputVariable.length > 0
+    ) {
+      console.log("Valid inputVariable detected:", userSession.inputVariable);
 
-    const input_variable = userSession.inputVariable
-    userSession.api.POST[input_variable] = message?.text?.body || message?.audio?.id
-    console.log("Setting input variable: ", message?.text?.body || message?.audio?.id)
-    userSession.inputVariable = null
+      const input_variable = userSession.inputVariable;
+      const phone = userSession.userPhoneNumber;
+      const flow_name = userSession.flowName;
+
+      console.log("Extracted user session details:", { input_variable, phone, flow_name });
+
+      userSession.api.POST[input_variable] = value;
+      console.log(`Stored value in userSession.api.POST[${input_variable}] = ${value}`);
+
+      userSession.inputVariable = null;
+      console.log("Cleared inputVariable after storing value");
+
+      // const payload = { flow_name, input_variable, value, phone };
+      // console.log("Constructed payload:", payload);
+
+      // try {
+      //   console.log("Sending data to API:", `${djangoURL}/add-dynamic-data/`);
+      //   const response = await axios.post(`${djangoURL}/add-dynamic-data/`, payload, {
+      //     headers: { 'X-Tenant-Id': userSession.tenant }
+      //   });
+
+      //   console.log("Data sent successfully! Response:", response.data);
+      // } catch (error) {
+      //   console.error("Error while sending data in handleInput:", error.response?.data || error.message);
+      // }
+    } else {
+      console.log("No valid inputVariable found, skipping API call.");
+    }
+  } catch (error) {
+    console.error("Unexpected error in handleInput:", error);
   }
+
+  console.log("Returning updated userSession:", userSession);
   return userSession;
 }
 

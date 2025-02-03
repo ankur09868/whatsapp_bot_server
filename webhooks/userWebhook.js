@@ -136,7 +136,7 @@ export async function userWebhook(req, res) {
               res.sendStatus(200)
               return
             }
-          }
+          } 
         }
         else if (message?.type == "button"){
           const userSelectionText = message?.button?.text
@@ -269,7 +269,11 @@ async function processOrderForDrishtee(userSession, products) {
       }
     })
   }
-  await axios.post(url, data, {headers: headers})
+  try{
+    await axios.post(url, data, {headers: headers})
+  }catch(error){
+    console.error("Error in processOrderForDrishtee: ", error)
+  }
   await  generateBill(products, userSession)
   const messageData = {
     type: "image",

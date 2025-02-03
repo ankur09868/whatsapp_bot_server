@@ -326,82 +326,87 @@ export async function getIndianCurrentTime(){
 }
 
 export async function getSession(business_phone_number_id, contact) {
-  console.log("Contact: " ,contact)
-  const userPhoneNumber = contact?.wa_id
-  const userName = contact?.profile?.name || "Nuren User"
+    try{
+        console.log("Contact: " ,contact)
+        const userPhoneNumber = contact?.wa_id
+        const userName = contact?.profile?.name || "Nuren User"
 
-  let userSession = userSessions.get(userPhoneNumber+business_phone_number_id);
+        let userSession = userSessions.get(userPhoneNumber+business_phone_number_id);
 
-  if (!userSession) {
-    
-      addContact(userPhoneNumber, userName, business_phone_number_id)
-      console.log(`Creating new session for user ${userPhoneNumber}`);
-      try {
-      let responseData = messageCache.get(business_phone_number_id)
-      if(!responseData){
-      const response = await axios.get(`${fastURL}/whatsapp_tenant`,{
-          headers: {'bpid': business_phone_number_id}
-      });
-      responseData = response.data
-      messageCache.set(business_phone_number_id, responseData)
-      }
-      console.log("Tenant data received:", responseData);
-      const responseFlowData = responseData?.whatsapp_data
-      let multilingual = responseData?.whatsapp_data[0].multilingual;
-      let flowData;
-      if (multilingual) flowData = responseData?.whatsapp_data
-      else flowData = responseData?.whatsapp_data[0].flow_data
+        if (!userSession) {
+            
+            addContact(userPhoneNumber, userName, business_phone_number_id)
+            console.log(`Creating new session for user ${userPhoneNumber}`);
+            try {
+            let responseData = messageCache.get(business_phone_number_id)
+            if(!responseData){
+                const response = await axios.get(`${fastURL}/whatsapp_tenant`,{
+                    headers: {'bpid': business_phone_number_id}
+                });
+                responseData = response.data
+                messageCache.set(business_phone_number_id, responseData)
+            }
+            console.log("Tenant data received:", responseData);
+            const responseFlowData = responseData?.whatsapp_data
+            let multilingual = responseData?.whatsapp_data[0].multilingual;
+            let flowData;
+            if (multilingual) flowData = responseData?.whatsapp_data
+            else flowData = responseData?.whatsapp_data[0].flow_data
 
-      
-      const adjList = responseData?.whatsapp_data[0]?.adj_list
-      const startNode = responseData?.whatsapp_data[0]?.start !== null ? responseData?.whatsapp_data[0]?.start : 0;
-      const currNode = startNode
-      // const multilingual = flowData.length > 1 ? true : false
-      if(!flowData && !adjList) console.error("Flow Data is not present for bpid: ", business_phone_number_id)
-      userSession = {
-          type: "chatbot",
-          AIMode: false,
-          lastActivityTime: Date.now(),
-          flowData: flowData,
-          adjList: adjList,
-          accessToken: responseData.whatsapp_data[0].access_token,
-          accountID: responseData.whatsapp_data[0].business_account_id,
-          flowName : responseData.whatsapp_data[0].flow_name,
-          startNode : startNode,
-          currNode: currNode,
-          nextNode: adjList[currNode],
-          business_phone_number_id: responseData.whatsapp_data[0].business_phone_number_id,
-          tenant : responseData.whatsapp_data[0].tenant_id,
-          userPhoneNumber : userPhoneNumber,
-          userName: userName,
-          inputVariable : null,
-          inputVariableType: null,
-          fallback_msg : responseData.whatsapp_data[0].fallback_message || "please provide correct input",
-          fallback_count: responseData.whatsapp_data[0].fallback_count != null ? responseData.whatsapp_data[0].fallback_count : 1,
-          products: responseData.catalog_data,
-          language: "en",
-          multilingual: multilingual,
-          doorbell: responseData.whatsapp_data[0]?.introductory_msg || null,
-          api:  {
-            POST: {},
-            GET: {}
-          }
-      };
+            
+            const adjList = responseData?.whatsapp_data[0]?.adj_list
+            const startNode = responseData?.whatsapp_data[0]?.start !== null ? responseData?.whatsapp_data[0]?.start : 0;
+            const currNode = startNode
+            // const multilingual = flowData.length > 1 ? true : false
+            if(!flowData && !adjList) console.error("Flow Data is not present for bpid: ", business_phone_number_id)
+            userSession = {
+                type: "chatbot",
+                AIMode: false,
+                lastActivityTime: Date.now(),
+                flowData: flowData,
+                adjList: adjList,
+                accessToken: responseData.whatsapp_data[0].access_token,
+                accountID: responseData.whatsapp_data[0].business_account_id,
+                flowName : responseData.whatsapp_data[0].flow_name,
+                startNode : startNode,
+                currNode: currNode,
+                nextNode: adjList[currNode],
+                business_phone_number_id: responseData.whatsapp_data[0].business_phone_number_id,
+                tenant : responseData.whatsapp_data[0].tenant_id,
+                userPhoneNumber : userPhoneNumber,
+                userName: userName,
+                inputVariable : null,
+                inputVariableType: null,
+                fallback_msg : responseData.whatsapp_data[0].fallback_message || "please provide correct input",
+                fallback_count: responseData.whatsapp_data[0].fallback_count != null ? responseData.whatsapp_data[0].fallback_count : 1,
+                products: responseData.catalog_data,
+                language: "en",
+                multilingual: multilingual,
+                doorbell: responseData.whatsapp_data[0]?.introductory_msg || null,
+                api:  {
+                    POST: {},
+                    GET: {}
+                }
+            };
 
-      const key = userPhoneNumber + business_phone_number_id
-      
-      userSessions.set(key, userSession);
-      } catch (error) {
-      console.error(`Error fetching tenant data for user ${userPhoneNumber}:`, error);
-      throw error;
-      }
-  } else {
-      userSession.lastActivityTime = Date.now()
-      if(userSession.currNode != null) userSession.nextNode = userSession.adjList[userSession.currNode]
-      else {
-      userSession.currNode = userSession.startNode
-      userSession.nextNode = userSession.adjList[userSession.currNode]
-      }
-  }
-  return userSession;
+            const key = userPhoneNumber + business_phone_number_id
+            
+            userSessions.set(key, userSession);
+            } catch (error) {
+            console.error(`Error fetching tenant data for user ${userPhoneNumber}:`, error);
+            throw error;
+            }
+        } else {
+            userSession.lastActivityTime = Date.now()
+            if(userSession.currNode != null) userSession.nextNode = userSession.adjList[userSession.currNode]
+            else {
+            userSession.currNode = userSession.startNode
+            userSession.nextNode = userSession.adjList[userSession.currNode]
+            }
+        }
+        return userSession;
+    }catch(error){
+        console.error("Error in getSession:", error);
+        throw new Error(`Session initialization failed: ${error.message}`);
+    }
 }

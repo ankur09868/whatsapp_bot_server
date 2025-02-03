@@ -11,7 +11,8 @@ const fallback_messages = {
     hi: "कृपया सही इनपुट दें",
     kn: "ದಯವಿಟ್ಟು ಸರಿಯಾದ ಇನ್‌ಪುಟ್ ನೀಡಿರಿ",
     mr: "कृपया योग्य इनपुट द्या",
-    or: "ଦୟାକରି ସଠିକ୍ ଇନପୁଟ୍ ଦିଅନ୍ତୁ"
+    or: "ଦୟାକରି ସଠିକ୍ ଇନପୁଟ୍ ଦିଅନ୍ତୁ",
+    en: "Please try again"
 }
 
 export async function executeFallback(userSession){

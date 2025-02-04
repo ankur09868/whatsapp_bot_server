@@ -96,8 +96,38 @@ export async function userWebhook(req, res) {
     sendNotification(notif_body, userSession.tenant)
 
     ioEmissions(message, userSession, timestamp)
-    if(userSession.tenant == 'leqcjsk' && message?.type === "order"){
-      return processOrderForDrishtee(userSession, products, res)
+    if(userSession.tenant == 'leqcjsk'){
+      if (message?.type === "text" && userSession?.isRRPEligible == undefined){
+        userSession = await checkRRPEligibility(userSession)
+        if(!userSession.isRRPEligible){
+          const messageData = {
+            type: 'text',
+            text: {
+              body: 'Sorry, our services are not available in your area. Please join our RRP network to avail these services.'
+            }
+          }
+          return sendMessage(userSession.userPhoneNumber, userSession.business_phone_number_id, messageData, userSession.accessToken, userSession.tenant)
+        }
+      }else if(message?.type == "order"){
+        res.sendStatus(200)
+        console.log(userSession.isRRPEligible)
+        if(userSession?.isRRPEligible == undefined){
+          userSession = await checkRRPEligibility(userSession)
+        }
+        console.log(userSession.isRRPEligible)
+        if(userSession.isRRPEligible){
+          return processOrderForDrishtee(userSession, products)
+        }
+        else{
+          const messageData = {
+            type: 'text',
+            text: {
+              body: 'Sorry, our services are not available in your area. Please join our RRP network to avail these services.'
+            }
+          }
+          return sendMessage(userSession.userPhoneNumber, userSession.business_phone_number_id, messageData, userSession.accessToken, userSession.tenant)
+        }
+      }
     }
     if (!userSession.multilingual){
       if (!userSession.AIMode) {
@@ -242,7 +272,43 @@ async function sendWelcomeMessage(userSession){
     sendMessage(userSession.nuren, userSession.business_phone_number_id, {type: "text", text: {body: welcomeMessageForRetailer}}, userSession.accessToken, userSession.tenant)
 }
 
-async function processOrderForDrishtee(userSession, products, res) {
+async function checkRRPEligibility(userSession) {
+  try {
+    if (userSession?.isRRPEligible != undefined) return userSession
+    const phone = userSession.userPhoneNumber.slice(2);
+    console.log("Checking for phone: ", phone);
+
+    const response = await axios.post(
+      'https://testexpenses.drishtee.in/rrp/nuren/checkRRp',
+      { 'rrp_phone_no': phone},
+      { headers: { 'Content-Type': 'application/json' } }
+    );
+
+    console.log("Response for checking eligibility: ", response.data);
+
+    if (response.data.RRP_id) {
+      userSession.isRRPEligible = true;
+    }
+
+  } catch (error) {
+    if (error.response) {
+      if (error.response.status === 404) {
+        userSession.isRRPEligible = false
+        console.error("Error: 404 Not Found - RRP service unavailable for this phone number");
+      } else {
+        console.error(`Error: ${error.response.status} - ${error.response.data}`);
+      }
+    } else if (error.request) {
+      console.error("Error: No response received from the server", error.request);
+    } else {
+      console.error("Error: Unexpected issue occurred", error.message);
+    }
+  }
+  return userSession;
+}
+
+
+async function processOrderForDrishtee(userSession, products) {
   const responseMessage_hi = "धन्यवाद! आपकी प्रतिक्रिया हमें मिल गई है। अब हम आपके ऑर्डर को आगे बढ़ा रहे हैं। हमें फिर से सेवा का मौका दें, यह हमारा सौभाग्य होगा।";
   const responseMessage_en = "Thank you! We've received your response. We're now moving ahead to place your order. Looking forward to serving you again!";
   const responseMessage_bn = "আপনার উত্তর পাওয়া গেছে, ধন্যবাদ! আমরা এখন আপনার অর্ডার প্রসেস করার কাজ এগিয়ে নিচ্ছি। আবার আপনাকে সাহায্য করতে পারলে ভালো লাগবে।";
@@ -274,6 +340,22 @@ async function processOrderForDrishtee(userSession, products, res) {
     await axios.post(url, data, {headers: headers})
   }catch(error){
     console.error("Error in processOrderForDrishtee: ", error)
+    if (error.response) {
+      if (error.response.status === 404) {
+        userSession.isRRPEligible = false
+        console.error("Error: 404 Not Found - RRP service unavailable for this phone number");
+        const messageData = {
+          type: 'text',
+          text: {
+            body: 'Sorry, our services are not available in your area. Please join our RRP network to avail these services.'
+          }
+        }
+        return sendMessage(userSession.userPhoneNumber, userSession.business_phone_number_id, messageData, userSession.accessToken, userSession.tenant)
+      } else {
+        console.error(`Error: ${error.response.status} - ${error.response.data}`);
+      }
+    return
+    }
   }
   await  generateBill(products, userSession)
   const messageData = {
@@ -284,7 +366,6 @@ async function processOrderForDrishtee(userSession, products, res) {
     }
   }
   await sendMessage(userSession.userPhoneNumber, userSession.business_phone_number_id, messageData, userSession.accessToken, userSession.tenant)
-  res.sendStatus(200)
 }
 
 const captionLanguage = {
@@ -422,7 +503,7 @@ async function sendLanguageSelectionMessage(message_text, access_token, phoneNum
   
   return sendMessage(phoneNumber, business_phone_number_id, messageData, access_token, tenant_id)
 }
- 
+
 async function handleOrderManagement(userSession, userSelectionID){
     const order_id = userSelectionID.split('_')[1]
     const order_status = userSelectionID.split('_')[0]
@@ -455,7 +536,8 @@ async function handleInput(userSession, value) {
       console.log("Extracted user session details:", { input_variable, phone, flow_name });
 
       userSession.api.POST[input_variable] = value;
-      console.log(`Stored value in userSession.api.POST[${input_variable}] = ${value}`);
+      console.log(`Stored
+         value in userSession.api.POST[${input_variable}] = ${value}`);
 
       userSession.inputVariable = null;
       console.log("Cleared inputVariable after storing value");
@@ -691,12 +773,13 @@ async function generateBill(products, userSession) {
     const productID = product.product_retailer_id
     const productData = rows.find(row => row[0] === productID); // Assuming column A contains the product ID
     const productName = productData[3]
-    const regex = /\[(\d+)\s*(Units?|यूनिट्स?|युनिट्स?|ইউনিটস?|ইউনিট)\]/;
+    const regex = /\[(\d+)\s*(?:Units?|यूनिट्स?|युनिट्स?|ইউনিটস?|ইউনিট)?\]/;
     const match = productName.match(regex);
-
+    console.log("Match: ", match)
     let units = 1;
     if (match) {
       units = parseInt(match[1], 10); // Extract the number and convert it to an integer
+      console.log("Units: ", units)
     }
 
     totalAmount += product.item_price * product.quantity * units

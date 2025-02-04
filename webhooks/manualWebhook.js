@@ -59,5 +59,4 @@ export async function manualWebhook(req, userSession){
 
 export async function testWebhook(req, res) {
   console.log("Received Webhook: ", JSON.stringify(req.body, null, 5))
-  res.sendStatus(200)
 }

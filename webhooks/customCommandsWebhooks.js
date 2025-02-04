@@ -32,7 +32,6 @@ export async function promptWebhook(req, res, userSession) {
                 console.log("Unhandled nfm type: ", nfm_type)
         }
     }
-    res.sendStatus(200)
 }
 
 async function sendPromptGreetingMessage(userSession) {

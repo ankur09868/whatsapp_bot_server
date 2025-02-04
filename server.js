@@ -578,6 +578,7 @@ async function convertToValidDateFormat(dateString) {
 
 app.post("/webhook", async (req, res) => {
   try {
+    res.sendStatus(200)
     const business_phone_number_id = req.body.entry?.[0].changes?.[0].value?.metadata?.phone_number_id;
     const contact = req.body.entry?.[0]?.changes[0]?.value?.contacts?.[0];
     const message = req.body.entry?.[0]?.changes[0]?.value?.messages?.[0];
@@ -633,7 +634,6 @@ app.post("/webhook", async (req, res) => {
       }
     }
     console.log("Webhook Processing Complete")
-    res.sendStatus(200)
   }
   catch (error) {
     console.error("Error in webhook handler:", error);

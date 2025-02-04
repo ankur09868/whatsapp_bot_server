@@ -14,7 +14,6 @@ import FormData from 'form-data';
 import https from 'https';
 import { financeBotWebhook } from "./financeBotWebhook.js";
 import { promptWebhook } from "./customCommandsWebhooks.js";
-import { type } from "os";
 
 const agent = new https.Agent({
   rejectUnauthorized: false, // Disable SSL certificate verification //VERY VERY IMPORTANT SECURITY
@@ -41,7 +40,6 @@ export async function userWebhook(req, res) {
   
     if(userSession.type == "whatsapp"){
       manualWebhook(req, userSession)
-      return res.sendStatus(200)
     }
     else if(userSession.type == 'finance'){
       return financeBotWebhook(req, res, userSession)
@@ -55,7 +53,6 @@ export async function userWebhook(req, res) {
       userSession["nuren"] = nuren
       nurenConsumerMap[nuren] = userSession.userPhoneNumber
       sendWelcomeMessage(userSession)
-      return res.sendStatus(200)
     }
     else if(message_text == '/finance'){
       userSession.type = 'finance'
@@ -97,36 +94,16 @@ export async function userWebhook(req, res) {
 
     ioEmissions(message, userSession, timestamp)
     if(userSession.tenant == 'leqcjsk'){
-      if (message?.type === "text" && userSession?.isRRPEligible == undefined){
-        userSession = await checkRRPEligibility(userSession)
-        if(!userSession.isRRPEligible){
-          const messageData = {
-            type: 'text',
-            text: {
-              body: 'Sorry, our services are not available in your area. Please join our RRP network to avail these services.'
-            }
+      if(userSession?.isRRPEligible == undefined) userSession = await checkRRPEligibility(userSession)
+      if(userSession?.isRRPEligible && message?.type == "order") return processOrderForDrishtee(userSession, products)
+      else if(!userSession?.isRRPEligible){
+        const messageData = {
+          type: 'text',
+          text: {
+            body: 'Sorry, our services are not available in your area. Please join our RRP network to avail these services.'
           }
-          return sendMessage(userSession.userPhoneNumber, userSession.business_phone_number_id, messageData, userSession.accessToken, userSession.tenant)
         }
-      }else if(message?.type == "order"){
-        res.sendStatus(200)
-        console.log(userSession.isRRPEligible)
-        if(userSession?.isRRPEligible == undefined){
-          userSession = await checkRRPEligibility(userSession)
-        }
-        console.log(userSession.isRRPEligible)
-        if(userSession.isRRPEligible){
-          return processOrderForDrishtee(userSession, products)
-        }
-        else{
-          const messageData = {
-            type: 'text',
-            text: {
-              body: 'Sorry, our services are not available in your area. Please join our RRP network to avail these services.'
-            }
-          }
-          return sendMessage(userSession.userPhoneNumber, userSession.business_phone_number_id, messageData, userSession.accessToken, userSession.tenant)
-        }
+        return sendMessage(userSession.userPhoneNumber, userSession.business_phone_number_id, messageData, userSession.accessToken, userSession.tenant)
       }
     }
     if (!userSession.multilingual){
@@ -163,7 +140,6 @@ export async function userWebhook(req, res) {
             }
             else if(['Button', 'List'].includes(type)){
               await executeFallback(userSession)
-              res.sendStatus(200)
               return
             }
           } 
@@ -261,7 +237,6 @@ export async function userWebhook(req, res) {
     }
     
     console.log("Webhook processing completed successfully");
-    res.sendStatus(200);
 }
 
 async function sendWelcomeMessage(userSession){
@@ -287,9 +262,10 @@ async function checkRRPEligibility(userSession) {
     console.log("Response for checking eligibility: ", response.data);
 
     if (response.data.RRP_id) {
+      console.log("Response RRP Id: ", response.data.RRP_id)
       userSession.isRRPEligible = true;
     }
-
+    console.log("User Session for RRP: ", userSession)
   } catch (error) {
     if (error.response) {
       if (error.response.status === 404) {

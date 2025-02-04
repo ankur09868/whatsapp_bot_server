@@ -57,7 +57,6 @@ export async function financeBotWebhook(req, res, userSession) {
         }
 
     }
-    res.sendStatus(200)
 }
 
 async function sendGreetingMessage(userSession) {

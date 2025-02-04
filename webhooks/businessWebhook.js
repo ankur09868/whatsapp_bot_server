@@ -31,12 +31,9 @@ export async function businessWebhook(req, res) {
         sendMessage(recipient, business_phone_number_id, messageData, userSession.accessToken, userSession.tenant)
       }
       else if(Object.keys(nurenConsumerMap).includes(userPhoneNumber)) {
-        manualWebhook(req, userSession)
-        return res.sendStatus(200)
+        return manualWebhook(req, userSession)
       }
     }
-       
-    res.sendStatus(200)
 }
 
 async function handleCommands(message_text, userSession){

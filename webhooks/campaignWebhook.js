@@ -72,7 +72,6 @@ import { getCampaignUserSession, setCampaignUserSession, deleteCampaignUserSessi
 // ]
 
 export async function campaignWebhook(req, res, campaignData){
-    res.sendStatus(200)
     const bpid = req.body.entry?.[0].changes?.[0].value?.metadata?.phone_number_id;
 
 

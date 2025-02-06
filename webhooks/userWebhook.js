@@ -135,14 +135,14 @@ export async function userWebhook(req, res) {
           const type = flow[userSession.currNode].type
           if (userSession.currNode != userSession.startNode){
             console.log("Type: ", type)
-            if (['Text' ,'string', 'audio', 'video', 'location', 'image', 'AI'].includes(type)) {
+            if (['Text' ,'string', 'audio', 'video', 'location', 'image', 'AI', 'product'].includes(type)) {
               userSession.currNode = userSession.nextNode[0];
             }
             else if(['Button', 'List'].includes(type)){
               await executeFallback(userSession)
               return
             }
-          } 
+          }
         }
         else if (message?.type == "button"){
           const userSelectionText = message?.button?.text
@@ -155,6 +155,9 @@ export async function userWebhook(req, res) {
           userSession.currNode = userSession.nextNode[0];
         }
         else if(message?.type == "document"){
+          userSession.currNode = userSession.nextNode[0];
+        }
+        else if(message?.type == "order"){
           userSession.currNode = userSession.nextNode[0];
         }
         sendNodeMessage(userPhoneNumber,business_phone_number_id);

@@ -137,7 +137,7 @@ export async function userWebhook(req, res) {
         }
         else if (message?.type === "text" || message?.type == "image") {
           const flow = userSession.flowData
-          const type = flow[userSession.currNode].type
+          const type = flow[userSession.currNode]?.type
           if (userSession.currNode != userSession.startNode){
             console.log("Type: ", type)
             if (['Text' ,'string', 'audio', 'video', 'location', 'image', 'AI', 'product'].includes(type)) {

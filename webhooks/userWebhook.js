@@ -89,7 +89,7 @@ export async function userWebhook(req, res) {
           text: JSON.stringify(mediaData),
           sender: "user"
         }]
-      }    
+      }
     }
     // console.log("Formatted Conv: ", formattedConversation)
     saveMessage(userSession.userPhoneNumber, userSession.business_phone_number_id, formattedConversation, userSession.tenant, timestamp)

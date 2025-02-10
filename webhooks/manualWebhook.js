@@ -13,28 +13,28 @@ export async function manualWebhook(req, userSession){
   let recipient;
   let messageData = null
 
-  if (Object.values(nuren_users).includes(userPhoneNumber)){
+  if (userPhoneNumber in nurenConsumerMap){
     recipient = nurenConsumerMap[userPhoneNumber]
-
     if (message_text == "close"){
       userSessions.delete(userPhoneNumber+business_phone_number_id)
       const customer_userSession = userSessions.get(recipient+business_phone_number_id)
       customer_userSession.type = "chatbot"
       delete nurenConsumerMap[userPhoneNumber]
-      delete customer_userSession?.nuren
+      delete customer_userSession?.talking_to
       console.log("Nuren Consumer Map after deleting: ", nurenConsumerMap)
       console.log("Customer User Session after delete: ", customer_userSession)
       return
     }
   }
-  else if (userSession.type == "whatsapp"){
-    recipient = userSession?.nuren
+  else if (userSession.type == "one2one"){
+    recipient = userSession?.talking_to
     console.log("Recipient: ", recipient)
-
+    if(recipient === undefined) sendMessage(userSession.userPhoneNumber, userSession.business_phone_number_id, {type: "text", text: { body: "Please wait while one of our agents accepts your message request."}}, userSession.accessToken, userSession.tenant)
     if(message_text && message_text.startsWith("/")) {
       const messageData = {type: "text", text: {body: "Sorry, you are not authorized to use this command."}}
       sendMessage(userPhoneNumber, business_phone_number_id, messageData, userSession.accessToken, userSession.tenant)
     }
+    
   }
   const messageType = req.body.entry?.[0]?.changes?.[0]?.value?.messages?.[0].type
   const keysToRemove = ['mime_type', 'sha256', 'animated'];

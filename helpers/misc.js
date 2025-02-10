@@ -370,7 +370,6 @@ export async function getSession(business_phone_number_id, contact) {
                 let flowData;
                 if (multilingual) flowData = responseData?.whatsapp_data
                 else flowData = responseData?.whatsapp_data[0].flow_data
-        
                 
                 const adjList = responseData?.whatsapp_data[0]?.adj_list
                 const startNode = responseData?.whatsapp_data[0]?.start !== null ? responseData?.whatsapp_data[0]?.start : 0;
@@ -381,14 +380,14 @@ export async function getSession(business_phone_number_id, contact) {
                     type: "chatbot",
                     AIMode: false,
                     lastActivityTime: Date.now(),
-                    flowData: flowData,
-                    adjList: adjList,
+                    flowData: flowData || [],
+                    adjList: adjList || [],
                     accessToken: responseData.whatsapp_data[0].access_token,
                     accountID: responseData.whatsapp_data[0].business_account_id,
-                    flowName : responseData.whatsapp_data[0].flow_name,
-                    startNode : startNode,
-                    currNode: currNode,
-                    nextNode: adjList[currNode],
+                    flowName : responseData.whatsapp_data[0].flow_name || "",
+                    startNode : startNode || null,
+                    currNode: currNode || null, 
+                    nextNode: adjList?.[currNode] || [],
                     business_phone_number_id: responseData.whatsapp_data[0].business_phone_number_id,
                     tenant : responseData.whatsapp_data[0].tenant_id,
                     userPhoneNumber : userPhoneNumber,

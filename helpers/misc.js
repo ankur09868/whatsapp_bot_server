@@ -385,8 +385,8 @@ export async function getSession(business_phone_number_id, contact) {
                     accessToken: responseData.whatsapp_data[0].access_token,
                     accountID: responseData.whatsapp_data[0].business_account_id,
                     flowName : responseData.whatsapp_data[0].flow_name || "",
-                    startNode : startNode || null,
-                    currNode: currNode || null, 
+                    startNode : startNode,
+                    currNode: currNode, 
                     nextNode: adjList?.[currNode] || [],
                     business_phone_number_id: responseData.whatsapp_data[0].business_phone_number_id,
                     tenant : responseData.whatsapp_data[0].tenant_id,
@@ -401,8 +401,8 @@ export async function getSession(business_phone_number_id, contact) {
                     multilingual: multilingual,
                     doorbell: responseData.whatsapp_data[0]?.introductory_msg || null,
                     api:  {
-                    POST: {},
-                    GET: {}
+                        POST: {},
+                        GET: {}
                     },
                     agents: responseData.whatsapp_data[1]?.agents
                 };

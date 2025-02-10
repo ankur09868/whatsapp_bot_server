@@ -289,8 +289,9 @@ export async function sendNodeMessage(userPhoneNumber, business_phone_number_id)
     const { flowData, adjList, currNode, accessToken } = userSession;
     const flow = flowData;
     const adjListParsed =adjList;
-    console.log(currNode)
-    const delay = flow[currNode]?.delay;
+    console.log("Current Node: ",currNode)
+    let delay;
+    if(currNode) delay = flow[currNode]?.delay;
     if(delay !== undefined && delay > 0){
         userSession.flowData[currNode].delay = 0
         console.log(`delayed by ${delay} seconds`)
@@ -299,15 +300,13 @@ export async function sendNodeMessage(userPhoneNumber, business_phone_number_id)
         }, delay * 1000)
         return;
     }
-    if (typeof currNode !== 'undefined' && currNode !== null && adjListParsed) {
+
+    if (typeof currNode !== undefined && currNode !== null && adjListParsed) {
         
         const nextNode = adjListParsed[currNode];
-
         let node_message = flow[currNode]?.body;
         console.log("flowlfolwolfowl: ", flow[currNode])
-
         
-                
         switch (flow[currNode]?.type) {
             case "Button":
                 const buttons = nextNode
@@ -536,19 +535,16 @@ export async function sendNodeMessage(userPhoneNumber, business_phone_number_id)
                 break;
 
             default:
-                console.log(`Unknown node type: ${flow[currNode]?.type}`);
-            
+                console.log(`Unknown node type: ${flow[currNode]?.type}`);  
         }
     
         userSession.nextNode = nextNode;
         userSessions.set(userPhoneNumber+business_phone_number_id, userSession);
         // await Promise.all([sendMessagePromise, sendDynamicPromise])
-    }
-    else{
+    }else{
         userSession.currNode = userSession.startNode;
         userSession.nextNode = adjListParsed[userSession.currNode] || [];
     }
-    
 }
 
 // async function setTemplate(templateData, phone, bpid, access_token, otp) {

@@ -1,4 +1,4 @@
-import { nurenConsumerMap } from "../server.js"
+import { nurenConsumerMap, userSessions } from "../server.js"
 import { sendMessage } from "../send-message.js";
 import { setTemplateData } from "../snm.js";
 import axios from "axios";
@@ -15,15 +15,36 @@ export async function businessWebhook(req, res) {
     const contact = req.body.entry?.[0]?.changes[0]?.value?.contacts?.[0];
     const message = req.body.entry?.[0]?.changes[0]?.value?.messages?.[0];
     const userPhoneNumber = contact?.wa_id || null;
+    const userName = contact?.profile?.name || null
+
 
     const userSession = await getSession(business_phone_number_id, contact)
     const messageType = message?.type
-    const message_text = message?.text?.body || (message?.interactive ? (message?.interactive?.button_reply?.title || message?.interactive?.list_reply?.title) : null)
+    console.log("Message Type: ", messageType)
+    if(messageType == "interactive"){
+      const selectionId = message?.interactive?.button_reply?.id
+      const recipient = selectionId.slice(9)
+      const isAgentAssigned = Object.values(nurenConsumerMap).includes(recipient);
+      console.log("Agent Assigned: ", isAgentAssigned)
+      if(selectionId.startsWith('chatwith')){
+        if(!isAgentAssigned){
+          const welcomeMessageForConsumer = `${userName} is here to chat with you!\nType your queries or just say hello! Lets get this conversation going.`
+          
+          const key = recipient + business_phone_number_id
+          const customerUserSession = userSessions.get(key)
 
-    // if(messageType == "document") sendTemplates(message, userSession)
-    if(userSession?.acceptTemplate) return sendTemplates(message, userSession)
-
-    if( message_text){
+          customerUserSession["talking_to"] = userPhoneNumber
+          console.log("Connecting user: ", recipient, "to Agent: ", userPhoneNumber)
+          nurenConsumerMap[userPhoneNumber] = recipient
+          userSessions.set(key, customerUserSession);
+          sendMessage(userPhoneNumber, userSession.business_phone_number_id, {type: "text", text: {body: "You're now connected! Expect responses from the user soon. 📩"}})
+          return sendMessage(recipient, userSession.business_phone_number_id, {type: "text", text: {body: welcomeMessageForConsumer}}, userSession.accessToken, userSession.tenant)
+        }else{
+          sendMessage(userPhoneNumber, userSession.business_phone_number_id, {type: "text", text: {body: "This customer has been already assigned to another agent."}}, userSession.accessToken, userSession.tenant)
+        }
+      }
+    }else if(messageType == "text"){
+      const message_text = message?.text?.body
       if(message_text.startsWith("/")){
         const { messageData, recipient } = await handleCommands(message_text, userSession)
         console.log("Recipient: ", recipient)
@@ -34,6 +55,12 @@ export async function businessWebhook(req, res) {
         return manualWebhook(req, userSession)
       }
     }
+    else if(Object.keys(nurenConsumerMap).includes(userPhoneNumber)) {
+      return manualWebhook(req, userSession)
+    }
+    // if(messageType == "document") sendTemplates(message, userSession)
+    if(userSession?.acceptTemplate) return sendTemplates(message, userSession)
+
 }
 
 async function handleCommands(message_text, userSession){

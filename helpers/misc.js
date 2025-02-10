@@ -404,7 +404,8 @@ export async function getSession(business_phone_number_id, contact) {
                     api:  {
                     POST: {},
                     GET: {}
-                    }
+                    },
+                    agents: responseData.whatsapp_data[1]?.agents
                 };
         
                 const key = userPhoneNumber + business_phone_number_id

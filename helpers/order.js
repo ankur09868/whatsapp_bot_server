@@ -4,7 +4,7 @@ import { sendMessage } from "../send-message.js";
 import  { sendProduct, sendBill} from "./product.js"
 
 export const nuren_users = {
-    'aayamhx': "917906511071"
+    'qquuesz': "917906511071"
 }
 
 export async function sendMessagetoConsumer(messageType, userSession, orderID, products = null) {

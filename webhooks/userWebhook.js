@@ -1,5 +1,5 @@
 import { getIndianCurrentTime, updateStatus, updateLastSeen, saveMessage, sendNotification, executeFallback, getSession  } from "../helpers/misc.js";
-import { nurenConsumerMap, io, customWebhook } from "../server.js";
+import { nurenConsumerMap, io, customWebhook, userSessions } from "../server.js";
 import { nuren_users } from "../helpers/order.js";
 import { sendNodeMessage, sendTextMessage, sendProductMessage, djangoURL } from "../snm.js";
 import { sendProduct } from "../helpers/product.js";
@@ -37,9 +37,15 @@ export async function userWebhook(req, res) {
     if (repliedTo !== null) updateStatus("replied", repliedTo, null, null, null, null, timestamp)
   
     let userSession = await getSession(business_phone_number_id, contact)
-  
-    if(userSession.type == "whatsapp"){
-      manualWebhook(req, userSession)
+    // console.log("User Session Type: ", userSession.type)
+    const agents = userSession.agents
+    if(agents){
+      const isBusiness = agents.includes(userPhoneNumber)
+      if(isBusiness) return businessWebhook(req, res)
+    }
+
+    if(userSession.type == "one2one"){
+      return manualWebhook(req, userSession)
     }
     else if(userSession.type == 'finance'){
       return financeBotWebhook(req, res, userSession)
@@ -47,12 +53,12 @@ export async function userWebhook(req, res) {
     else if(userSession.type == 'prompt'){
       return promptWebhook(req, res, userSession)
     }
-    if(message_text == "manual") {
-      const nuren = nuren_users[userSession.tenant]
-      userSession.type = "whatsapp"
-      userSession["nuren"] = nuren
-      nurenConsumerMap[nuren] = userSession.userPhoneNumber
-      sendWelcomeMessage(userSession)
+
+    if(message_text == "/human") {
+      userSession.type = "one2one"
+      const key = userPhoneNumber + business_phone_number_id
+      userSessions.set(key, userSession);
+      return sendWelcomeMessage(userSession)
     }
     else if(message_text == '/finance'){
       userSession.type = 'finance'
@@ -66,7 +72,6 @@ export async function userWebhook(req, res) {
     updateLastSeen("replied", timestamp, userSession.userPhoneNumber, userSession.business_phone_number_id)
 
     let formattedConversation;
-    // console.log("Message: ", message)
     if(message_type == "text" || message_type == "interactive" || message_type == "button"){
       formattedConversation= [{
         text: message_text,
@@ -242,12 +247,31 @@ export async function userWebhook(req, res) {
     console.log("Webhook processing completed successfully");
 }
 
+function assignAgent(agentList){
+  for(let agent of agentList){
+    if (agent in nurenConsumerMap) continue
+    else return agent
+  }
+  return agentList[0]
+}
+
 async function sendWelcomeMessage(userSession){
-    const welcomeMessageForConsumer = "You are now connected to a human agent. Please type your message here and we will get back to you shortly."
-    const welcomeMessageForRetailer = `${userSession.userName} has initiated a conversation with you. Please type your message here.`
-  
-    sendMessage(userSession.userPhoneNumber, userSession.business_phone_number_id, {type: "text", text: {body: welcomeMessageForConsumer}}, userSession.accessToken, userSession.tenant)
-    sendMessage(userSession.nuren, userSession.business_phone_number_id, {type: "text", text: {body: welcomeMessageForRetailer}}, userSession.accessToken, userSession.tenant)
+  const welcomeMessageForConsumer = "You're now connected to a live agent! Drop your message here, and we'll get back to you shortly. 😊"  
+  const waitingMessageForConsumer = "Hang tight! We're connecting you with an agent. It won’t take long. ⏳"  
+  sendMessage(userSession.userPhoneNumber, userSession.business_phone_number_id, {type: "text", text: {body: waitingMessageForConsumer}}, userSession.accessToken, userSession.tenant)
+
+  const welcomeMessageForRetailer = `${userSession.userName} wants to chat with you! Press the button to start the conversation. 🚀`  
+  const buttonMessageBody = {        
+    type: "interactive", 
+    interactive: {
+      type: "button", 
+      body: { text: welcomeMessageForRetailer }, 
+      action: { buttons: [{type: "reply", reply: {id: `chatwith_${userSession.userPhoneNumber}`, title: "Start Talking"}}]}}
+  }
+  const agents = userSession.agents
+  agents.forEach(agent => {
+    sendMessage(agent, userSession.business_phone_number_id, buttonMessageBody, userSession.accessToken, userSession.tenant)
+  })
 }
 
 async function checkRRPEligibility(userSession) {
@@ -285,7 +309,6 @@ async function checkRRPEligibility(userSession) {
   }
   return userSession;
 }
-
 
 async function processOrderForDrishtee(userSession, products) {
   const responseMessage_hi = "धन्यवाद! आपकी प्रतिक्रिया हमें मिल गई है। अब हम आपके ऑर्डर को आगे बढ़ा रहे हैं। हमें फिर से सेवा का मौका दें, यह हमारा सौभाग्य होगा।";
@@ -598,7 +621,7 @@ export async function handleAudioOrdersForDrishtee(mediaID, userSession) {
     formData.append('file', audioFile, 'audio.mp4');// Attach the file stream to FormData
 
     response = await axios.post(
-      'https://webpbx.in/api/process/drishtee/product/search/',
+      'https://www.aptilab.in/api/process/drishtee/product/search/',
       formData,
       {
         headers: { ...formData.getHeaders() }, // Include headers from FormData
@@ -657,7 +680,7 @@ export async function handleTextOrdersForDrishtee(message, userSession) {
   formData.append('query', message);// Attach the file stream to FormData
 
   const response = await axios.post(
-    'https://webpbx.in/api/process/drishtee/product/search/',
+    'https://www.aptilab.in/api/process/drishtee/product/search/',
     formData,
     {
       headers: { ...formData.getHeaders() }, // Include headers from FormData
@@ -709,6 +732,7 @@ export async function handleTextOrdersForDrishtee(message, userSession) {
 
 import { GoogleAuth } from 'google-auth-library';
 import { google } from 'googleapis';
+import { businessWebhook } from "./businessWebhook.js";
 
 async function generateBill(products, userSession) {
   const language = userSession.language;

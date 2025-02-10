@@ -587,14 +587,8 @@ app.post("/webhook", async (req, res) => {
     if (message) {
       // return testWebhook(req, res)
       const userPhoneNumber = contact?.wa_id || null;
-      const message_text = message?.text?.body || (message?.interactive ? (message?.interactive?.button_reply?.title || message?.interactive?.list_reply?.title) : null)
 
-      const key = `${business_phone_number_id}_${userPhoneNumber}`
-
-
-      if(Object.values(nuren_users).includes(userPhoneNumber)) return businessWebhook(req,res)
-      else return userWebhook(req, res )
-      
+      return userWebhook(req, res )
     }
 
     if (statuses) {
@@ -807,23 +801,3 @@ app.post("/start-campaign", async(req,res) => {
   res.sendStatus(200)
 })
 
-// req.body = {
-//   "type": "campaign" || "template" || "group",
-//   "template": {
-//     "name": `${template_name}`,
-//     "contacts": `${contact_list}`
-//   },
-//   "campaign": {
-//     "id": `${campaign_id}`,
-//     "name": `${campaign_name}` || null,
-//     "contacts": `${contact_list}` || null,
-//     "templateName": `${template_name}` ||  null //first template's name
-//     "templateIndex": `${template_index}` || null //first template's index
-//   },
-//   "group": {
-//     "id": `${group_id}`,
-//     "name": `${group_name}` || null,
-//     "templateName": `${template_name}`,
-//     "contacts": `${contact_list}` || null
-//   }
-// }

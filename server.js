@@ -107,7 +107,7 @@ app.post("/send-message", async (req, res) => {
     const sendPromises = phoneNumbers.map(async (phoneNumber) => {
       
       const formattedPhoneNumber = phoneNumber.length === 10 ? `91${phoneNumber}` : phoneNumber;
-      const cacheKey = `${business_phone_number_id}`;
+      const cacheKey = `sm_${business_phone_number_id}`;
       
       let access_token = messageCache.get(cacheKey);
       if (!access_token) {

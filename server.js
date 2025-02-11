@@ -588,7 +588,7 @@ app.post("/webhook", async (req, res) => {
       // return testWebhook(req, res)
       const userPhoneNumber = contact?.wa_id || null;
 
-      return userWebhook(req, res )
+      return userWebhook(req)
     }
 
     if (statuses) {

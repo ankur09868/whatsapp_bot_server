@@ -873,7 +873,6 @@ export async function setTemplateCar(templateData, phone, bpid, access_token) {
     }
 }
   
-  
 export async function sendMessageTemplate(phoneNumber, business_phone_number_id, messageData, access_token = null, tenant) {
     const url = `https://graph.facebook.com/v18.0/${business_phone_number_id}/messages`;
 
@@ -941,7 +940,6 @@ export async function sendMessageTemplate(phoneNumber, business_phone_number_id,
         return { success: false, error: error.response ? error.response.data : error.message };
     }
 }
-
 
 export async function getIndianCurrentTime(){
 

@@ -352,7 +352,6 @@ export async function getSession(business_phone_number_id, contact) {
         let userSession = userSessions.get(userPhoneNumber+business_phone_number_id);
       
         if (!userSession) {
-          
             addContact(userPhoneNumber, userName, business_phone_number_id)
             console.log(`Creating new session for user ${userPhoneNumber}`);
             try {

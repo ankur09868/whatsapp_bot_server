@@ -8,7 +8,7 @@ import { sendMessage } from "../send-message.js";
 import { handleMediaUploads, getImageAndUploadToBlob } from "../helpers/handle-media.js";
 import { languageMap } from "../dataStore/dictionary.js";
 import { sendMessagetoConsumer, sendMessagetoRetailer, orderToDB } from "../helpers/order.js";
-import { manualWebhook } from "./manualWebhook.js";
+import { manualWebhook, manualWebhook2 } from "./manualWebhook.js";
 import axios from "axios";
 import FormData from 'form-data';
 import https from 'https';
@@ -20,231 +20,231 @@ const agent = new https.Agent({
 });
 
 
-export async function userWebhook(req, res) {
-    const business_phone_number_id = req.body.entry?.[0].changes?.[0].value?.metadata?.phone_number_id;
-    const contact = req.body.entry?.[0]?.changes[0]?.value?.contacts?.[0];
-    const message = req.body.entry?.[0]?.changes[0]?.value?.messages?.[0];
-    const userPhoneNumber = contact?.wa_id || null;
-    const userName = contact?.profile?.name || null
-    const products = message?.order?.product_items
-    
-    const message_type = message?.type
-    const message_text = message?.text?.body || (message?.interactive ? (message?.interactive?.button_reply?.title || message?.interactive?.list_reply?.title) : null) || message?.button?.text || message?.audio?.id || message?.document?.id
-
-    let timestamp = await getIndianCurrentTime()
-    
-    const repliedTo = message?.context?.id || null
-    if (repliedTo !== null) updateStatus("replied", repliedTo, null, null, null, null, timestamp)
+export async function userWebhook(req) {
+  const business_phone_number_id = req.body.entry?.[0].changes?.[0].value?.metadata?.phone_number_id;
+  const contact = req.body.entry?.[0]?.changes[0]?.value?.contacts?.[0];
+  const message = req.body.entry?.[0]?.changes[0]?.value?.messages?.[0];
+  const userPhoneNumber = contact?.wa_id || null;
+  const userName = contact?.profile?.name || null
+  const products = message?.order?.product_items
   
-    let userSession = await getSession(business_phone_number_id, contact)
-    // console.log("User Session Type: ", userSession.type)
-    const agents = userSession.agents
-    if(agents){
-      const isBusiness = agents.includes(userPhoneNumber)
-      if(isBusiness) return businessWebhook(req, res)
-    }
+  const message_type = message?.type
+  const message_text = message?.text?.body || (message?.interactive ? (message?.interactive?.button_reply?.title || message?.interactive?.list_reply?.title) : null) || message?.button?.text || message?.audio?.id || message?.document?.id
 
-    if(userSession.type == "one2one"){
-      return manualWebhook(req, userSession)
-    }
-    else if(userSession.type == 'finance'){
-      return financeBotWebhook(req, res, userSession)
-    }
-    else if(userSession.type == 'prompt'){
-      return promptWebhook(req, res, userSession)
-    }
+  let timestamp = await getIndianCurrentTime()
+  
+  const repliedTo = message?.context?.id || null
+  if (repliedTo !== null) updateStatus("replied", repliedTo, null, null, null, null, timestamp)
 
-    if(message_text == "/human") {
-      userSession.type = "one2one"
-      const key = userPhoneNumber + business_phone_number_id
-      userSessions.set(key, userSession);
-      return sendWelcomeMessage(userSession)
-    }
-    else if(message_text == '/finance'){
-      userSession.type = 'finance'
-      return financeBotWebhook(req, res, userSession)
-    }
-    else if(message_text == '/prompt'){
-      userSession.type = 'prompt'
-      return promptWebhook(req, res, userSession)
-    }
+  let userSession = await getSession(business_phone_number_id, contact)
 
-    updateLastSeen("replied", timestamp, userSession.userPhoneNumber, userSession.business_phone_number_id)
+  if(userSession.tenant == "shxivoa") return manualWebhook2(req, userSession)
 
-    let formattedConversation;
-    if(message_type == "text" || message_type == "interactive" || message_type == "button"){
-      formattedConversation= [{
-        text: message_text,
+  const agents = userSession.agents
+  if(agents){
+    const isBusiness = agents.includes(userPhoneNumber)
+    if(isBusiness) return businessWebhook(req)
+  }
+
+  if(userSession.type == "one2one"){
+    return manualWebhook(req, userSession)
+  }
+  else if(userSession.type == 'finance'){
+    return financeBotWebhook(req, userSession)
+  }
+  else if(userSession.type == 'prompt'){
+    return promptWebhook(req, userSession)
+  }
+
+  if(message_text == "/human") {
+    userSession.type = "one2one"
+    const key = userPhoneNumber + business_phone_number_id
+    userSessions.set(key, userSession);
+    return sendWelcomeMessage(userSession)
+  }
+  else if(message_text == '/finance'){
+    userSession.type = 'finance'
+    return financeBotWebhook(req, userSession)
+  }
+  else if(message_text == '/prompt'){
+    userSession.type = 'prompt'
+    return promptWebhook(req, userSession)
+  }
+
+  updateLastSeen("replied", timestamp, userSession.userPhoneNumber, userSession.business_phone_number_id)
+
+  let formattedConversation;
+  if(message_type == "text" || message_type == "interactive" || message_type == "button"){
+    formattedConversation= [{
+      text: message_text,
+      sender: "user"
+    }];
+  }
+  else{
+    const mediaID = message?.image?.id || message?.audio?.id || message?.document?.id || message?.video?.id
+    if (mediaID != undefined){
+      const mediaURL = await getImageAndUploadToBlob(mediaID, userSession.accessToken)
+      const mediaData = {type: message_type, [`${message_type}`]: {id: mediaURL}}
+      formattedConversation = [{
+        text: JSON.stringify(mediaData),
         sender: "user"
-      }];
+      }]
     }
-    else{
-      // console.log("MESSAGE: ", JSON.stringify(message, null, 4))
-      const mediaID = message?.image?.id || message?.audio?.id || message?.document?.id || message?.video?.id
-      // console.log("Media ID: ", mediaID)
-      if (mediaID != undefined){
-        const mediaURL = await getImageAndUploadToBlob(mediaID, userSession.accessToken)
-        const mediaData = {type: message_type, [`${message_type}`]: {id: mediaURL}}
-        formattedConversation = [{
-          text: JSON.stringify(mediaData),
-          sender: "user"
-        }]
-      }
-    }
-    // console.log("Formatted Conv: ", formattedConversation)
-    saveMessage(userSession.userPhoneNumber, userSession.business_phone_number_id, formattedConversation, userSession.tenant, timestamp)
+  }
+  saveMessage(userSession.userPhoneNumber, userSession.business_phone_number_id, formattedConversation, userSession.tenant, timestamp)
 
-    const notif_body = {content: `${userSession.userPhoneNumber} | New meessage from ${userSession.userName || userSession.userPhoneNumber}: ${message_text}`, created_on: timestamp}
-    sendNotification(notif_body, userSession.tenant)
+  const notif_body = {content: `${userSession.userPhoneNumber} | New meessage from ${userSession.userName || userSession.userPhoneNumber}: ${message_text}`, created_on: timestamp}
+  sendNotification(notif_body, userSession.tenant)
 
-    ioEmissions(message, userSession, timestamp)
-    if(userSession.tenant == 'leqcjsk'){
-      if(userSession?.isRRPEligible == undefined) userSession = await checkRRPEligibility(userSession)
-      if(userSession?.isRRPEligible && message?.type == "order") return processOrderForDrishtee(userSession, products)
-      else if(!userSession?.isRRPEligible){
-        const messageData = {
-          type: 'text',
-          text: {
-            body: 'Sorry, our services are not available in your area. Please join our RRP network to avail these services.'
-          }
+  ioEmissions(message, userSession, timestamp)
+  if(userSession.tenant == 'leqcjsk'){
+    if(userSession?.isRRPEligible == undefined) userSession = await checkRRPEligibility(userSession)
+    if(userSession?.isRRPEligible && message?.type == "order") return processOrderForDrishtee(userSession, products)
+    else if(!userSession?.isRRPEligible){
+      const messageData = {
+        type: 'text',
+        text: {
+          body: 'Sorry, our services are not available in your area. Please join our RRP network to avail these services.'
         }
-        return sendMessage(userSession.userPhoneNumber, userSession.business_phone_number_id, messageData, userSession.accessToken, userSession.tenant)
       }
+      return sendMessage(userSession.userPhoneNumber, userSession.business_phone_number_id, messageData, userSession.accessToken, userSession.tenant)
     }
-    if (!userSession.multilingual){
-      if (!userSession.AIMode) {
-        handleInput(userSession, message_text)
-        if (message?.type === "interactive") {
-            let userSelectionID = message?.interactive?.button_reply?.id || message?.interactive?.list_reply?.id;
-  
-            if (userSelectionID.split('_')[0] == 'drishtee') handleCatalogManagement(userSelectionID, userSession)
-            else if(userSelectionID.includes('confirm') || userSelectionID.includes('cancel')) handleOrderManagement(userSession, userSelectionID)
-            else{
-              try {
-                for (let i = 0; i < userSession.nextNode.length; i++) {
-                  if (userSession.flowData[userSession.nextNode[i]].id == userSelectionID) {
-                    userSession.currNode = userSession.nextNode[i];
-                    userSession.nextNode = userSession.adjList[userSession.currNode];
-                    userSession.currNode = userSession.nextNode[0];
-                    break;
-                  }
-                };
-                if(isNaN(userSelectionID)) await sendProduct(userSession, userSelectionID)
-              } catch (error) {
-                console.error('Error processing interactive message:', error);
-              }
-            }
-        }
-        else if (message?.type === "text" || message?.type == "image") {
-          const flow = userSession.flowData
-          const type = flow[userSession.currNode]?.type
-          if (userSession.currNode != userSession.startNode){
-            console.log("Type: ", type)
-            if (['Text' ,'string', 'audio', 'video', 'location', 'image', 'AI', 'product'].includes(type)) {
-              userSession.currNode = userSession.nextNode[0];
-            }
-            else if(['Button', 'List'].includes(type)){
-              await executeFallback(userSession)
-              return
-            }
-          }
-        }
-        else if (message?.type == "button"){
-          const userSelectionText = message?.button?.text
-          console.log("User Selection Text: ", userSelectionText)
-          if (DRISHTEE_PRODUCT_CAROUSEL_IDS.includes(userSelectionText)) await handleCatalogManagement(userSelectionText, userSession)
-          userSession.currNode = userSession.nextNode[0];
-        }
-        else if(message?.type == "audio"){
-          // if(userSession.tenant == 'leqcjsk') await handleAudioOrdersForDrishtee(message, userSession)
-          userSession.currNode = userSession.nextNode[0];
-        }
-        else if(message?.type == "document"){
-          userSession.currNode = userSession.nextNode[0];
-        }
-        else if(message?.type == "order"){
-          userSession.currNode = userSession.nextNode[0];
-        }
-        sendNodeMessage(userPhoneNumber,business_phone_number_id);
-      }else {
-        if (message?.type == "interactive"){
-            let userSelectionID = message?.interactive?.button_reply?.id || message?.interactive?.list_reply?.id;
-            if (userSelectionID == "Exit AI"){
-                userSession.AIMode = false;
-                userSession.nextNode = userSession.adjList[userSession.currNode];
-                userSession.currNode = userSession.nextNode[0];
-                sendNodeMessage(userPhoneNumber,business_phone_number_id);
-            }
-        }
-        else if(message?.type == "text"){
-            handleQuery(message, userSession)
-        }
-        else if (message?.type == "image" || message?.type == "document" || message?.type == "video") {
-            const mediaID = message?.image?.id || message?.document?.id || message?.video?.id;
-            const doc_name = userSession.inputVariable
+  }
+
+  if (!userSession.multilingual){
+    if (!userSession.AIMode) {
+      handleInput(userSession, message_text)
+      if (message?.type === "interactive") {
+          let userSelectionID = message?.interactive?.button_reply?.id || message?.interactive?.list_reply?.id;
+
+          if (userSelectionID.split('_')[0] == 'drishtee') handleCatalogManagement(userSelectionID, userSession)
+          else if(userSelectionID.includes('confirm') || userSelectionID.includes('cancel')) handleOrderManagement(userSession, userSelectionID)
+          else{
             try {
-                await handleMediaUploads(userName, userPhoneNumber, doc_name, mediaID, userSession, tenant);
+              for (let i = 0; i < userSession.nextNode.length; i++) {
+                if (userSession.flowData[userSession.nextNode[i]].id == userSelectionID) {
+                  userSession.currNode = userSession.nextNode[i];
+                  userSession.nextNode = userSession.adjList[userSession.currNode];
+                  userSession.currNode = userSession.nextNode[0];
+                  break;
+                }
+              };
+              if(isNaN(userSelectionID)) await sendProduct(userSession, userSelectionID)
             } catch (error) {
-                console.error("Error retrieving media content:", error);
+              console.error('Error processing interactive message:', error);
             }
-        }
-      }
-    }
-    else{
-      if (message?.type === "text" || message_type == "button"){
-        const doorbell = userSession.doorbell
-        const doorbell_text = doorbell?.message
-        const language_data = doorbell?.languages
-        
-        const languageKeys = Object.keys(language_data);
-        const languageValues = Object.values(language_data)
-        
-        if (languageKeys.includes(message_text) || languageValues.includes(message_text)){
-          let lang_code;
-          if (languageKeys.includes(message_text)){
-            const language = language_data[message_text]
-            lang_code = languageMap[language]
-          }else{
-            lang_code = languageMap[message_text]
           }
-          
-          const flowData = userSession.flowData
-          userSession.language = lang_code
-          const selectedFlowData = flowData.find(data => data.language === lang_code);
-  
-          userSession.flowData = selectedFlowData?.flow_data
-          userSession.multilingual = false
-          
-          userSession.fallback_msg = selectedFlowData?.fallback_message
-          
-          sendNodeMessage(userPhoneNumber,business_phone_number_id);
-  
-        }
-        else{
-          sendLanguageSelectionMessage(doorbell_text, userSession.accessToken, userSession.userPhoneNumber, userSession.business_phone_number_id, userSession.tenant)
-        }
-        
       }
-      else if (message?.type === "interactive") {
-        // let userSelectionID = message?.interactive?.button_reply?.id || message?.interactive?.list_reply?.id;
-  
-        // if(userSelectionID.includes('confirm') || userSelectionID.includes('cancel')) {
-        //   return handleOrderManagement(userSession, userSelectionID)
-        // }
-  
-        // userSession.language = userSelectionID;
-        // const flowData = userSession.flowData
-        // const selectedFlowData = flowData.find(data => data.language === userSelectionID);
-        
-        // userSession.flowData = selectedFlowData?.flow_data
-        // userSession.multilingual = false
-        // userSession.fallback_msg = selectedFlowData?.fallback_message
-        // sendNodeMessage(userPhoneNumber,business_phone_number_id);
-        
+      else if (message?.type === "text" || message?.type == "image") {
+        const flow = userSession.flowData
+        const type = flow[userSession.currNode]?.type
+        if (userSession.currNode != userSession.startNode){
+          console.log("Type: ", type)
+          if (['Text' ,'string', 'audio', 'video', 'location', 'image', 'AI', 'product'].includes(type)) {
+            userSession.currNode = userSession.nextNode[0];
+          }
+          else if(['Button', 'List'].includes(type)){
+            await executeFallback(userSession)
+            return
+          }
+        }
+      }
+      else if (message?.type == "button"){
+        const userSelectionText = message?.button?.text
+        console.log("User Selection Text: ", userSelectionText)
+        if (DRISHTEE_PRODUCT_CAROUSEL_IDS.includes(userSelectionText)) await handleCatalogManagement(userSelectionText, userSession)
+        userSession.currNode = userSession.nextNode[0];
+      }
+      else if(message?.type == "audio"){
+        // if(userSession.tenant == 'leqcjsk') await handleAudioOrdersForDrishtee(message, userSession)
+        userSession.currNode = userSession.nextNode[0];
+      }
+      else if(message?.type == "document"){
+        userSession.currNode = userSession.nextNode[0];
+      }
+      else if(message?.type == "order"){
+        userSession.currNode = userSession.nextNode[0];
+      }
+      sendNodeMessage(userPhoneNumber,business_phone_number_id);
+    }else {
+      if (message?.type == "interactive"){
+          let userSelectionID = message?.interactive?.button_reply?.id || message?.interactive?.list_reply?.id;
+          if (userSelectionID == "Exit AI"){
+              userSession.AIMode = false;
+              userSession.nextNode = userSession.adjList[userSession.currNode];
+              userSession.currNode = userSession.nextNode[0];
+              sendNodeMessage(userPhoneNumber,business_phone_number_id);
+          }
+      }
+      else if(message?.type == "text"){
+          handleQuery(message, userSession)
+      }
+      else if (message?.type == "image" || message?.type == "document" || message?.type == "video") {
+          const mediaID = message?.image?.id || message?.document?.id || message?.video?.id;
+          const doc_name = userSession.inputVariable
+          try {
+              await handleMediaUploads(userName, userPhoneNumber, doc_name, mediaID, userSession, tenant);
+          } catch (error) {
+              console.error("Error retrieving media content:", error);
+          }
       }
     }
-    
-    console.log("Webhook processing completed successfully");
+  }
+  else{
+    if (message?.type === "text" || message_type == "button"){
+      const doorbell = userSession.doorbell
+      const doorbell_text = doorbell?.message
+      const language_data = doorbell?.languages
+      
+      const languageKeys = Object.keys(language_data);
+      const languageValues = Object.values(language_data)
+      
+      if (languageKeys.includes(message_text) || languageValues.includes(message_text)){
+        let lang_code;
+        if (languageKeys.includes(message_text)){
+          const language = language_data[message_text]
+          lang_code = languageMap[language]
+        }else{
+          lang_code = languageMap[message_text]
+        }
+        
+        const flowData = userSession.flowData
+        userSession.language = lang_code
+        const selectedFlowData = flowData.find(data => data.language === lang_code);
+
+        userSession.flowData = selectedFlowData?.flow_data
+        userSession.multilingual = false
+        
+        userSession.fallback_msg = selectedFlowData?.fallback_message
+        
+        sendNodeMessage(userPhoneNumber,business_phone_number_id);
+
+      }
+      else{
+        sendLanguageSelectionMessage(doorbell_text, userSession.accessToken, userSession.userPhoneNumber, userSession.business_phone_number_id, userSession.tenant)
+      }
+      
+    }
+    else if (message?.type === "interactive") {
+      // let userSelectionID = message?.interactive?.button_reply?.id || message?.interactive?.list_reply?.id;
+
+      // if(userSelectionID.includes('confirm') || userSelectionID.includes('cancel')) {
+      //   return handleOrderManagement(userSession, userSelectionID)
+      // }
+
+      // userSession.language = userSelectionID;
+      // const flowData = userSession.flowData
+      // const selectedFlowData = flowData.find(data => data.language === userSelectionID);
+      
+      // userSession.flowData = selectedFlowData?.flow_data
+      // userSession.multilingual = false
+      // userSession.fallback_msg = selectedFlowData?.fallback_message
+      // sendNodeMessage(userPhoneNumber,business_phone_number_id);
+      
+    }
+  }
+
+  console.log("Webhook processing completed successfully");
 }
 
 function assignAgent(agentList){
@@ -589,7 +589,7 @@ return messageData
 
 }
 
-async function ioEmissions(message, userSession, timestamp){
+export async function ioEmissions(message, userSession, timestamp){
   const message_text = message?.text?.body || (message?.interactive ? (message?.interactive?.button_reply?.title || message?.interactive?.list_reply?.title) : null)
   const temp_user = message?.text?.body?.startsWith('*/') ? message.text.body.split('*/')[1]?.split(' ')[0] : null;
   if(temp_user){

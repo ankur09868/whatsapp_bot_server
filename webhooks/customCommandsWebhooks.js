@@ -3,7 +3,7 @@ import { sendMessage } from "../send-message.js";
 import { convertImageToBase64 } from "../flowsAPI/flow.js";
 import axios from "axios"
 
-export async function promptWebhook(req, res, userSession) {
+export async function promptWebhook(req, userSession) {
     const business_phone_number_id = req.body.entry?.[0].changes?.[0].value?.metadata?.phone_number_id;
     const contact = req.body.entry?.[0]?.changes[0]?.value?.contacts?.[0];
     const message = req.body.entry?.[0]?.changes[0]?.value?.messages?.[0];

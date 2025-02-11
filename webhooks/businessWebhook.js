@@ -91,6 +91,7 @@ async function handleCommands(message_text, userSession){
         break
         
       default:
+        messageData = {type: "text", text: {body: "This command does not have any action attached."}}
         console.log("Invalid Command")
     }
     return { messageData, recipient }

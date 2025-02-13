@@ -8,12 +8,13 @@ import { sendMessage } from "../send-message.js";
 import { handleMediaUploads, getImageAndUploadToBlob } from "../helpers/handle-media.js";
 import { languageMap } from "../dataStore/dictionary.js";
 import { sendMessagetoConsumer, sendMessagetoRetailer, orderToDB } from "../helpers/order.js";
-import { manualWebhook, manualWebhook2 } from "./manualWebhook.js";
+import { manualWebhook, manualWebhook2, manualWebhook3 } from "./manualWebhook.js";
 import axios from "axios";
 import FormData from 'form-data';
 import https from 'https';
 import { financeBotWebhook } from "./financeBotWebhook.js";
 import { promptWebhook } from "./customCommandsWebhooks.js";
+import { realtorWebhook } from "./realtorWebhook.js";
 
 const agent = new https.Agent({
   rejectUnauthorized: false, // Disable SSL certificate verification //VERY VERY IMPORTANT SECURITY
@@ -29,7 +30,14 @@ export async function userWebhook(req) {
   const products = message?.order?.product_items
   
   const message_type = message?.type
-  const message_text = message?.text?.body || (message?.interactive ? (message?.interactive?.button_reply?.title || message?.interactive?.list_reply?.title) : null) || message?.button?.text || message?.audio?.id || message?.document?.id
+  const message_text = message?.text?.body || 
+                      (message?.interactive ? (message?.interactive?.button_reply?.title || 
+                      message?.interactive?.list_reply?.title) : null) || 
+                      message?.button?.text ||
+                      message?.audio?.id || 
+                      message?.document?.id ||
+                      JSON.stringify(message?.location)
+
 
   let timestamp = await getIndianCurrentTime()
   
@@ -38,7 +46,10 @@ export async function userWebhook(req) {
 
   let userSession = await getSession(business_phone_number_id, contact)
 
-  if(userSession.tenant == "shxivoa") return manualWebhook2(req, userSession)
+  if(userSession.tenant == "shxivoa" && message_text != "Hello! Can I get more info about the Juventus FC Program?" && userSession.currNode == userSession.startNode) return
+  if(userSession.tenant == "qqeeusz" && message_text != "/realtor" && userSession.currNode == userSession.startNode) return
+  // if(userSession.tenant == "shxivoa") return manualWebhook2(req, userSession)
+  // if(userSession.tenant == "aayamhx") return manualWebhook2(req, userSession)
 
   const agents = userSession.agents
   if(agents){
@@ -164,6 +175,9 @@ export async function userWebhook(req) {
       }
       else if(message?.type == "order"){
         userSession.currNode = userSession.nextNode[0];
+      }
+      else if(message?.type == "location"){
+        userSession.currNode = userSession.nextNode[0]
       }
       sendNodeMessage(userPhoneNumber,business_phone_number_id);
     }else {

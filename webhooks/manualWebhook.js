@@ -56,6 +56,11 @@ export async function manualWebhook(req, userSession){
 
   if(!messageData) messageData = { type: messageType, [messageType]: filteredMessageType }
   
+  const context = message?.context?.id
+  if (context) {
+    messageData["context"] = {"message_id": context}
+  }
+  console.log("Sending message data: ", messageData)
   sendMessage(recipient, business_phone_number_id, messageData, userSession.accessToken, userSession.tenant)
 }
 
@@ -144,7 +149,7 @@ async function businessWebhook2(req, userSession) {
       }
     }
   }
-  else if(messageType == "text"){
+  else{
     const message_text = message?.text?.body
     if(message_text == "/exit"){
       userSessions.delete(userPhoneNumber+business_phone_number_id)
@@ -208,4 +213,16 @@ async function sendWelcomeMessage(userSession, message) {
     sendMessage(agent, userSession.business_phone_number_id, buttonMessageBody, userSession.accessToken, userSession.tenant)
     sendMessage(agent, userSession.business_phone_number_id, {type: "text", text: {body: customerMessage}}, userSession.accessToken, userSession.tenant)
   })
+}
+
+export async function manualWebhook3(req, userSession) {
+  
+  const business_phone_number_id = req.body.entry?.[0].changes?.[0].value?.metadata?.phone_number_id;
+  const contact = req.body.entry?.[0]?.changes[0]?.value?.contacts?.[0];
+  const message = req.body.entry?.[0]?.changes[0]?.value?.messages?.[0];
+  const userPhoneNumber = contact?.wa_id || null;
+  const message_text = message?.text?.body
+
+  console.log("Message: ", message)
+
 }

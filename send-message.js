@@ -29,15 +29,12 @@ export async function sendMessage(phoneNumber, business_phone_number_id, message
     if (tenant == null) tenant = userSession.tenant
     // console.log(url, access_token)
     try {
-        console.log("Sending Details: ", phoneNumber, access_token, business_phone_number_id)
+        messageData["messaging_product"] = "whatsapp"
+        messageData["recipient_type"] = "individual"
+        messageData["to"] = phoneNumber
+        console.log("Sending Message Data: ", messageData)
         const response = await axios.post(
-            url, 
-            {
-                messaging_product: "whatsapp", 
-                recipient_type: "individual",
-                to: phoneNumber,
-                ...messageData
-            },
+            url, messageData,
             {
                 headers: { Authorization: `Bearer ${access_token}` }
             }

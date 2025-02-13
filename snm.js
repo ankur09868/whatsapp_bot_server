@@ -344,7 +344,6 @@ export async function sendNodeMessage(userPhoneNumber, business_phone_number_id)
                 await sendListMessage(list, node_message, userPhoneNumber,business_phone_number_id, accessToken);
                 break;
             
-            // text with variable
             case "Text":
                 node_message = await replacePlaceholders(node_message, userSession)
 
@@ -365,7 +364,6 @@ export async function sendNodeMessage(userPhoneNumber, business_phone_number_id)
 
                 break;
             
-            // text without variable
             case "string":
                     
                 node_message = await replacePlaceholders(node_message, userSession)
@@ -383,7 +381,7 @@ export async function sendNodeMessage(userPhoneNumber, business_phone_number_id)
             case "image":
                 var caption =flow[currNode]?.body?.caption
 
-                caption = await replacePlaceholders(caption, userSession)
+                if(caption) caption = await replacePlaceholders(caption, userSession)
                 
                 await sendImageMessage(userPhoneNumber,business_phone_number_id, flow[currNode]?.body?.id, caption ,accessToken);
                 userSession.currNode = nextNode[0] !==undefined ? nextNode[0] : null;
@@ -397,7 +395,7 @@ export async function sendNodeMessage(userPhoneNumber, business_phone_number_id)
                 const audioID = flow[currNode]?.body?.audioID
 
                 var caption = flow[currNode]?.body?.caption
-                caption = await replacePlaceholders(caption, userSession)
+                if(caption) caption = await replacePlaceholders(caption, userSession)
 
 
                 await sendAudioMessage(userPhoneNumber, business_phone_number_id, audioID, caption, accessToken);
@@ -411,7 +409,7 @@ export async function sendNodeMessage(userPhoneNumber, business_phone_number_id)
             case "video":
 
                 var caption = flow[currNode]?.body?.caption
-                caption = await replacePlaceholders(caption, userSession)
+                if(caption) caption = await replacePlaceholders(caption, userSession)
 
                 await sendVideoMessage(userPhoneNumber, business_phone_number_id, flow[currNode]?.body?.videoID, accessToken);
                 userSession.currNode = nextNode[0] !==undefined ? nextNode[0] : null;
@@ -511,7 +509,8 @@ export async function sendNodeMessage(userPhoneNumber, business_phone_number_id)
             
             case "template":
                 
-                let templateName = userSession.language ? `${flow[currNode]?.name}${userSession.language}`  : flow[currNode]?.name
+                let templateName = flow[currNode]?.name
+                if(userSession.multilingual) templateName = userSession.language ? `${flow[currNode]?.name}${userSession.language}`  : flow[currNode]?.name
                 if(userSession.tenant == "qqeeusz"){
                     if(userSession.language == "mr") templateName = "carouseldrishteemar"
                     if(userSession.language == "bn") templateName = "carouseldrishteeben"
@@ -520,7 +519,9 @@ export async function sendNodeMessage(userPhoneNumber, business_phone_number_id)
                     if(userSession.language == "mr") templateName = "carouseldrishteemar"
                 }
                 console.log("Language: ", userSession.language, "Name: ", templateName)
+                userSession.inputVariable = "Temp"
                 await sendTemplateMessage(templateName, userSession)
+
                 break;
             
             case "custom":

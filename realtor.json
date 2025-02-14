@@ -1,0 +1,1032 @@
+{
+    "data_api_version": "3.0",
+    "routing_model": {
+      "WELCOME": [
+        "OVERVIEW"
+      ],
+      "OVERVIEW": [
+        "BALCONY",
+        "HALL",
+        "BEDROOM",
+        "KITCHEN",
+        "KNOWMORE"
+      ],
+      "BALCONY": [
+        "BEDROOM"
+      ],
+      "BEDROOM": [
+        "KITCHEN"
+      ],
+      "KITCHEN": [
+        "HALL"
+      ],
+      "HALL": [
+        "LOCALITY"
+      ],
+      "LOCALITY": [
+        "OVERVIEW"
+      ]
+    },
+    "version": "6.3",
+    "screens": [
+      {
+        "id": "WELCOME",
+        "title": "Welcome",
+        "data": {
+          "id": {
+            "type": "string",
+            "__example__": "property-id"
+          },
+          "coverImage": {
+            "type": "string",
+            "__example__": "iVBORw0KGgoAAAANSUhEUgAAAAoAAAAKCAYAAACNMs+9AAAAFUlEQVR42mNk+M9Qz0AEYBxVSF+FAAhKDveksOjmAAAAAElFTkSuQmCC"
+          },
+          "price": {
+            "type": "string",
+            "__example__": "25000 per month"
+          },
+          "furnishing": {
+            "type": "string",
+            "__example__": "Semi-Furnished"
+          },
+          "type": {
+            "type": "string",
+            "__example__": "3BHK"
+          },
+          "tenants": {
+            "type": "string",
+            "__example__": "Bachelors"
+          },
+          "description": {
+            "type": "string",
+            "__example__": "Get a three bedroom apartment for rent in Sector 137 for BACHELOR_FEMALE now, without any brokerage. This West facing 1695 sqft. home comes with a convenient parking facility for car. This home is on the 10th floor & brings in light & air to the home.\n\nAmenities like a gym & garden gives you something to do in your free time. If you need amenities such as security & lift you will be happy to note that this home has this & more. As this home comes with servant room, house keeping, air conditioning, waste treatment plant & rainwater harvesting & more such amenities, living here would make life more pleasant.\n\nAccess to bus station & pharmacies is very easy & convenient from this house.\n\nNever miss out on lifestyle as Amul Store, Dish Tv Office and Jaipuri Cotton are so close by. If you love movies, Zainchairs & Logix are just a few minutes away.\n\nWith a subway station located nearby, this home is well connected & offers many transit options. \n\nVriksha School of Handwriting & Calligraphy, NEURO CARE- a holistic child and neuro development center and Maple Bear Canadian PreSchool Sector 141, Noida are well known educational institutes in town & are very close to this home. Being situated near Felix Hospital, Apollo Pharmacy and Guru Clinic, emergency care is very easily available at any time."
+          },
+          "about": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "__example__": [
+              "string"
+            ]
+          },
+          "numberOfBalconyImages": {
+            "type": "number",
+            "__example__": 2
+          },
+          "balcony1": {
+            "type": "string",
+            "__example__": "iVBORw0KGgoAAAANSUhEUgAAAAoAAAAKCAYAAACNMs+9AAAAFUlEQVR42mNk+M9Qz0AEYBxVSF+FAAhKDveksOjmAAAAAElFTkSuQmCC"
+          },
+          "balcony2": {
+            "type": "string",
+            "__example__": "iVBORw0KGgoAAAANSUhEUgAAAAoAAAAKCAYAAACNMs+9AAAAFUlEQVR42mNk+M9Qz0AEYBxVSF+FAAhKDveksOjmAAAAAElFTkSuQmCC"
+          },
+          "balcony3": {
+            "type": "string",
+            "__example__": "iVBORw0KGgoAAAANSUhEUgAAAAoAAAAKCAYAAACNMs+9AAAAFUlEQVR42mNk+M9Qz0AEYBxVSF+FAAhKDveksOjmAAAAAElFTkSuQmCC"
+          },
+          "numberOfBedroomImages": {
+            "type": "number",
+            "__example__": 2
+          },
+          "bedroom1": {
+            "type": "string",
+            "__example__": "iVBORw0KGgoAAAANSUhEUgAAAAoAAAAKCAYAAACNMs+9AAAAFUlEQVR42mNk+M9Qz0AEYBxVSF+FAAhKDveksOjmAAAAAElFTkSuQmCC"
+          },
+          "bedroom2": {
+            "type": "string",
+            "__example__": "iVBORw0KGgoAAAANSUhEUgAAAAoAAAAKCAYAAACNMs+9AAAAFUlEQVR42mNk+M9Qz0AEYBxVSF+FAAhKDveksOjmAAAAAElFTkSuQmCC"
+          },
+          "bedroom3": {
+            "type": "string",
+            "__example__": "iVBORw0KGgoAAAANSUhEUgAAAAoAAAAKCAYAAACNMs+9AAAAFUlEQVR42mNk+M9Qz0AEYBxVSF+FAAhKDveksOjmAAAAAElFTkSuQmCC"
+          },
+          "numberOfKitchenImages": {
+            "type": "number",
+            "__example__": 2
+          },
+          "kitchen1": {
+            "type": "string",
+            "__example__": "iVBORw0KGgoAAAANSUhEUgAAAAoAAAAKCAYAAACNMs+9AAAAFUlEQVR42mNk+M9Qz0AEYBxVSF+FAAhKDveksOjmAAAAAElFTkSuQmCC"
+          },
+          "kitchen2": {
+            "type": "string",
+            "__example__": "iVBORw0KGgoAAAANSUhEUgAAAAoAAAAKCAYAAACNMs+9AAAAFUlEQVR42mNk+M9Qz0AEYBxVSF+FAAhKDveksOjmAAAAAElFTkSuQmCC"
+          },
+          "kitchen3": {
+            "type": "string",
+            "__example__": "iVBORw0KGgoAAAANSUhEUgAAAAoAAAAKCAYAAACNMs+9AAAAFUlEQVR42mNk+M9Qz0AEYBxVSF+FAAhKDveksOjmAAAAAElFTkSuQmCC"
+          },
+          "numberOfHallImages": {
+            "type": "number",
+            "__example__": 2
+          },
+          "hall1": {
+            "type": "string",
+            "__example__": "iVBORw0KGgoAAAANSUhEUgAAAAoAAAAKCAYAAACNMs+9AAAAFUlEQVR42mNk+M9Qz0AEYBxVSF+FAAhKDveksOjmAAAAAElFTkSuQmCC"
+          },
+          "hall2": {
+            "type": "string",
+            "__example__": "iVBORw0KGgoAAAANSUhEUgAAAAoAAAAKCAYAAACNMs+9AAAAFUlEQVR42mNk+M9Qz0AEYBxVSF+FAAhKDveksOjmAAAAAElFTkSuQmCC"
+          },
+          "hall3": {
+            "type": "string",
+            "__example__": "iVBORw0KGgoAAAANSUhEUgAAAAoAAAAKCAYAAACNMs+9AAAAFUlEQVR42mNk+M9Qz0AEYBxVSF+FAAhKDveksOjmAAAAAElFTkSuQmCC"
+          },
+          "numberOfLocalityImages": {
+            "type": "number",
+            "__example__": 2
+          },
+          "locality1": {
+            "type": "string",
+            "__example__": "iVBORw0KGgoAAAANSUhEUgAAAAoAAAAKCAYAAACNMs+9AAAAFUlEQVR42mNk+M9Qz0AEYBxVSF+FAAhKDveksOjmAAAAAElFTkSuQmCC"
+          },
+          "locality2": {
+            "type": "string",
+            "__example__": "iVBORw0KGgoAAAANSUhEUgAAAAoAAAAKCAYAAACNMs+9AAAAFUlEQVR42mNk+M9Qz0AEYBxVSF+FAAhKDveksOjmAAAAAElFTkSuQmCC"
+          },
+          "locality3": {
+            "type": "string",
+            "__example__": "iVBORw0KGgoAAAANSUhEUgAAAAoAAAAKCAYAAACNMs+9AAAAFUlEQVR42mNk+M9Qz0AEYBxVSF+FAAhKDveksOjmAAAAAElFTkSuQmCC"
+          },
+          "nurenAILogo": {
+            "type": "string",
+            "__example__": "iVBORw0KGgoAAAANSUhEUgAAAAoAAAAKCAYAAACNMs+9AAAAFUlEQVR42mNk+M9Qz0AEYBxVSF+FAAhKDveksOjmAAAAAElFTkSuQmCC"
+          }
+        },
+        "layout": {
+          "type": "SingleColumnLayout",
+          "children": [
+            {
+              "type": "TextHeading",
+              "text": "Nuren AI in Real Estate"
+            },
+            {
+              "type": "Image",
+              "src": "${data.nurenAILogo}"
+            },
+            {
+              "type": "Footer",
+              "label": "Continue",
+              "on-click-action": {
+                "name": "navigate",
+                "next": {
+                  "type": "screen",
+                  "name": "OVERVIEW"
+                },
+                "payload": {
+                  "id": "${data.id}",
+                  "coverImage": "${data.coverImage}",
+                  "price": "${data.price}",
+                  "furnishing": "${data.furnishing}",
+                  "type": "${data.type}",
+                  "tenants": "${data.tenants}",
+                  "description": "${data.description}",
+                  "about": "${data.about}",
+                  "numberOfBalconyImages": "${data.numberOfBalconyImages}",
+                  "balcony1": "${data.balcony1}",
+                  "balcony2": "${data.balcony2}",
+                  "balcony3": "${data.balcony3}",
+                  "numberOfBedroomImages": "${data.numberOfBedroomImages}",
+                  "bedroom1": "${bedroom1}",
+                  "bedroom2": "${bedroom2}",
+                  "bedroom3": "${bedroom3}",
+                  "numberOfKitchenImages": "${data.numberOfKitchenImages}",
+                  "kitchen1": "${data.kitchen1}",
+                  "kitchen2": "${data.kitchen2}",
+                  "kitchen3": "${data.kitchen3}",
+                  "numberOfHallImages": "${data.numberOfHallImages}",
+                  "hall1": "${data.hall1}",
+                  "hall2": "${data.hall2}",
+                  "hall3": "${data.hall3}",
+                  "numberOfLocalityImages": "${data.numberOfLocalityImages}",
+                  "locality1": "${data.locality1}",
+                  "locality2": "${data.locality2}",
+                  "locality3": "${data.locality3}"
+                }
+              }
+            }
+          ]
+        }
+      },
+      {
+        "id": "OVERVIEW",
+        "terminal": true,
+        "title": "Overview",
+        "data": {
+          "id": {
+            "type": "string",
+            "__example__": "property-id"
+          },
+          "coverImage": {
+            "type": "string",
+            "__example__": "iVBORw0KGgoAAAANSUhEUgAAAAoAAAAKCAYAAACNMs+9AAAAFUlEQVR42mNk+M9Qz0AEYBxVSF+FAAhKDveksOjmAAAAAElFTkSuQmCC"
+          },
+          "price": {
+            "type": "string",
+            "__example__": "25000 per month"
+          },
+          "furnishing": {
+            "type": "string",
+            "__example__": "Semi-Furnished"
+          },
+          "type": {
+            "type": "string",
+            "__example__": "3BHK"
+          },
+          "tenants": {
+            "type": "string",
+            "__example__": "Bachelors"
+          },
+          "description": {
+            "type": "string",
+            "__example__": "Get a three bedroom apartment for rent in Sector 137 for BACHELOR_FEMALE now, without any brokerage. This West facing 1695 sqft. home comes with a convenient parking facility for car. This home is on the 10th floor & brings in light & air to the home.\n\nAmenities like a gym & garden gives you something to do in your free time. If you need amenities such as security & lift you will be happy to note that this home has this & more. As this home comes with servant room, house keeping, air conditioning, waste treatment plant & rainwater harvesting & more such amenities, living here would make life more pleasant.\n\nAccess to bus station & pharmacies is very easy & convenient from this house.\n\nNever miss out on lifestyle as Amul Store, Dish Tv Office and Jaipuri Cotton are so close by. If you love movies, Zainchairs & Logix are just a few minutes away.\n\nWith a subway station located nearby, this home is well connected & offers many transit options. \n\nVriksha School of Handwriting & Calligraphy, NEURO CARE- a holistic child and neuro development center and Maple Bear Canadian PreSchool Sector 141, Noida are well known educational institutes in town & are very close to this home. Being situated near Felix Hospital, Apollo Pharmacy and Guru Clinic, emergency care is very easily available at any time."
+          },
+          "about": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "__example__": [
+              "string"
+            ]
+          },
+          "numberOfBalconyImages": {
+            "type": "number",
+            "__example__": 2
+          },
+          "balcony1": {
+            "type": "string",
+            "__example__": "iVBORw0KGgoAAAANSUhEUgAAAAoAAAAKCAYAAACNMs+9AAAAFUlEQVR42mNk+M9Qz0AEYBxVSF+FAAhKDveksOjmAAAAAElFTkSuQmCC"
+          },
+          "balcony2": {
+            "type": "string",
+            "__example__": "iVBORw0KGgoAAAANSUhEUgAAAAoAAAAKCAYAAACNMs+9AAAAFUlEQVR42mNk+M9Qz0AEYBxVSF+FAAhKDveksOjmAAAAAElFTkSuQmCC"
+          },
+          "balcony3": {
+            "type": "string",
+            "__example__": "iVBORw0KGgoAAAANSUhEUgAAAAoAAAAKCAYAAACNMs+9AAAAFUlEQVR42mNk+M9Qz0AEYBxVSF+FAAhKDveksOjmAAAAAElFTkSuQmCC"
+          },
+          "numberOfBedroomImages": {
+            "type": "number",
+            "__example__": 2
+          },
+          "bedroom1": {
+            "type": "string",
+            "__example__": "iVBORw0KGgoAAAANSUhEUgAAAAoAAAAKCAYAAACNMs+9AAAAFUlEQVR42mNk+M9Qz0AEYBxVSF+FAAhKDveksOjmAAAAAElFTkSuQmCC"
+          },
+          "bedroom2": {
+            "type": "string",
+            "__example__": "iVBORw0KGgoAAAANSUhEUgAAAAoAAAAKCAYAAACNMs+9AAAAFUlEQVR42mNk+M9Qz0AEYBxVSF+FAAhKDveksOjmAAAAAElFTkSuQmCC"
+          },
+          "bedroom3": {
+            "type": "string",
+            "__example__": "iVBORw0KGgoAAAANSUhEUgAAAAoAAAAKCAYAAACNMs+9AAAAFUlEQVR42mNk+M9Qz0AEYBxVSF+FAAhKDveksOjmAAAAAElFTkSuQmCC"
+          },
+          "numberOfKitchenImages": {
+            "type": "number",
+            "__example__": 2
+          },
+          "kitchen1": {
+            "type": "string",
+            "__example__": "iVBORw0KGgoAAAANSUhEUgAAAAoAAAAKCAYAAACNMs+9AAAAFUlEQVR42mNk+M9Qz0AEYBxVSF+FAAhKDveksOjmAAAAAElFTkSuQmCC"
+          },
+          "kitchen2": {
+            "type": "string",
+            "__example__": "iVBORw0KGgoAAAANSUhEUgAAAAoAAAAKCAYAAACNMs+9AAAAFUlEQVR42mNk+M9Qz0AEYBxVSF+FAAhKDveksOjmAAAAAElFTkSuQmCC"
+          },
+          "kitchen3": {
+            "type": "string",
+            "__example__": "iVBORw0KGgoAAAANSUhEUgAAAAoAAAAKCAYAAACNMs+9AAAAFUlEQVR42mNk+M9Qz0AEYBxVSF+FAAhKDveksOjmAAAAAElFTkSuQmCC"
+          },
+          "numberOfHallImages": {
+            "type": "number",
+            "__example__": 2
+          },
+          "hall1": {
+            "type": "string",
+            "__example__": "iVBORw0KGgoAAAANSUhEUgAAAAoAAAAKCAYAAACNMs+9AAAAFUlEQVR42mNk+M9Qz0AEYBxVSF+FAAhKDveksOjmAAAAAElFTkSuQmCC"
+          },
+          "hall2": {
+            "type": "string",
+            "__example__": "iVBORw0KGgoAAAANSUhEUgAAAAoAAAAKCAYAAACNMs+9AAAAFUlEQVR42mNk+M9Qz0AEYBxVSF+FAAhKDveksOjmAAAAAElFTkSuQmCC"
+          },
+          "hall3": {
+            "type": "string",
+            "__example__": "iVBORw0KGgoAAAANSUhEUgAAAAoAAAAKCAYAAACNMs+9AAAAFUlEQVR42mNk+M9Qz0AEYBxVSF+FAAhKDveksOjmAAAAAElFTkSuQmCC"
+          },
+          "numberOfLocalityImages": {
+            "type": "number",
+            "__example__": 2
+          },
+          "locality1": {
+            "type": "string",
+            "__example__": "iVBORw0KGgoAAAANSUhEUgAAAAoAAAAKCAYAAACNMs+9AAAAFUlEQVR42mNk+M9Qz0AEYBxVSF+FAAhKDveksOjmAAAAAElFTkSuQmCC"
+          },
+          "locality2": {
+            "type": "string",
+            "__example__": "iVBORw0KGgoAAAANSUhEUgAAAAoAAAAKCAYAAACNMs+9AAAAFUlEQVR42mNk+M9Qz0AEYBxVSF+FAAhKDveksOjmAAAAAElFTkSuQmCC"
+          },
+          "locality3": {
+            "type": "string",
+            "__example__": "iVBORw0KGgoAAAANSUhEUgAAAAoAAAAKCAYAAACNMs+9AAAAFUlEQVR42mNk+M9Qz0AEYBxVSF+FAAhKDveksOjmAAAAAElFTkSuQmCC"
+          }
+        },
+        "layout": {
+          "type": "SingleColumnLayout",
+          "children": [
+            {
+              "type": "Image",
+              "src": "${data.coverImage}"
+            },
+            {
+              "type": "TextSubheading",
+              "text": "Price"
+            },
+            {
+              "type": "TextBody",
+              "text": "${data.price}"
+            },
+            {
+              "type": "TextSubheading",
+              "text": "Furnishing"
+            },
+            {
+              "type": "TextBody",
+              "text": "${data.furnishing}"
+            },
+            {
+              "type": "TextSubheading",
+              "text": "Apartment Type"
+            },
+            {
+              "type": "TextBody",
+              "text": "${data.type}"
+            },
+            {
+              "type": "TextSubheading",
+              "text": "Preferred Tenants"
+            },
+            {
+              "type": "TextBody",
+              "text": "${data.tenants}"
+            },
+            {
+              "type": "TextSubheading",
+              "text": "Description"
+            },
+            {
+              "type": "TextBody",
+              "text": "${data.description}"
+            },
+            {
+              "type": "EmbeddedLink",
+              "text": "Click here to see photos",
+              "on-click-action": {
+                "name": "navigate",
+                "next": {
+                  "type": "screen",
+                  "name": "BALCONY"
+                },
+                "payload": {
+                  "numberOfBalconyImages": "${data.numberOfBalconyImages}",
+                  "balcony1": "${data.balcony1}",
+                  "balcony2": "${data.balcony2}",
+                  "balcony3": "${data.balcony3}",
+                  "numberOfBedroomImages": "${data.numberOfBedroomImages}",
+                  "bedroom1": "${bedroom1}",
+                  "bedroom2": "${bedroom2}",
+                  "bedroom3": "${bedroom3}",
+                  "numberOfKitchenImages": "${data.numberOfKitchenImages}",
+                  "kitchen1": "${data.kitchen1}",
+                  "kitchen2": "${data.kitchen2}",
+                  "kitchen3": "${data.kitchen3}",
+                  "numberOfHallImages": "${data.numberOfHallImages}",
+                  "hall1": "${data.hall1}",
+                  "hall2": "${data.hall2}",
+                  "hall3": "${data.hall3}",
+                  "numberOfLocalityImages": "${data.numberOfLocalityImages}",
+                  "locality1": "${data.locality1}",
+                  "locality2": "${data.locality2}",
+                  "locality3": "${data.locality3}"
+                }
+              }
+            },
+            {
+              "type": "EmbeddedLink",
+              "text": "Know more about this propery",
+              "on-click-action": {
+                "name": "navigate",
+                "next": {
+                  "type": "screen",
+                  "name": "KNOWMORE"
+                },
+                "payload": {
+                  "array": "${data.about}"
+                }
+              }
+            },
+            {
+              "type": "Footer",
+              "label": "Contact Owner",
+              "on-click-action": {
+                "name": "complete",
+                "payload": {
+                  "id": "${data.id}"
+                }
+              }
+            }
+          ]
+        }
+      },
+      {
+        "id": "KNOWMORE",
+        "title": "About",
+        "data": {
+          "array": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "__example__": [
+              "",
+              "🛏️ *3 BHK",
+              "🏠 Apartment",
+              "👤 Preferred Tenant: Family",
+              "📅 Possession: Immediate",
+              "╌╌╌╌╌╌╌╌╌╌",
+              "↕️ Floor: 12",
+              "🧭 Facing: North-East",
+              "🌇 Balcony: 2",
+              "╌╌╌╌╌╌╌╌╌╌",
+              "🚗 Parking: 2 Covered",
+              "🏗️ Building Age: 2 Years",
+              "╌╌╌╌╌╌╌╌╌╌",
+              "📍 *Address:*\n123, Green Valley, Sector 62, Noida",
+              "✅ *Amenities:* 24x7 Security, Power Backup, Swimming Pool, Gym, Club House",
+              ""
+            ]
+          }
+        },
+        "layout": {
+          "type": "SingleColumnLayout",
+          "children": [
+            {
+              "type": "RichText",
+              "text": "${data.array}"
+            }
+          ]
+        }
+      },
+      {
+        "id": "BALCONY",
+        "title": "Balcony",
+        "data": {
+          "numberOfBalconyImages": {
+            "type": "number",
+            "__example__": 2
+          },
+          "balcony1": {
+            "type": "string",
+            "__example__": "iVBORw0KGgoAAAANSUhEUgAAAAoAAAAKCAYAAACNMs+9AAAAFUlEQVR42mNk+M9Qz0AEYBxVSF+FAAhKDveksOjmAAAAAElFTkSuQmCC"
+          },
+          "balcony2": {
+            "type": "string",
+            "__example__": "iVBORw0KGgoAAAANSUhEUgAAAAoAAAAKCAYAAACNMs+9AAAAFUlEQVR42mNk+M9Qz0AEYBxVSF+FAAhKDveksOjmAAAAAElFTkSuQmCC"
+          },
+          "balcony3": {
+            "type": "string",
+            "__example__": "iVBORw0KGgoAAAANSUhEUgAAAAoAAAAKCAYAAACNMs+9AAAAFUlEQVR42mNk+M9Qz0AEYBxVSF+FAAhKDveksOjmAAAAAElFTkSuQmCC"
+          },
+          "numberOfBedroomImages": {
+            "type": "number",
+            "__example__": 2
+          },
+          "bedroom1": {
+            "type": "string",
+            "__example__": "iVBORw0KGgoAAAANSUhEUgAAAAoAAAAKCAYAAACNMs+9AAAAFUlEQVR42mNk+M9Qz0AEYBxVSF+FAAhKDveksOjmAAAAAElFTkSuQmCC"
+          },
+          "bedroom2": {
+            "type": "string",
+            "__example__": "iVBORw0KGgoAAAANSUhEUgAAAAoAAAAKCAYAAACNMs+9AAAAFUlEQVR42mNk+M9Qz0AEYBxVSF+FAAhKDveksOjmAAAAAElFTkSuQmCC"
+          },
+          "bedroom3": {
+            "type": "string",
+            "__example__": "iVBORw0KGgoAAAANSUhEUgAAAAoAAAAKCAYAAACNMs+9AAAAFUlEQVR42mNk+M9Qz0AEYBxVSF+FAAhKDveksOjmAAAAAElFTkSuQmCC"
+          },
+          "numberOfKitchenImages": {
+            "type": "number",
+            "__example__": 2
+          },
+          "kitchen1": {
+            "type": "string",
+            "__example__": "iVBORw0KGgoAAAANSUhEUgAAAAoAAAAKCAYAAACNMs+9AAAAFUlEQVR42mNk+M9Qz0AEYBxVSF+FAAhKDveksOjmAAAAAElFTkSuQmCC"
+          },
+          "kitchen2": {
+            "type": "string",
+            "__example__": "iVBORw0KGgoAAAANSUhEUgAAAAoAAAAKCAYAAACNMs+9AAAAFUlEQVR42mNk+M9Qz0AEYBxVSF+FAAhKDveksOjmAAAAAElFTkSuQmCC"
+          },
+          "kitchen3": {
+            "type": "string",
+            "__example__": "iVBORw0KGgoAAAANSUhEUgAAAAoAAAAKCAYAAACNMs+9AAAAFUlEQVR42mNk+M9Qz0AEYBxVSF+FAAhKDveksOjmAAAAAElFTkSuQmCC"
+          },
+          "numberOfHallImages": {
+            "type": "number",
+            "__example__": 2
+          },
+          "hall1": {
+            "type": "string",
+            "__example__": "iVBORw0KGgoAAAANSUhEUgAAAAoAAAAKCAYAAACNMs+9AAAAFUlEQVR42mNk+M9Qz0AEYBxVSF+FAAhKDveksOjmAAAAAElFTkSuQmCC"
+          },
+          "hall2": {
+            "type": "string",
+            "__example__": "iVBORw0KGgoAAAANSUhEUgAAAAoAAAAKCAYAAACNMs+9AAAAFUlEQVR42mNk+M9Qz0AEYBxVSF+FAAhKDveksOjmAAAAAElFTkSuQmCC"
+          },
+          "hall3": {
+            "type": "string",
+            "__example__": "iVBORw0KGgoAAAANSUhEUgAAAAoAAAAKCAYAAACNMs+9AAAAFUlEQVR42mNk+M9Qz0AEYBxVSF+FAAhKDveksOjmAAAAAElFTkSuQmCC"
+          },
+          "numberOfLocalityImages": {
+            "type": "number",
+            "__example__": 2
+          },
+          "locality1": {
+            "type": "string",
+            "__example__": "iVBORw0KGgoAAAANSUhEUgAAAAoAAAAKCAYAAACNMs+9AAAAFUlEQVR42mNk+M9Qz0AEYBxVSF+FAAhKDveksOjmAAAAAElFTkSuQmCC"
+          },
+          "locality2": {
+            "type": "string",
+            "__example__": "iVBORw0KGgoAAAANSUhEUgAAAAoAAAAKCAYAAACNMs+9AAAAFUlEQVR42mNk+M9Qz0AEYBxVSF+FAAhKDveksOjmAAAAAElFTkSuQmCC"
+          },
+          "locality3": {
+            "type": "string",
+            "__example__": "iVBORw0KGgoAAAANSUhEUgAAAAoAAAAKCAYAAACNMs+9AAAAFUlEQVR42mNk+M9Qz0AEYBxVSF+FAAhKDveksOjmAAAAAElFTkSuQmCC"
+          }
+        },
+        "layout": {
+          "type": "SingleColumnLayout",
+          "children": [
+            {
+              "type": "If",
+              "condition": "${data.numberOfBalconyImages} > 0",
+              "then": [
+                {
+                  "type": "Image",
+                  "src": "${data.balcony1}"
+                }
+              ]
+            },
+            {
+              "type": "If",
+              "condition": "${data.numberOfBalconyImages} > 1",
+              "then": [
+                {
+                  "type": "Image",
+                  "src": "${data.balcony2}"
+                }
+              ]
+            },
+            {
+              "type": "If",
+              "condition": "${data.numberOfBalconyImages} > 2",
+              "then": [
+                {
+                  "type": "Image",
+                  "src": "${data.balcony3}"
+                }
+              ]
+            },
+            {
+              "type": "Footer",
+              "label": "See Bedroom Photos",
+              "on-click-action": {
+                "name": "navigate",
+                "next": {
+                  "type": "screen",
+                  "name": "BEDROOM"
+                },
+                "payload": {
+                  "numberOfBedroomImages": "${data.numberOfBedroomImages}",
+                  "bedroom1": "${bedroom1}",
+                  "bedroom2": "${bedroom2}",
+                  "bedroom3": "${bedroom3}",
+                  "numberOfKitchenImages": "${data.numberOfKitchenImages}",
+                  "kitchen1": "${data.kitchen1}",
+                  "kitchen2": "${data.kitchen2}",
+                  "kitchen3": "${data.kitchen3}",
+                  "numberOfHallImages": "${data.numberOfHallImages}",
+                  "hall1": "${data.hall1}",
+                  "hall2": "${data.hall2}",
+                  "hall3": "${data.hall3}",
+                  "numberOfLocalityImages": "${data.numberOfLocalityImages}",
+                  "locality1": "${data.locality1}",
+                  "locality2": "${data.locality2}",
+                  "locality3": "${data.locality3}"
+                }
+              }
+            }
+          ]
+        }
+      },
+      {
+        "id": "BEDROOM",
+        "title": "Bedroom",
+        "data": {
+          "numberOfBedroomImages": {
+            "type": "number",
+            "__example__": 2
+          },
+          "bedroom1": {
+            "type": "string",
+            "__example__": "iVBORw0KGgoAAAANSUhEUgAAAAoAAAAKCAYAAACNMs+9AAAAFUlEQVR42mNk+M9Qz0AEYBxVSF+FAAhKDveksOjmAAAAAElFTkSuQmCC"
+          },
+          "bedroom2": {
+            "type": "string",
+            "__example__": "iVBORw0KGgoAAAANSUhEUgAAAAoAAAAKCAYAAACNMs+9AAAAFUlEQVR42mNk+M9Qz0AEYBxVSF+FAAhKDveksOjmAAAAAElFTkSuQmCC"
+          },
+          "bedroom3": {
+            "type": "string",
+            "__example__": "iVBORw0KGgoAAAANSUhEUgAAAAoAAAAKCAYAAACNMs+9AAAAFUlEQVR42mNk+M9Qz0AEYBxVSF+FAAhKDveksOjmAAAAAElFTkSuQmCC"
+          },
+          "numberOfKitchenImages": {
+            "type": "number",
+            "__example__": 2
+          },
+          "kitchen1": {
+            "type": "string",
+            "__example__": "iVBORw0KGgoAAAANSUhEUgAAAAoAAAAKCAYAAACNMs+9AAAAFUlEQVR42mNk+M9Qz0AEYBxVSF+FAAhKDveksOjmAAAAAElFTkSuQmCC"
+          },
+          "kitchen2": {
+            "type": "string",
+            "__example__": "iVBORw0KGgoAAAANSUhEUgAAAAoAAAAKCAYAAACNMs+9AAAAFUlEQVR42mNk+M9Qz0AEYBxVSF+FAAhKDveksOjmAAAAAElFTkSuQmCC"
+          },
+          "kitchen3": {
+            "type": "string",
+            "__example__": "iVBORw0KGgoAAAANSUhEUgAAAAoAAAAKCAYAAACNMs+9AAAAFUlEQVR42mNk+M9Qz0AEYBxVSF+FAAhKDveksOjmAAAAAElFTkSuQmCC"
+          },
+          "numberOfHallImages": {
+            "type": "number",
+            "__example__": 2
+          },
+          "hall1": {
+            "type": "string",
+            "__example__": "iVBORw0KGgoAAAANSUhEUgAAAAoAAAAKCAYAAACNMs+9AAAAFUlEQVR42mNk+M9Qz0AEYBxVSF+FAAhKDveksOjmAAAAAElFTkSuQmCC"
+          },
+          "hall2": {
+            "type": "string",
+            "__example__": "iVBORw0KGgoAAAANSUhEUgAAAAoAAAAKCAYAAACNMs+9AAAAFUlEQVR42mNk+M9Qz0AEYBxVSF+FAAhKDveksOjmAAAAAElFTkSuQmCC"
+          },
+          "hall3": {
+            "type": "string",
+            "__example__": "iVBORw0KGgoAAAANSUhEUgAAAAoAAAAKCAYAAACNMs+9AAAAFUlEQVR42mNk+M9Qz0AEYBxVSF+FAAhKDveksOjmAAAAAElFTkSuQmCC"
+          },
+          "numberOfLocalityImages": {
+            "type": "number",
+            "__example__": 2
+          },
+          "locality1": {
+            "type": "string",
+            "__example__": "iVBORw0KGgoAAAANSUhEUgAAAAoAAAAKCAYAAACNMs+9AAAAFUlEQVR42mNk+M9Qz0AEYBxVSF+FAAhKDveksOjmAAAAAElFTkSuQmCC"
+          },
+          "locality2": {
+            "type": "string",
+            "__example__": "iVBORw0KGgoAAAANSUhEUgAAAAoAAAAKCAYAAACNMs+9AAAAFUlEQVR42mNk+M9Qz0AEYBxVSF+FAAhKDveksOjmAAAAAElFTkSuQmCC"
+          },
+          "locality3": {
+            "type": "string",
+            "__example__": "iVBORw0KGgoAAAANSUhEUgAAAAoAAAAKCAYAAACNMs+9AAAAFUlEQVR42mNk+M9Qz0AEYBxVSF+FAAhKDveksOjmAAAAAElFTkSuQmCC"
+          }
+        },
+        "layout": {
+          "type": "SingleColumnLayout",
+          "children": [
+            {
+              "type": "If",
+              "condition": "${data.numberOfBedroomImages} > 0",
+              "then": [
+                {
+                  "type": "Image",
+                  "src": "${data.bedroom1}"
+                }
+              ]
+            },
+            {
+              "type": "If",
+              "condition": "${data.numberOfBedroomImages} > 1",
+              "then": [
+                {
+                  "type": "Image",
+                  "src": "${data.bedroom2}"
+                }
+              ]
+            },
+            {
+              "type": "If",
+              "condition": "${data.numberOfBedroomImages} > 2",
+              "then": [
+                {
+                  "type": "Image",
+                  "src": "${data.bedroom3}"
+                }
+              ]
+            },
+            {
+              "type": "Footer",
+              "label": "See Kitchen Photos",
+              "on-click-action": {
+                "name": "navigate",
+                "next": {
+                  "type": "screen",
+                  "name": "KITCHEN"
+                },
+                "payload": {
+                  "numberOfKitchenImages": "${data.numberOfKitchenImages}",
+                  "kitchen1": "${data.kitchen1}",
+                  "kitchen2": "${data.kitchen2}",
+                  "kitchen3": "${data.kitchen3}",
+                  "numberOfHallImages": "${data.numberOfHallImages}",
+                  "hall1": "${data.hall1}",
+                  "hall2": "${data.hall2}",
+                  "hall3": "${data.hall3}",
+                  "numberOfLocalityImages": "${data.numberOfLocalityImages}",
+                  "locality1": "${data.locality1}",
+                  "locality2": "${data.locality2}",
+                  "locality3": "${data.locality3}"
+                }
+              }
+            }
+          ]
+        }
+      },
+      {
+        "id": "KITCHEN",
+        "title": "Kitchen",
+        "data": {
+          "numberOfKitchenImages": {
+            "type": "number",
+            "__example__": 2
+          },
+          "kitchen1": {
+            "type": "string",
+            "__example__": "iVBORw0KGgoAAAANSUhEUgAAAAoAAAAKCAYAAACNMs+9AAAAFUlEQVR42mNk+M9Qz0AEYBxVSF+FAAhKDveksOjmAAAAAElFTkSuQmCC"
+          },
+          "kitchen2": {
+            "type": "string",
+            "__example__": "iVBORw0KGgoAAAANSUhEUgAAAAoAAAAKCAYAAACNMs+9AAAAFUlEQVR42mNk+M9Qz0AEYBxVSF+FAAhKDveksOjmAAAAAElFTkSuQmCC"
+          },
+          "kitchen3": {
+            "type": "string",
+            "__example__": "iVBORw0KGgoAAAANSUhEUgAAAAoAAAAKCAYAAACNMs+9AAAAFUlEQVR42mNk+M9Qz0AEYBxVSF+FAAhKDveksOjmAAAAAElFTkSuQmCC"
+          },
+          "numberOfHallImages": {
+            "type": "number",
+            "__example__": 2
+          },
+          "hall1": {
+            "type": "string",
+            "__example__": "iVBORw0KGgoAAAANSUhEUgAAAAoAAAAKCAYAAACNMs+9AAAAFUlEQVR42mNk+M9Qz0AEYBxVSF+FAAhKDveksOjmAAAAAElFTkSuQmCC"
+          },
+          "hall2": {
+            "type": "string",
+            "__example__": "iVBORw0KGgoAAAANSUhEUgAAAAoAAAAKCAYAAACNMs+9AAAAFUlEQVR42mNk+M9Qz0AEYBxVSF+FAAhKDveksOjmAAAAAElFTkSuQmCC"
+          },
+          "hall3": {
+            "type": "string",
+            "__example__": "iVBORw0KGgoAAAANSUhEUgAAAAoAAAAKCAYAAACNMs+9AAAAFUlEQVR42mNk+M9Qz0AEYBxVSF+FAAhKDveksOjmAAAAAElFTkSuQmCC"
+          },
+          "numberOfLocalityImages": {
+            "type": "number",
+            "__example__": 2
+          },
+          "locality1": {
+            "type": "string",
+            "__example__": "iVBORw0KGgoAAAANSUhEUgAAAAoAAAAKCAYAAACNMs+9AAAAFUlEQVR42mNk+M9Qz0AEYBxVSF+FAAhKDveksOjmAAAAAElFTkSuQmCC"
+          },
+          "locality2": {
+            "type": "string",
+            "__example__": "iVBORw0KGgoAAAANSUhEUgAAAAoAAAAKCAYAAACNMs+9AAAAFUlEQVR42mNk+M9Qz0AEYBxVSF+FAAhKDveksOjmAAAAAElFTkSuQmCC"
+          },
+          "locality3": {
+            "type": "string",
+            "__example__": "iVBORw0KGgoAAAANSUhEUgAAAAoAAAAKCAYAAACNMs+9AAAAFUlEQVR42mNk+M9Qz0AEYBxVSF+FAAhKDveksOjmAAAAAElFTkSuQmCC"
+          }
+        },
+        "layout": {
+          "type": "SingleColumnLayout",
+          "children": [
+            {
+              "type": "If",
+              "condition": "${data.numberOfKitchenImages} > 0",
+              "then": [
+                {
+                  "type": "Image",
+                  "src": "${data.kitchen1}"
+                }
+              ]
+            },
+            {
+              "type": "If",
+              "condition": "${data.numberOfKitchenImages} > 1",
+              "then": [
+                {
+                  "type": "Image",
+                  "src": "${data.kitchen2}"
+                }
+              ]
+            },
+            {
+              "type": "If",
+              "condition": "${data.numberOfKitchenImages} > 2",
+              "then": [
+                {
+                  "type": "Image",
+                  "src": "${data.kitchen3}"
+                }
+              ]
+            },
+            {
+              "type": "Footer",
+              "label": "See Hall Photos",
+              "on-click-action": {
+                "name": "navigate",
+                "next": {
+                  "type": "screen",
+                  "name": "HALL"
+                },
+                "payload": {
+                  "numberOfHallImages": "${data.numberOfHallImages}",
+                  "hall1": "${data.hall1}",
+                  "hall2": "${data.hall2}",
+                  "hall3": "${data.hall3}",
+                  "numberOfLocalityImages": "${data.numberOfLocalityImages}",
+                  "locality1": "${data.locality1}",
+                  "locality2": "${data.locality2}",
+                  "locality3": "${data.locality3}"
+                }
+              }
+            }
+          ]
+        }
+      },
+      {
+        "id": "HALL",
+        "title": "Hall",
+        "data": {
+          "numberOfHallImages": {
+            "type": "number",
+            "__example__": 2
+          },
+          "hall1": {
+            "type": "string",
+            "__example__": "iVBORw0KGgoAAAANSUhEUgAAAAoAAAAKCAYAAACNMs+9AAAAFUlEQVR42mNk+M9Qz0AEYBxVSF+FAAhKDveksOjmAAAAAElFTkSuQmCC"
+          },
+          "hall2": {
+            "type": "string",
+            "__example__": "iVBORw0KGgoAAAANSUhEUgAAAAoAAAAKCAYAAACNMs+9AAAAFUlEQVR42mNk+M9Qz0AEYBxVSF+FAAhKDveksOjmAAAAAElFTkSuQmCC"
+          },
+          "hall3": {
+            "type": "string",
+            "__example__": "iVBORw0KGgoAAAANSUhEUgAAAAoAAAAKCAYAAACNMs+9AAAAFUlEQVR42mNk+M9Qz0AEYBxVSF+FAAhKDveksOjmAAAAAElFTkSuQmCC"
+          },
+          "numberOfLocalityImages": {
+            "type": "number",
+            "__example__": 2
+          },
+          "locality1": {
+            "type": "string",
+            "__example__": "iVBORw0KGgoAAAANSUhEUgAAAAoAAAAKCAYAAACNMs+9AAAAFUlEQVR42mNk+M9Qz0AEYBxVSF+FAAhKDveksOjmAAAAAElFTkSuQmCC"
+          },
+          "locality2": {
+            "type": "string",
+            "__example__": "iVBORw0KGgoAAAANSUhEUgAAAAoAAAAKCAYAAACNMs+9AAAAFUlEQVR42mNk+M9Qz0AEYBxVSF+FAAhKDveksOjmAAAAAElFTkSuQmCC"
+          },
+          "locality3": {
+            "type": "string",
+            "__example__": "iVBORw0KGgoAAAANSUhEUgAAAAoAAAAKCAYAAACNMs+9AAAAFUlEQVR42mNk+M9Qz0AEYBxVSF+FAAhKDveksOjmAAAAAElFTkSuQmCC"
+          }
+        },
+        "layout": {
+          "type": "SingleColumnLayout",
+          "children": [
+            {
+              "type": "If",
+              "condition": "${data.numberOfHallImages} > 0",
+              "then": [
+                {
+                  "type": "Image",
+                  "src": "${data.hall1}"
+                }
+              ]
+            },
+            {
+              "type": "If",
+              "condition": "${data.numberOfHallImages} > 1",
+              "then": [
+                {
+                  "type": "Image",
+                  "src": "${data.hall2}"
+                }
+              ]
+            },
+            {
+              "type": "If",
+              "condition": "${data.numberOfHallImages} > 2",
+              "then": [
+                {
+                  "type": "Image",
+                  "src": "${data.hall3}"
+                }
+              ]
+            },
+            {
+              "type": "Footer",
+              "label": "See Locality Photos",
+              "on-click-action": {
+                "name": "navigate",
+                "next": {
+                  "type": "screen",
+                  "name": "LOCALITY"
+                },
+                "payload": {
+                  "numberOfLocalityImages": "${data.numberOfLocalityImages}",
+                  "locality1": "${data.locality1}",
+                  "locality2": "${data.locality2}",
+                  "locality3": "${data.locality3}"
+                }
+              }
+            }
+          ]
+        }
+      },
+      {
+        "id": "LOCALITY",
+        "title": "Locality",
+        "data": {
+          "numberOfLocalityImages": {
+            "type": "number",
+            "__example__": 2
+          },
+          "locality1": {
+            "type": "string",
+            "__example__": "iVBORw0KGgoAAAANSUhEUgAAAAoAAAAKCAYAAACNMs+9AAAAFUlEQVR42mNk+M9Qz0AEYBxVSF+FAAhKDveksOjmAAAAAElFTkSuQmCC"
+          },
+          "locality2": {
+            "type": "string",
+            "__example__": "iVBORw0KGgoAAAANSUhEUgAAAAoAAAAKCAYAAACNMs+9AAAAFUlEQVR42mNk+M9Qz0AEYBxVSF+FAAhKDveksOjmAAAAAElFTkSuQmCC"
+          },
+          "locality3": {
+            "type": "string",
+            "__example__": "iVBORw0KGgoAAAANSUhEUgAAAAoAAAAKCAYAAACNMs+9AAAAFUlEQVR42mNk+M9Qz0AEYBxVSF+FAAhKDveksOjmAAAAAElFTkSuQmCC"
+          }
+        },
+        "layout": {
+          "type": "SingleColumnLayout",
+          "children": [
+            {
+              "type": "If",
+              "condition": "${data.numberOfLocalityImages} > 0",
+              "then": [
+                {
+                  "type": "Image",
+                  "src": "${data.locality1}"
+                }
+              ]
+            },
+            {
+              "type": "If",
+              "condition": "${data.numberOfLocalityImages} > 1",
+              "then": [
+                {
+                  "type": "Image",
+                  "src": "${data.locality2}"
+                }
+              ]
+            },
+            {
+              "type": "If",
+              "condition": "${data.numberOfLocalityImages} > 2",
+              "then": [
+                {
+                  "type": "Image",
+                  "src": "${data.locality3}"
+                }
+              ]
+            },
+            {
+              "type": "Footer",
+              "label": "Go Back to Home Screen",
+              "on-click-action": {
+                "name": "navigate",
+                "next": {
+                  "type": "screen",
+                  "name": "OVERVIEW"
+                },
+                "payload": {}
+              }
+            }
+          ]
+        }
+      }
+    ]
+  }

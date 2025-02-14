@@ -14,7 +14,8 @@ import FormData from 'form-data';
 import https from 'https';
 import { financeBotWebhook } from "./financeBotWebhook.js";
 import { promptWebhook } from "./customCommandsWebhooks.js";
-import { realtorWebhook } from "./realtorWebhook.js";
+import { realtorWebhook, sendWelcomeMessageforRealtor } from "./realtorWebhook.js";
+import { handleCustomNode } from "../snm.js"
 
 const agent = new https.Agent({
   rejectUnauthorized: false, // Disable SSL certificate verification //VERY VERY IMPORTANT SECURITY
@@ -46,8 +47,48 @@ export async function userWebhook(req) {
 
   let userSession = await getSession(business_phone_number_id, contact)
 
-  if(userSession.tenant == "shxivoa" && message_text != "Hello! Can I get more info about the Juventus FC Program?" && userSession.currNode == userSession.startNode) return
-  if(userSession.tenant == "qqeeusz" && message_text != "/realtor" && userSession.currNode == userSession.startNode) return
+  if(userSession.tenant == "shxivoa" && !/^Hello! Can I get more info about the (Juventus|Chelsea|Liverpool) FC Program\?$/.test(message_text) && userSession.currNode == userSession.startNode) return
+  if(userSession.tenant = "shxivoa"){
+    if(userSession.startNode == userSession.currNode){
+      if(!/^Hello! Can I get more info about the (Juventus|Chelsea|Liverpool) FC Program\?$/.test(message_text)) return
+      else{
+        userSession.team = message_text.includes("Juventus") ? "Juventus" : message_text.includes("Chelsea") ? "Chelsea" : message_text.includes("Liverpool") ? "Liverpool" : null
+        if(message_text.include("Juventus")){
+          userSession.team = "Juventus"
+          const messageData = {
+            type: "video",
+            video: {
+              id: 615632651212317,
+              caption: "Check out Juventus FC Academy Video"
+            }
+          }
+          sendMessage(userSession.userPhoneNumber, userSession,business_phone_number_id, messageData, userSession.accessToken, userSession.tenant)
+        }
+        else if(message_text.include("Chelsea")){
+          userSession.team = "Chelsea"
+          const messageData = {
+            type: "video",
+            video: {
+              id: 590294387312252,
+              caption: "Check out Chelsea FC Academy Video"
+            }
+          }
+          sendMessage(userSession.userPhoneNumber, userSession,business_phone_number_id, messageData, userSession.accessToken, userSession.tenant)
+        }
+        else if(message_text.include("Liverpool")){
+          userSession.team = "Liverpool"
+          const messageData = {
+            type: "video",
+            video: {
+              id: 655481787019980,
+              caption: "Check out Liverpool FC Academy Video"
+            }
+          }
+          sendMessage(userSession.userPhoneNumber, userSession,business_phone_number_id, messageData, userSession.accessToken, userSession.tenant)
+        }
+      }
+    }
+  }
   // if(userSession.tenant == "shxivoa") return manualWebhook2(req, userSession)
   // if(userSession.tenant == "aayamhx") return manualWebhook2(req, userSession)
 
@@ -81,6 +122,36 @@ export async function userWebhook(req) {
     userSession.type = 'prompt'
     return promptWebhook(req, userSession)
   }
+
+  if(userSession.tenant == "qqeeusz"){
+    if(userPhoneNumber in nurenConsumerMap) return businessWebhook(req)
+    if(message_text == "Start Talking"){
+      const userSelectionId = message?.interactive?.button_reply?.id
+      const buyer = userSelectionId.split('_')[1]
+      nurenConsumerMap[userPhoneNumber] = buyer
+
+      const welcomeMessageForConsumer = `${userName} is here to chat with you!\nType your queries or just say hello! Lets get this conversation going.`
+      
+      sendMessage(userPhoneNumber, userSession.business_phone_number_id, {type: "text", text: {body: "You're now connected! Expect responses from the user soon. 📩"}})
+      return sendMessage(buyer, userSession.business_phone_number_id, {type: "text", text: {body: welcomeMessageForConsumer}}, userSession.accessToken, userSession.tenant)
+    }
+    if(message_text != "/realtor" && userSession.currNode == userSession.startNode) return
+  }
+
+  if(userSession.tenant == "qqeeusz" && message?.interactive?.nfm_reply){
+    const nfm_reply = message?.interactive?.nfm_reply
+    let responses = nfm_reply?.response_json
+    responses = JSON.parse(responses)
+    const property_id = responses?.id
+    const owner = property_id.split('_')[1]
+    userSession.type = "one2one"
+    userSession["talking_to"] = owner
+    const key = userPhoneNumber + business_phone_number_id
+    userSessions.set(key, userSession);
+    // nurenConsumerMap[owner] = userPhoneNumber
+    return sendWelcomeMessageforRealtor(userSession, owner)
+  }
+  if(userSession.tenant == "qqeeusz" && message_text != "/realtor" && userSession.currNode == userSession.startNode) return
 
   updateLastSeen("replied", timestamp, userSession.userPhoneNumber, userSession.business_phone_number_id)
 

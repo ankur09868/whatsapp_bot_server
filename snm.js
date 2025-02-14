@@ -1,11 +1,12 @@
 import { userSessions, messageCache } from "./server.js";
 import {sendMessage} from "./send-message.js"
 import axios from "axios";
-
+import { convertImageToBase64 } from "./flowsAPI/flow.js";
 import { replacePlaceholders, addDynamicModelInstance, executeFallback } from "./helpers/misc.js"
 import { getMediaID } from "./helpers/handle-media.js"
 import { json } from "express";
 import { handleTextOrdersForDrishtee, handleAudioOrdersForDrishtee } from "./webhooks/userWebhook.js";
+import { realtorWebhook } from "./webhooks/realtorWebhook.js";
 
 
 export const fastURL = "https://fastapione-gue2c5ecc9c4b8hy.centralindia-01.azurewebsites.net"
@@ -518,6 +519,13 @@ export async function sendNodeMessage(userPhoneNumber, business_phone_number_id)
                 else if(userSession.tenant == "leqcjsk"){
                     if(userSession.language == "mr") templateName = "carouseldrishteemar"
                 }
+                else if(userSession.tenant == "shxivoa"){
+                    templateName = flow[currNode]?.[userSession.team]
+                    // if(userSession.team == "Juventus") templateName = flow[currNode]?.[userSession.team]
+                    // if(userSession.team == "Chelsea") templateName = ""
+                    // if(userSession.team == "Liverpool") templateName = ""
+                    
+                }
                 console.log("Language: ", userSession.language, "Name: ", templateName)
                 userSession.inputVariable = "Temp"
                 await sendTemplateMessage(templateName, userSession)
@@ -966,7 +974,68 @@ const customMap = {
 
 }
 
-async function handleCustomNode(customCode, userSession) {
+async function generatePropertyRichText(propertyDetails) {
+    const output = [];
+    
+    if (propertyDetails.image) {
+      output.push(`![Property Image](${propertyDetails.image})`);
+    }
+  
+    // Section builder with conditional headings
+    const buildSection = (title, items) => {
+      if (items.length === 0) return;
+      output.push(`*${title.toUpperCase()}*`);
+      output.push(...items);
+      output.push('╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌');
+    };
+  
+    // Core Information
+    const coreInfo = [];
+    if (propertyDetails.bhk) coreInfo.push(`🛏️ *${propertyDetails.bhk} BHK*`);
+    if (propertyDetails.property_type) coreInfo.push(`🏠 _Type:_ ${propertyDetails.property_type}`);
+    if (propertyDetails.preferred_tenant) coreInfo.push(`👤 _Tenant Preference:_ ${propertyDetails.preferred_tenant}`);
+    if (propertyDetails.possession) coreInfo.push(`📅 _Possession:_ ${propertyDetails.possession}`);
+    buildSection('Property Overview', coreInfo);
+  
+    // Structural Details
+    const structure = [];
+    if (propertyDetails.floor) structure.push(`↕️ _Floor:_ ${propertyDetails.floor}`);
+    if (propertyDetails.facing) structure.push(`🧭 _Facing:_ ${propertyDetails.facing}`);
+    if (propertyDetails.balcony) structure.push(`🌇 _Balconies:_ ${propertyDetails.balcony}`);
+    if (propertyDetails.parking) structure.push(`🚗 _Parking:_ ${propertyDetails.parking}`);
+    if (propertyDetails.age_of_building) {
+      const age = isNaN(propertyDetails.age_of_building) 
+        ? propertyDetails.age_of_building 
+        : `${propertyDetails.age_of_building} years`;
+      structure.push(`🏗️ _Building Age:_ ${age}`);
+    }
+    buildSection('Building Specifications', structure);
+  
+    // Location & Amenities
+    const location = [];
+    if (propertyDetails.address) {
+      location.push(`📍 *Address:*\n${propertyDetails.address.replace(/,/g, ',\n')}`);
+    }
+    if (propertyDetails.other_amentities) {
+      const amenities = Array.isArray(propertyDetails.other_amentities)
+        ? propertyDetails.other_amentities.join('\n• ')
+        : propertyDetails.other_amentities;
+      location.push(`\n✅ *Key Amenities:*\n• ${amenities}`);
+    }
+    buildSection('Location Features', location);
+  
+    // Final cleanup and formatting
+    if (output.length > 0) {
+      // Remove last separator line
+      output.pop();
+      // Add footer
+      output.push('\n_ℹ️ Contact agent for more details_');
+    }
+  
+    return output.length > 0 ? output : ['*No property details available*'];
+}
+
+export async function handleCustomNode(customCode, userSession) {
     if(customCode == 1){
         const message = userSession?.api?.POST?.text_product
         await handleTextOrdersForDrishtee(message, userSession)
@@ -975,5 +1044,174 @@ async function handleCustomNode(customCode, userSession) {
         console.log("Custom code 2 ")
         const mediaID = userSession?.api?.POST?.audio_product
         await handleAudioOrdersForDrishtee(mediaID, userSession)
+    }
+    else if (customCode == 3) {
+        return realtorWebhook(userSession)
+    }
+    else if(customCode == 4){
+
+        const propertyDetails = {
+            id: "property_42343",
+            bhk: "3",
+            price: "25000 per month",
+            property_type: "Apartment",
+            furnishing: "Semi Furnished",
+            preferred_tenant: "Family",
+            possession: "Immediate",
+            parking: "2 Covered",
+            age_of_building: "2 Years",
+            balcony: "2",
+            floor: "12",
+            facing: "North-East",
+            address: "123, Green Valley, Sector 62, Noida",
+            other_amentities: [
+                "24x7 Security",
+                "Power Backup",
+                "Swimming Pool",
+                "Gym",
+                "Club House"
+            ],
+            description: "When you are looking to move into a popular society, Rajat Vihar is considered one of the best around Sector 62 in Noida. There is ample space for bike parking in this society, your vehicle will be fully protected and safe here. In line with the government mandate, and the best practises, there is a sewage treatment plant on the premises. Being sustainable as a society is very important, we have started by having a rainwater harvesting in the society. If you or the kids love playing tennis, this society is right for you as it has a tennis court here. From fire fighting equipment to general safety, this society has thought of it all. Nothing beats jumping into a pool on a hot summer day, here the swimming pool is a huge hit with all the residents. Working from home is convenient as this society has reliable electric back up. If you love playing badminton, don't miss out on the well maintained badminton court here.\n\nMore About This Property\n\nCheck out this Flat available for rent in Sector 62 A, Noida in Noida. It is a 2 BHK unit that comes at an affordable rent, with modern features and premium amenities to suit your lifestyle needs. The unit is semi furnished. It is an North-East facing property that has been constructed as per Vastu principles. With numerous new-age amenities and green surroundings, this Flat provides a convenient lifestyle for residents. A spacious house for your family, this unit includes 2 bedrooms. There are 2 bathroom and 2 balcony. It has a built-up area of 980 square_feet. The carpet area is 750 square_feet. The Flat is built on 0 floor. The building has a total of 3 floors. The monthly rent is Rs 30000 and the security deposit to be paid by residents is Rs 30000.\n\nProject Highlights\n\nThis Flat is constructed within Rajat Vihar. The developer also provides other units of 2 BHK configuration. Many amenities have been provided for the residents of this Flat. The locality Sector 62 A, Noida enjoys good connectivity to different parts of the city. The residents of this Flat will find many reputed healthcare centres in the neighborhood. There are hospitals like Aastha Healthcare, Metro Multispeciality Hospital: Best Hospital in Noida, Uttar Pradesh | Top Ranking Hospital in 2024, SANKHWAR HOSPITAL"
+        };
+
+        // const propertyImages_ = {
+        //     balcony: {
+        //         count: 2,
+        //         images: [
+        //             await convertImageToBase64("./images/balcony1.png"),
+        //             await convertImageToBase64("./images/balcony2.png")
+        //         ]
+        //     },
+        //     bedroom: {
+        //         count: 3,
+        //         images: [
+        //             await convertImageToBase64("./images/bedroom1.png"),
+        //             await convertImageToBase64("./images/bedroom2.png"),
+        //             await convertImageToBase64("./images/bedroom3.png")
+        //         ]
+        //     },
+        //     hall: {
+        //         count: 2,
+        //         images: [
+        //             await convertImageToBase64("./images/hall1.png"),
+        //             await convertImageToBase64("./images/hall2.png")
+        //         ]
+        //     },
+        //     kitchen : {
+        //         count: 1,
+        //         images: [
+        //             await convertImageToBase64("./images/kitchen1.png")
+        //         ]
+        //     },
+        //     locality: {
+        //         count: 3,
+        //         images: [
+        //             await convertImageToBase64("./images/locality1.png"),
+        //             await convertImageToBase64("./images/locality2.png"),
+        //             await convertImageToBase64("./images/locality3.png")
+        //         ]
+        //     }
+        // }
+
+        // const imageFields = Object.fromEntries(
+        //     Object.entries(propertyImages).flatMap(([key, { count, images }]) => [
+        //         [`numberOf${key.charAt(0).toUpperCase() + key.slice(1)}Images`, count],
+        //         ...images.map((img, index) => [`${key}${index + 1}`, img])
+        //     ])
+        // );
+
+        const processImageCategory = async (category) => {
+            const { count, paths } = category;
+            const images = await Promise.all(paths.map(path => convertImageToBase64(path)));
+            return { count, images };
+        };
+    
+
+        const imageCategories = {
+            balcony: {
+                count: 2,
+                paths: ["./images/balcony1.png", "./images/balcony2.png"]
+            },
+            bedroom: {
+                count: 3,
+                paths: [
+                    "./images/bedroom1.png",
+                    "./images/bedroom2.png",
+                    "./images/bedroom3.png"
+                ]
+            },
+            hall: {
+                count: 2,
+                paths: ["./images/hall1.png", "./images/hall2.png"]
+            },
+            kitchen: {
+                count: 1,
+                paths: ["./images/kitchen1.png"]
+            },
+            locality: {
+                count: 3,
+                paths: [
+                    "./images/locality1.png",
+                    "./images/locality2.png",
+                    "./images/locality3.png"
+                ]
+            }
+        };
+
+        const imageProcessing = Object.entries(imageCategories).map(async ([key, category]) => {
+            const processed = await processImageCategory(category);
+            return [key, processed];
+        });
+
+        const propertyImages = Object.fromEntries(await Promise.all(imageProcessing));
+
+
+        const imagePayload = {};
+        for (const [category, data] of Object.entries(propertyImages)) {
+            imagePayload[`${category}Images`] = data.images;
+            imagePayload[`numberOf${category.charAt(0).toUpperCase() + category.slice(1)}Images`] = data.count;
+        }
+
+        const payload = {
+            screen: "WELCOME",
+            data:{
+                id: propertyDetails.id,
+                coverImage: await convertImageToBase64("./webhooks/nurenai image.jpg"),
+                price: propertyDetails.price,
+                furnishing: propertyDetails.furnishing,
+                type: `${propertyDetails.bhk} BHK ${propertyDetails.property_type}`,
+                tenants: propertyDetails.preferred_tenant,
+                description: propertyDetails.description,
+                about: await generatePropertyRichText(propertyDetails),
+                ...imagePayload
+            }
+        }
+
+        const flow_name = "realtor"
+        const cta = "View Property"
+        const body = "2 BHK Flat for Rent"
+
+        const messageData =  {
+            "type": "interactive",
+            "interactive": {
+                "type": "flow",
+                "body": {
+                    "text": body
+                },
+                "action": {
+                    "name": "flow",
+                    "parameters":{
+                        "flow_message_version": "3",
+                        "flow_token": "COOL",
+                        "flow_name": flow_name,
+                        "flow_cta": cta,
+                        "flow_action": "navigate",
+                        "flow_action_payload": payload
+                    }
+                }
+            }
+        }
+        console.log("Message Data to send to flows: ", JSON.stringify(messageData, 5, null))
+        sendMessage(userSession.userPhoneNumber, userSession.business_phone_number_id, messageData, userSession.accessToken, userSession.tenant)
     }
 }

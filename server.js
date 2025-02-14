@@ -9,7 +9,7 @@ import { createServer } from "http";
 import { Server } from "socket.io";
 
 import { decryptRequest, encryptResponse, FlowEndpointException } from "./flowsAPI/encryption.js";
-import { getNextScreen } from "./flowsAPI/flow.js";
+import { getNextScreen } from "./webhooks/realtorWebhook.js"
 import { getMediaID } from "./helpers/handle-media.js";
 import { getAccessToken, getWabaID, getPhoneNumberID, registerAccount, postRegister, addKey } from "./helpers/login-flow.js";
 import { sendImageMessage, sendTextMessage, sendAudioMessage, sendVideoMessage, sendLocationMessage, fastURL, djangoURL} from "./snm.js"

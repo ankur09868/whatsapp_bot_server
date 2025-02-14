@@ -594,11 +594,10 @@ async function customButtonMessageForFC(fc1, fc2){
 export async function setTemplateData(templateName, userSession){
     let responseData = messageCache.get(userSession.business_phone_number_id);
 
-    // Fetch tenant data if not available in cache
     if (!responseData) {
       try {
         const response = await axios.get(`${fastURL}/whatsapp_tenant`, {
-          headers: { bpid: business_phone_number_id },
+          headers: { bpid: userSession.business_phone_number_id },
         });
         responseData = response.data;
         messageCache.set(business_phone_number_id, responseData);

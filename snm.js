@@ -114,13 +114,14 @@ export async function sendLocationMessage(phone, bpid, body, access_token=null,t
     return sendMessage(phone, bpid, messageData, access_token, tenant_id)
 }
 
-export async function sendVideoMessage(phone, bpid, videoID, access_token=null, tenant_id=null) {
+export async function sendVideoMessage(phone, bpid, videoID, access_token=null, tenant_id=null, caption = null) {
     const messageData = {
         type : "video",
         video : {
             id: videoID
         }
     }
+    if (caption) messageData.video.caption = caption
     return sendMessage(phone, bpid, messageData, access_token, tenant_id)
 }
 
@@ -157,11 +158,8 @@ export async function sendImageMessage(phoneNumber, business_phone_number_id, im
 }
 
 export async function sendButtonMessage(buttons, message, phoneNumber, business_phone_number_id,  mediaID = null, access_token = null,tenant_id=null) {
-    console.log("phone number: ", phoneNumber, business_phone_number_id)
     const key = phoneNumber + business_phone_number_id
-    // console.log("USER SESSIONS: ", userSessions, key)
     const userSession = userSessions.get(key);
-    // console.log("USER SESSION: ", userSession)
     const flow = userSession.flowData
     try {
         let button_rows = buttons.map(buttonNode => ({
@@ -181,7 +179,6 @@ export async function sendButtonMessage(buttons, message, phoneNumber, business_
             }
         }
         if(mediaID !== null && mediaID !== undefined) {
-            console.log("media id present")
             messageData.interactive['header'] = { type: 'image', image: {id: mediaID}}
         }
         return sendMessage(phoneNumber, business_phone_number_id, messageData, access_token, tenant_id)
@@ -303,7 +300,6 @@ export async function sendNodeMessage(userPhoneNumber, business_phone_number_id)
     }
 
     if (typeof currNode !== undefined && currNode !== null && adjListParsed) {
-        
         const nextNode = adjListParsed[currNode];
         let node_message = flow[currNode]?.body;
         console.log("flowlfolwolfowl: ", flow[currNode])
@@ -412,7 +408,7 @@ export async function sendNodeMessage(userPhoneNumber, business_phone_number_id)
                 var caption = flow[currNode]?.body?.caption
                 if(caption) caption = await replacePlaceholders(caption, userSession)
 
-                await sendVideoMessage(userPhoneNumber, business_phone_number_id, flow[currNode]?.body?.videoID, accessToken);
+                await sendVideoMessage(userPhoneNumber, business_phone_number_id, flow[currNode]?.body?.videoID, accessToken, userSession?.tenant, caption);
                 userSession.currNode = nextNode[0] !==undefined ? nextNode[0] : null;
                 console.log("video currNode: ", userSession.currNode)
                 if(userSession.currNode!=null) {
@@ -520,11 +516,12 @@ export async function sendNodeMessage(userPhoneNumber, business_phone_number_id)
                     if(userSession.language == "mr") templateName = "carouseldrishteemar"
                 }
                 else if(userSession.tenant == "shxivoa"){
+                    console.log("User Session Team: ", userSession.team)
                     templateName = flow[currNode]?.[userSession.team]
                     // if(userSession.team == "Juventus") templateName = flow[currNode]?.[userSession.team]
                     // if(userSession.team == "Chelsea") templateName = ""
                     // if(userSession.team == "Liverpool") templateName = ""
-                    
+
                 }
                 console.log("Language: ", userSession.language, "Name: ", templateName)
                 userSession.inputVariable = "Temp"
@@ -535,6 +532,21 @@ export async function sendNodeMessage(userPhoneNumber, business_phone_number_id)
             case "custom":
                 const customCode = flow[currNode]?.customCode
                 await handleCustomNode(customCode, userSession)
+
+                // const buttons = nextNode
+                // node_message = await replacePlaceholders(node_message, userSession)
+                
+                // var variable = flow[currNode]?.variable
+                // if(variable) {
+                //     userSession.inputVariable = variable
+
+                //     // userSession.inputVariableType = flow[currNode]?.InputType[0]
+                //     console.log("input variable: ", userSession.inputVariable)
+                //     // var data = {phone_no : BigInt(userPhoneNumber).toString()}
+                //     // var modelName = userSession.flowName
+                //     // addDynamicModelInstance(modelName, data, userSession.tenant)
+                // }
+                // await sendButtonMessage(buttons, node_message, userPhoneNumber,business_phone_number_id, mediaID );
 
                 userSession.currNode = nextNode[0] !==undefined ? nextNode[0] : null;
 
@@ -1048,170 +1060,5 @@ export async function handleCustomNode(customCode, userSession) {
     else if (customCode == 3) {
         return realtorWebhook(userSession)
     }
-    else if(customCode == 4){
-
-        const propertyDetails = {
-            id: "property_42343",
-            bhk: "3",
-            price: "25000 per month",
-            property_type: "Apartment",
-            furnishing: "Semi Furnished",
-            preferred_tenant: "Family",
-            possession: "Immediate",
-            parking: "2 Covered",
-            age_of_building: "2 Years",
-            balcony: "2",
-            floor: "12",
-            facing: "North-East",
-            address: "123, Green Valley, Sector 62, Noida",
-            other_amentities: [
-                "24x7 Security",
-                "Power Backup",
-                "Swimming Pool",
-                "Gym",
-                "Club House"
-            ],
-            description: "When you are looking to move into a popular society, Rajat Vihar is considered one of the best around Sector 62 in Noida. There is ample space for bike parking in this society, your vehicle will be fully protected and safe here. In line with the government mandate, and the best practises, there is a sewage treatment plant on the premises. Being sustainable as a society is very important, we have started by having a rainwater harvesting in the society. If you or the kids love playing tennis, this society is right for you as it has a tennis court here. From fire fighting equipment to general safety, this society has thought of it all. Nothing beats jumping into a pool on a hot summer day, here the swimming pool is a huge hit with all the residents. Working from home is convenient as this society has reliable electric back up. If you love playing badminton, don't miss out on the well maintained badminton court here.\n\nMore About This Property\n\nCheck out this Flat available for rent in Sector 62 A, Noida in Noida. It is a 2 BHK unit that comes at an affordable rent, with modern features and premium amenities to suit your lifestyle needs. The unit is semi furnished. It is an North-East facing property that has been constructed as per Vastu principles. With numerous new-age amenities and green surroundings, this Flat provides a convenient lifestyle for residents. A spacious house for your family, this unit includes 2 bedrooms. There are 2 bathroom and 2 balcony. It has a built-up area of 980 square_feet. The carpet area is 750 square_feet. The Flat is built on 0 floor. The building has a total of 3 floors. The monthly rent is Rs 30000 and the security deposit to be paid by residents is Rs 30000.\n\nProject Highlights\n\nThis Flat is constructed within Rajat Vihar. The developer also provides other units of 2 BHK configuration. Many amenities have been provided for the residents of this Flat. The locality Sector 62 A, Noida enjoys good connectivity to different parts of the city. The residents of this Flat will find many reputed healthcare centres in the neighborhood. There are hospitals like Aastha Healthcare, Metro Multispeciality Hospital: Best Hospital in Noida, Uttar Pradesh | Top Ranking Hospital in 2024, SANKHWAR HOSPITAL"
-        };
-
-        // const propertyImages_ = {
-        //     balcony: {
-        //         count: 2,
-        //         images: [
-        //             await convertImageToBase64("./images/balcony1.png"),
-        //             await convertImageToBase64("./images/balcony2.png")
-        //         ]
-        //     },
-        //     bedroom: {
-        //         count: 3,
-        //         images: [
-        //             await convertImageToBase64("./images/bedroom1.png"),
-        //             await convertImageToBase64("./images/bedroom2.png"),
-        //             await convertImageToBase64("./images/bedroom3.png")
-        //         ]
-        //     },
-        //     hall: {
-        //         count: 2,
-        //         images: [
-        //             await convertImageToBase64("./images/hall1.png"),
-        //             await convertImageToBase64("./images/hall2.png")
-        //         ]
-        //     },
-        //     kitchen : {
-        //         count: 1,
-        //         images: [
-        //             await convertImageToBase64("./images/kitchen1.png")
-        //         ]
-        //     },
-        //     locality: {
-        //         count: 3,
-        //         images: [
-        //             await convertImageToBase64("./images/locality1.png"),
-        //             await convertImageToBase64("./images/locality2.png"),
-        //             await convertImageToBase64("./images/locality3.png")
-        //         ]
-        //     }
-        // }
-
-        // const imageFields = Object.fromEntries(
-        //     Object.entries(propertyImages).flatMap(([key, { count, images }]) => [
-        //         [`numberOf${key.charAt(0).toUpperCase() + key.slice(1)}Images`, count],
-        //         ...images.map((img, index) => [`${key}${index + 1}`, img])
-        //     ])
-        // );
-
-        const processImageCategory = async (category) => {
-            const { count, paths } = category;
-            const images = await Promise.all(paths.map(path => convertImageToBase64(path)));
-            return { count, images };
-        };
     
-
-        const imageCategories = {
-            balcony: {
-                count: 2,
-                paths: ["./images/balcony1.png", "./images/balcony2.png"]
-            },
-            bedroom: {
-                count: 3,
-                paths: [
-                    "./images/bedroom1.png",
-                    "./images/bedroom2.png",
-                    "./images/bedroom3.png"
-                ]
-            },
-            hall: {
-                count: 2,
-                paths: ["./images/hall1.png", "./images/hall2.png"]
-            },
-            kitchen: {
-                count: 1,
-                paths: ["./images/kitchen1.png"]
-            },
-            locality: {
-                count: 3,
-                paths: [
-                    "./images/locality1.png",
-                    "./images/locality2.png",
-                    "./images/locality3.png"
-                ]
-            }
-        };
-
-        const imageProcessing = Object.entries(imageCategories).map(async ([key, category]) => {
-            const processed = await processImageCategory(category);
-            return [key, processed];
-        });
-
-        const propertyImages = Object.fromEntries(await Promise.all(imageProcessing));
-
-
-        const imagePayload = {};
-        for (const [category, data] of Object.entries(propertyImages)) {
-            imagePayload[`${category}Images`] = data.images;
-            imagePayload[`numberOf${category.charAt(0).toUpperCase() + category.slice(1)}Images`] = data.count;
-        }
-
-        const payload = {
-            screen: "WELCOME",
-            data:{
-                id: propertyDetails.id,
-                coverImage: await convertImageToBase64("./webhooks/nurenai image.jpg"),
-                price: propertyDetails.price,
-                furnishing: propertyDetails.furnishing,
-                type: `${propertyDetails.bhk} BHK ${propertyDetails.property_type}`,
-                tenants: propertyDetails.preferred_tenant,
-                description: propertyDetails.description,
-                about: await generatePropertyRichText(propertyDetails),
-                ...imagePayload
-            }
-        }
-
-        const flow_name = "realtor"
-        const cta = "View Property"
-        const body = "2 BHK Flat for Rent"
-
-        const messageData =  {
-            "type": "interactive",
-            "interactive": {
-                "type": "flow",
-                "body": {
-                    "text": body
-                },
-                "action": {
-                    "name": "flow",
-                    "parameters":{
-                        "flow_message_version": "3",
-                        "flow_token": "COOL",
-                        "flow_name": flow_name,
-                        "flow_cta": cta,
-                        "flow_action": "navigate",
-                        "flow_action_payload": payload
-                    }
-                }
-            }
-        }
-        console.log("Message Data to send to flows: ", JSON.stringify(messageData, 5, null))
-        sendMessage(userSession.userPhoneNumber, userSession.business_phone_number_id, messageData, userSession.accessToken, userSession.tenant)
-    }
 }

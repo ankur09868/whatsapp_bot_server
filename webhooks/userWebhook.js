@@ -47,13 +47,13 @@ export async function userWebhook(req) {
 
   let userSession = await getSession(business_phone_number_id, contact)
 
-  if(userSession.tenant == "shxivoa" && !/^Hello! Can I get more info about the (Juventus|Chelsea|Liverpool) FC Program\?$/.test(message_text) && userSession.currNode == userSession.startNode) return
-  if(userSession.tenant = "shxivoa"){
-    if(userSession.startNode == userSession.currNode){
+  if(userSession.tenant == "shxivoa"){
+    if(userSession?.isInit == undefined) userSession.isInit = userSession.startNode == userSession.currNode
+    if(userSession?.isInit){
       if(!/^Hello! Can I get more info about the (Juventus|Chelsea|Liverpool) FC Program\?$/.test(message_text)) return
-      else{
-        userSession.team = message_text.includes("Juventus") ? "Juventus" : message_text.includes("Chelsea") ? "Chelsea" : message_text.includes("Liverpool") ? "Liverpool" : null
-        if(message_text.include("Juventus")){
+      else{        
+        if(message_text.includes("Juventus")){
+          console.log("JUVEEEEEEEEEEEEEEEEEEEEEEEEEEee")
           userSession.team = "Juventus"
           const messageData = {
             type: "video",
@@ -62,9 +62,11 @@ export async function userWebhook(req) {
               caption: "Check out Juventus FC Academy Video"
             }
           }
-          sendMessage(userSession.userPhoneNumber, userSession,business_phone_number_id, messageData, userSession.accessToken, userSession.tenant)
+          console.log("Message Data: ", messageData)
+          sendMessage(userSession.userPhoneNumber, userSession.business_phone_number_id, messageData, userSession.accessToken, userSession.tenant)
         }
-        else if(message_text.include("Chelsea")){
+        else if(message_text.includes("Chelsea")){
+          console.log("CHELLSEAAAAAAAAAAAAAAAAAAAAAAAaa")
           userSession.team = "Chelsea"
           const messageData = {
             type: "video",
@@ -73,9 +75,10 @@ export async function userWebhook(req) {
               caption: "Check out Chelsea FC Academy Video"
             }
           }
-          sendMessage(userSession.userPhoneNumber, userSession,business_phone_number_id, messageData, userSession.accessToken, userSession.tenant)
+          sendMessage(userSession.userPhoneNumber, userSession.business_phone_number_id, messageData, userSession.accessToken, userSession.tenant)
         }
-        else if(message_text.include("Liverpool")){
+        else if(message_text.includes("Liverpool")){
+          console.log("SUIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIII")
           userSession.team = "Liverpool"
           const messageData = {
             type: "video",
@@ -84,13 +87,12 @@ export async function userWebhook(req) {
               caption: "Check out Liverpool FC Academy Video"
             }
           }
-          sendMessage(userSession.userPhoneNumber, userSession,business_phone_number_id, messageData, userSession.accessToken, userSession.tenant)
+          sendMessage(userSession.userPhoneNumber, userSession.business_phone_number_id, messageData, userSession.accessToken, userSession.tenant)
         }
       }
+      userSession.isInit = false
     }
   }
-  // if(userSession.tenant == "shxivoa") return manualWebhook2(req, userSession)
-  // if(userSession.tenant == "aayamhx") return manualWebhook2(req, userSession)
 
   const agents = userSession.agents
   if(agents){
@@ -192,7 +194,6 @@ export async function userWebhook(req) {
       return sendMessage(userSession.userPhoneNumber, userSession.business_phone_number_id, messageData, userSession.accessToken, userSession.tenant)
     }
   }
-
   if (!userSession.multilingual){
     if (!userSession.AIMode) {
       handleInput(userSession, message_text)

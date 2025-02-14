@@ -10,7 +10,7 @@ export async function sendMessage(phoneNumber, business_phone_number_id, message
     const key = phoneNumber + business_phone_number_id;
     // console.log("USESESES: ", userSessions, key)
     const userSession = userSessions.get(key);
-
+    console.log("Message Data 1: ", messageData)
     if (!userSession && access_token == null) {
         console.error("User session not found and no access token provided.");
         return { success: false, error: "User session or access token missing." };
@@ -22,7 +22,7 @@ export async function sendMessage(phoneNumber, business_phone_number_id, message
     phoneNumber = String(phoneNumber).trim();
     if(phoneNumber.length == 10) phoneNumber = `91${phoneNumber}`
 
-    // console.log('Message Data:', JSON.stringify(messageData, null, 7));
+    console.log('Message Data:', JSON.stringify(messageData, null, 7));
 
     // Use session access token if not provided
     if (access_token == null) access_token = userSession.accessToken;

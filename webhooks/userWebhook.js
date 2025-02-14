@@ -1,7 +1,7 @@
 import { getIndianCurrentTime, updateStatus, updateLastSeen, saveMessage, sendNotification, executeFallback, getSession  } from "../helpers/misc.js";
 import { nurenConsumerMap, io, customWebhook, userSessions } from "../server.js";
 import { nuren_users } from "../helpers/order.js";
-import { sendNodeMessage, sendTextMessage, sendProductMessage, djangoURL } from "../snm.js";
+import { sendNodeMessage, sendTextMessage, sendProductMessage, djangoURL, sendTemplateMessage } from "../snm.js";
 import { sendProduct } from "../helpers/product.js";
 import { DRISHTEE_PRODUCT_CAROUSEL_IDS, handleCatalogManagement }  from "../drishtee.js"
 import { sendMessage } from "../send-message.js";
@@ -51,7 +51,7 @@ export async function userWebhook(req) {
     if(userSession?.isInit == undefined) userSession.isInit = userSession.startNode == userSession.currNode
     if(userSession?.isInit){
       if(!/^Hello! Can I get more info about the (Juventus|Chelsea|Liverpool) FC Program\?$/.test(message_text)) return
-      else{        
+      else{
         if(message_text.includes("Juventus")){
           console.log("JUVEEEEEEEEEEEEEEEEEEEEEEEEEEee")
           userSession.team = "Juventus"
@@ -63,7 +63,7 @@ export async function userWebhook(req) {
             }
           }
           console.log("Message Data: ", messageData)
-          sendMessage(userSession.userPhoneNumber, userSession.business_phone_number_id, messageData, userSession.accessToken, userSession.tenant)
+          await sendMessage(userSession.userPhoneNumber, userSession.business_phone_number_id, messageData, userSession.accessToken, userSession.tenant)
         }
         else if(message_text.includes("Chelsea")){
           console.log("CHELLSEAAAAAAAAAAAAAAAAAAAAAAAaa")
@@ -75,7 +75,7 @@ export async function userWebhook(req) {
               caption: "Check out Chelsea FC Academy Video"
             }
           }
-          sendMessage(userSession.userPhoneNumber, userSession.business_phone_number_id, messageData, userSession.accessToken, userSession.tenant)
+          await sendMessage(userSession.userPhoneNumber, userSession.business_phone_number_id, messageData, userSession.accessToken, userSession.tenant)
         }
         else if(message_text.includes("Liverpool")){
           console.log("SUIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIII")
@@ -87,10 +87,52 @@ export async function userWebhook(req) {
               caption: "Check out Liverpool FC Academy Video"
             }
           }
-          sendMessage(userSession.userPhoneNumber, userSession.business_phone_number_id, messageData, userSession.accessToken, userSession.tenant)
+          await sendMessage(userSession.userPhoneNumber, userSession.business_phone_number_id, messageData, userSession.accessToken, userSession.tenant)
         }
       }
       userSession.isInit = false
+    }
+    const selectionID = message?.interactive?.button_reply?.id
+    if(selectionID && ["Chelsea", "Liverpool", "Juventus"].includes(selectionID)){
+      let messageData;
+      switch(selectionID){
+        case "Juventus":
+          messageData = {
+            type: "video",
+            video: {
+              id: 615632651212317,
+              caption: "Check out Juventus FC Academy Video"
+            }
+          }
+          console.log("Message Data: ", messageData)
+          await sendMessage(userSession.userPhoneNumber, userSession.business_phone_number_id, messageData, userSession.accessToken, userSession.tenant)
+          return sendTemplateMessage("juventuscarousel", userSession)
+        case  "Chelsea":
+          messageData = {
+            type: "video",
+            video: {
+              id: 590294387312252,
+              caption: "Check out Chelsea FC Academy Video"
+            }
+          }
+          await sendMessage(userSession.userPhoneNumber, userSession.business_phone_number_id, messageData, userSession.accessToken, userSession.tenant)
+          return sendTemplateMessage("chelseacarousel", userSession)
+
+        case "Liverpool":
+          messageData = {
+            type: "video",
+            video: {
+              id: 655481787019980,
+              caption: "Check out Liverpool FC Academy Video"
+            }
+          }
+          await sendMessage(userSession.userPhoneNumber, userSession.business_phone_number_id, messageData, userSession.accessToken, userSession.tenant)
+          return sendTemplateMessage("liverpoolcarousel", userSession)
+        default:
+          console.log("Unknown case: ", selectionID)
+
+      }
+      userSession.isInit = true
     }
   }
 

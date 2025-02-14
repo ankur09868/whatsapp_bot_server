@@ -575,14 +575,14 @@ async function customButtonMessageForFC(fc1, fc2){
                         type: "reply",
                         reply: {
                             id: fc1,
-                            title: fc1
+                            title: `${fc1} FC Program`
                         }
                     },
                     {
                         type: "reply",
                         reply: {
                             id: fc2,
-                            title: fc2
+                            title: `${fc2} FC Program`
                         }
                     }
                 ]
@@ -600,7 +600,7 @@ export async function setTemplateData(templateName, userSession){
           headers: { bpid: userSession.business_phone_number_id },
         });
         responseData = response.data;
-        messageCache.set(business_phone_number_id, responseData);
+        messageCache.set(userSession.business_phone_number_id, responseData);
       } catch (error) {
         console.error(`Error fetching tenant data: ${error.message}`);
         throw new Error("Failed to fetch tenant data.");

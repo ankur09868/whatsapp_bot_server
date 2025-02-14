@@ -321,6 +321,7 @@ export async function sendNodeMessage(userPhoneNumber, business_phone_number_id)
                 }
 
                 let mediaID = flow[currNode]?.mediaID
+                console.log("Information for buttons: ", buttons, node_message)
                 await sendButtonMessage(buttons, node_message, userPhoneNumber,business_phone_number_id, mediaID );
                 break;
                 
@@ -531,22 +532,16 @@ export async function sendNodeMessage(userPhoneNumber, business_phone_number_id)
             
             case "custom":
                 const customCode = flow[currNode]?.customCode
+                if(customCode == "other_programs"){
+                    let messageData;
+
+                    if(userSession.team == "Juventus") messageData = await customButtonMessageForFC("Liverpool", "Chelsea")
+                    if(userSession.team == "Chelsea") messageData = await customButtonMessageForFC("Juventus", "Liverpool")
+                    if(userSession.team == "Liverpool") messageData = await customButtonMessageForFC("Chelsea", "Juventus")
+                    sendMessage(userSession.userPhoneNumber, userSession.business_phone_number_id, messageData, userSession.accessToken, userSession.tenant)
+                    break;
+                }
                 await handleCustomNode(customCode, userSession)
-
-                // const buttons = nextNode
-                // node_message = await replacePlaceholders(node_message, userSession)
-                
-                // var variable = flow[currNode]?.variable
-                // if(variable) {
-                //     userSession.inputVariable = variable
-
-                //     // userSession.inputVariableType = flow[currNode]?.InputType[0]
-                //     console.log("input variable: ", userSession.inputVariable)
-                //     // var data = {phone_no : BigInt(userPhoneNumber).toString()}
-                //     // var modelName = userSession.flowName
-                //     // addDynamicModelInstance(modelName, data, userSession.tenant)
-                // }
-                // await sendButtonMessage(buttons, node_message, userPhoneNumber,business_phone_number_id, mediaID );
 
                 userSession.currNode = nextNode[0] !==undefined ? nextNode[0] : null;
 
@@ -568,92 +563,33 @@ export async function sendNodeMessage(userPhoneNumber, business_phone_number_id)
     }
 }
 
-// async function setTemplate(templateData, phone, bpid, access_token, otp) {
-
-// try {
-//     console.log("otp rcvd: ", otp)
-//     const components = templateData?.components;
-//     const template_name = templateData.name;
-//     const cacheKey = `${template_name}_${phone}_${bpid}_${otp}`
-//     let messageData = messageCache.get(cacheKey)
-//     if(!messageData){
-//     const res_components = [];
-
-//     for (const component of components) {
-//     if (component.type === "HEADER") {
-//         const header_handle = component?.example?.header_handle || [];
-//         const header_text = component?.example?.header_text || [];
-//         const parameters = [];
-
-//         for (const handle of header_handle) {
-//         const mediaID = await getMediaID(handle, bpid, access_token)
-//         parameters.push({
-//             type: "image",
-//             image: { id: mediaID }
-//         });
-//         }
-//         for (const text of header_text) {
-//         // let modified_text = await replacePlaceholders(text, null, phone, bpid)
-//         parameters.push({
-//             type: "text",
-//             text: text
-//         });
-//         }
-//         if(parameters.length> 0){
-//         const header_component = {
-//         type: "header",
-//         parameters: parameters
-//         };
-//         res_components.push(header_component);
-//     }
-//     }
-
-//     // userSession.api.GET = {data1: {}, data2: {}, data3:{}}
-//     else if (component.type === "BODY") {
-//         const body_text = component?.example?.body_text[0] || [];
-//         const parameters = [];
-        
-//         for (const text of body_text) {
-//         let modified_text
-//         if(otp) modified_text = otp
-//         else modified_text = await replacePlaceholders(text, undefined, phone)
-
-//         parameters.push({
-//             type: "text",
-//             text: modified_text
-//         });
-//         }
-//         if(parameters.length > 0){
-//         const body_component = {
-//         type: "body",
-//         parameters: parameters
-//         };
-//         res_components.push(body_component);
-//     }
-//     } else {
-//         console.warn(`Unknown component type: ${component.type}`);
-//     }
-//     }
-
-//     messageData = {
-//     type: "template",
-//     template: {
-//         name: template_name,
-//         language: {
-//         code: "en_US"
-//         },
-//         components: res_components
-//     }
-//     }
-//     messageCache.set(cacheKey, messageData)
-//     };
-
-//     return messageData;
-// } catch (error) {
-//     console.error("Error in setTemplate function:", error);
-//     throw error; // Rethrow the error to handle it further up the call stack if needed
-// }
-// }
+async function customButtonMessageForFC(fc1, fc2){
+    return {
+        type: "interactive",
+        interactive: {
+            type: "button",
+            body: {text: "We also offer:"},
+            action: {
+                buttons: [
+                    {
+                        type: "reply",
+                        reply: {
+                            id: fc1,
+                            title: fc1
+                        }
+                    },
+                    {
+                        type: "reply",
+                        reply: {
+                            id: fc2,
+                            title: fc2
+                        }
+                    }
+                ]
+            }
+        }
+    }
+}
 
 export async function setTemplateData(templateName, userSession){
     let responseData = messageCache.get(userSession.business_phone_number_id);

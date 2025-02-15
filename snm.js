@@ -42,7 +42,7 @@ const viewItemsMap = {
     'bho': 'सामान देखीं', // Bhojpuri - Samaan Dekhin
     'hing': 'View Items', // Hinglish
 };
- 
+
 export const chooseOptionMap = {
     'hi': 'विकल्प चुनें', // Hindi
     'en': 'Choose Option', // English
@@ -427,7 +427,22 @@ export async function sendNodeMessage(userPhoneNumber, business_phone_number_id)
                     sendNodeMessage(userPhoneNumber,business_phone_number_id)
                 }
                 break;
-            
+
+            case "askLocation":
+                node_message = await replacePlaceholders(node_message, userSession)
+                const messageData = {
+                    type: "interactive",
+                    interactive: {
+                        type: "location_request_message",
+                        body: {text: node_message},
+                        action: {
+                            name: "send_location"
+                        }
+                    }
+                }
+                sendMessage(userSession.userPhoneNumber, userSession.business_phone_number_id, messageData, userSession.accessToken, userSession.tenant)
+                break;
+
             case "AI":
                 console.log("AI Node")
                 if(node_message){

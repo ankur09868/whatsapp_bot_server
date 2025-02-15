@@ -24,10 +24,8 @@ export async function sendMessage(phoneNumber, business_phone_number_id, message
 
     console.log('Message Data:', JSON.stringify(messageData, null, 7));
 
-    // Use session access token if not provided
     if (access_token == null) access_token = userSession.accessToken;
     if (tenant == null) tenant = userSession.tenant
-    // console.log(url, access_token)
     try {
         messageData["messaging_product"] = "whatsapp"
         messageData["recipient_type"] = "individual"
@@ -39,7 +37,6 @@ export async function sendMessage(phoneNumber, business_phone_number_id, message
                 headers: { Authorization: `Bearer ${access_token}` }
             }
         );
-        // Check if the message was sent successfully
         if (response.data && response.data.messages && response.data.messages.length > 0) {
             console.log('Message sent successfully:', response.data);
             console.log("Tenant sent in send-message: ", tenant)

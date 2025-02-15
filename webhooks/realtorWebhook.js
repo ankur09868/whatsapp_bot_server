@@ -29,8 +29,6 @@ let propertyDetails = {
 let imageData = {}
 
 export async function realtorWebhook( userSession) {
-
-    
     imageData = {
         Balcony: ["balcony1.jpg", "balcony2.jpg"],
         Bedroom: ["bedroom1.jpg", "bedroom2.jpg"],
@@ -38,6 +36,7 @@ export async function realtorWebhook( userSession) {
         Kitchen: ["kitchen1.jpg", "kitchen2.jpg"],
         Locality: ["locality1.jpg", "locality2.jpg", "locality3.jpg"]
     }
+    
     const about = await generatePropertyRichText(propertyDetails)
     console.log("About: ", about)
     const payload = {

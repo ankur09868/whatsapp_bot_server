@@ -20,6 +20,8 @@ import { handleCustomNode } from "../snm.js"
 const agent = new https.Agent({
   rejectUnauthorized: false, // Disable SSL certificate verification //VERY VERY IMPORTANT SECURITY
 });
+const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
 
 
 export async function userWebhook(req) {
@@ -53,7 +55,6 @@ export async function userWebhook(req) {
       if(!/^Hello! Can I get more info about the (Juventus|Chelsea|Liverpool) FC Program\?$/.test(message_text)) return
       else{
         if(message_text.includes("Juventus")){
-          console.log("JUVEEEEEEEEEEEEEEEEEEEEEEEEEEee")
           userSession.team = "Juventus"
           const messageData = {
             type: "video",
@@ -64,9 +65,9 @@ export async function userWebhook(req) {
           }
           console.log("Message Data: ", messageData)
           await sendMessage(userSession.userPhoneNumber, userSession.business_phone_number_id, messageData, userSession.accessToken, userSession.tenant)
+          await delay(2000)
         }
         else if(message_text.includes("Chelsea")){
-          console.log("CHELLSEAAAAAAAAAAAAAAAAAAAAAAAaa")
           userSession.team = "Chelsea"
           const messageData = {
             type: "video",
@@ -76,9 +77,9 @@ export async function userWebhook(req) {
             }
           }
           await sendMessage(userSession.userPhoneNumber, userSession.business_phone_number_id, messageData, userSession.accessToken, userSession.tenant)
+          await delay(2000)
         }
         else if(message_text.includes("Liverpool")){
-          console.log("SUIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIII")
           userSession.team = "Liverpool"
           const messageData = {
             type: "video",
@@ -88,6 +89,7 @@ export async function userWebhook(req) {
             }
           }
           await sendMessage(userSession.userPhoneNumber, userSession.business_phone_number_id, messageData, userSession.accessToken, userSession.tenant)
+          await delay(2000)
         }
       }
       userSession.isInit = false
@@ -241,7 +243,6 @@ export async function userWebhook(req) {
       handleInput(userSession, message_text)
       if (message?.type === "interactive") {
           let userSelectionID = message?.interactive?.button_reply?.id || message?.interactive?.list_reply?.id;
-
           if (userSelectionID.split('_')[0] == 'drishtee') handleCatalogManagement(userSelectionID, userSession)
           else if(userSelectionID.includes('confirm') || userSelectionID.includes('cancel')) handleOrderManagement(userSession, userSelectionID)
           else{

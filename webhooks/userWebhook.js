@@ -48,6 +48,32 @@ export async function userWebhook(req) {
   if (repliedTo !== null) updateStatus("replied", repliedTo, null, null, null, null, timestamp)
 
   let userSession = await getSession(business_phone_number_id, contact)
+  
+  let formattedConversation;
+  if(message_type == "text" || message_type == "interactive" || message_type == "button"){
+    formattedConversation= [{
+      text: message_text,
+      sender: "user"
+    }];
+  }
+  else{
+    const mediaID = message?.image?.id || message?.audio?.id || message?.document?.id || message?.video?.id
+    if (mediaID != undefined){
+      const mediaURL = await getImageAndUploadToBlob(mediaID, userSession.accessToken)
+      const mediaData = {type: message_type, [`${message_type}`]: {id: mediaURL}}
+      formattedConversation = [{
+        text: JSON.stringify(mediaData),
+        sender: "user"
+      }]
+    }
+  }
+  saveMessage(userSession.userPhoneNumber, userSession.business_phone_number_id, formattedConversation, userSession.tenant, timestamp)
+
+  const notif_body = {content: `${userSession.userPhoneNumber} | New meessage from ${userSession.userName || userSession.userPhoneNumber}: ${message_text}`, created_on: timestamp}
+  sendNotification(notif_body, userSession.tenant)
+
+  ioEmissions(message, userSession, timestamp)
+
 
   if(userSession.tenant == "shxivoa"){
     if(userSession?.isInit == undefined) userSession.isInit = userSession.startNode == userSession.currNode
@@ -200,31 +226,6 @@ export async function userWebhook(req) {
   if(userSession.tenant == "qqeeusz" && message_text != "/realtor" && userSession.currNode == userSession.startNode) return
 
   updateLastSeen("replied", timestamp, userSession.userPhoneNumber, userSession.business_phone_number_id)
-
-  let formattedConversation;
-  if(message_type == "text" || message_type == "interactive" || message_type == "button"){
-    formattedConversation= [{
-      text: message_text,
-      sender: "user"
-    }];
-  }
-  else{
-    const mediaID = message?.image?.id || message?.audio?.id || message?.document?.id || message?.video?.id
-    if (mediaID != undefined){
-      const mediaURL = await getImageAndUploadToBlob(mediaID, userSession.accessToken)
-      const mediaData = {type: message_type, [`${message_type}`]: {id: mediaURL}}
-      formattedConversation = [{
-        text: JSON.stringify(mediaData),
-        sender: "user"
-      }]
-    }
-  }
-  saveMessage(userSession.userPhoneNumber, userSession.business_phone_number_id, formattedConversation, userSession.tenant, timestamp)
-
-  const notif_body = {content: `${userSession.userPhoneNumber} | New meessage from ${userSession.userName || userSession.userPhoneNumber}: ${message_text}`, created_on: timestamp}
-  sendNotification(notif_body, userSession.tenant)
-
-  ioEmissions(message, userSession, timestamp)
   if(userSession.tenant == 'leqcjsk'){
     if(userSession?.isRRPEligible == undefined) userSession = await checkRRPEligibility(userSession)
     if(userSession?.isRRPEligible && message?.type == "order") return processOrderForDrishtee(userSession, products)

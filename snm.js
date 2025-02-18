@@ -1,10 +1,8 @@
 import { userSessions, messageCache } from "./server.js";
 import {sendMessage} from "./send-message.js"
 import axios from "axios";
-import { convertImageToBase64 } from "./flowsAPI/flow.js";
-import { replacePlaceholders, addDynamicModelInstance, executeFallback } from "./helpers/misc.js"
+import { replacePlaceholders } from "./helpers/misc.js"
 import { getMediaID } from "./helpers/handle-media.js"
-import { json } from "express";
 import { handleTextOrdersForDrishtee, handleAudioOrdersForDrishtee } from "./webhooks/userWebhook.js";
 import { realtorWebhook } from "./webhooks/realtorWebhook.js";
 
@@ -933,7 +931,6 @@ export async function getIndianCurrentTime(){
 }
 
 const customMap = {
-
 }
 
 async function generatePropertyRichText(propertyDetails) {

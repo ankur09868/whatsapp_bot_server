@@ -124,8 +124,6 @@ export async function sendMessageTemplate(phoneNumber, business_phone_number_id,
     }
 }
 
-
-
 async function formatProductMessage(messageData, tenant_id){
     if(messageData.interactive.type == "product"){
         const action = messageData.interactive.action

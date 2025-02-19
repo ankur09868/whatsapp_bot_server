@@ -73,96 +73,98 @@ export async function userWebhook(req) {
   sendNotification(notif_body, userSession.tenant)
 
   ioEmissions(message, userSession, timestamp)
+  updateLastSeen("replied", timestamp, userSession.userPhoneNumber, userSession.business_phone_number_id)
 
 
-  if(userSession.tenant == "shxivoa"){
-    if(userSession?.isInit == undefined) userSession.isInit = userSession.startNode == userSession.currNode
-    if(userSession?.isInit){
-      if(!/^Hello! Can I get more info about the (Juventus|Chelsea|Liverpool) FC Program\?$/.test(message_text)) return
-      else{
-        if(message_text.includes("Juventus")){
-          userSession.team = "Juventus"
-          const messageData = {
-            type: "video",
-            video: {
-              id: 615632651212317,
-              caption: "Check out Juventus FC Academy Video"
-            }
-          }
-          console.log("Message Data: ", messageData)
-          await sendMessage(userSession.userPhoneNumber, userSession.business_phone_number_id, messageData, userSession.accessToken, userSession.tenant)
-          await delay(2000)
-        }
-        else if(message_text.includes("Chelsea")){
-          userSession.team = "Chelsea"
-          const messageData = {
-            type: "video",
-            video: {
-              id: 590294387312252,
-              caption: "Check out Chelsea FC Academy Video"
-            }
-          }
-          await sendMessage(userSession.userPhoneNumber, userSession.business_phone_number_id, messageData, userSession.accessToken, userSession.tenant)
-          await delay(2000)
-        }
-        else if(message_text.includes("Liverpool")){
-          userSession.team = "Liverpool"
-          const messageData = {
-            type: "video",
-            video: {
-              id: 655481787019980,
-              caption: "Check out Liverpool FC Academy Video"
-            }
-          }
-          await sendMessage(userSession.userPhoneNumber, userSession.business_phone_number_id, messageData, userSession.accessToken, userSession.tenant)
-          await delay(2000)
-        }
-      }
-      userSession.isInit = false
-    }
-    const selectionID = message?.interactive?.button_reply?.id
-    if(selectionID && ["Chelsea", "Liverpool", "Juventus"].includes(selectionID)){
-      let messageData;
-      switch(selectionID){
-        case "Juventus":
-          messageData = {
-            type: "video",
-            video: {
-              id: 615632651212317,
-              caption: "Check out Juventus FC Academy Video"
-            }
-          }
-          console.log("Message Data: ", messageData)
-          await sendMessage(userSession.userPhoneNumber, userSession.business_phone_number_id, messageData, userSession.accessToken, userSession.tenant)
-          return sendTemplateMessage("juventuscarousel", userSession)
-        case  "Chelsea":
-          messageData = {
-            type: "video",
-            video: {
-              id: 590294387312252,
-              caption: "Check out Chelsea FC Academy Video"
-            }
-          }
-          await sendMessage(userSession.userPhoneNumber, userSession.business_phone_number_id, messageData, userSession.accessToken, userSession.tenant)
-          return sendTemplateMessage("chelseacarousel", userSession)
+  // if(userSession.tenant == "shxivoa"){
+  //   return
+  //   if(userSession?.isInit == undefined) userSession.isInit = userSession.startNode == userSession.currNode
+  //   if(userSession?.isInit){
+  //     if(!/^Hello! Can I get more info about the (Juventus|Chelsea|Liverpool) FC Program\?$/.test(message_text)) return
+  //     else{
+  //       if(message_text.includes("Juventus")){
+  //         userSession.team = "Juventus"
+  //         const messageData = {
+  //           type: "video",
+  //           video: {
+  //             id: 615632651212317,
+  //             caption: "Check out Juventus FC Academy Video"
+  //           }
+  //         }
+  //         console.log("Message Data: ", messageData)
+  //         await sendMessage(userSession.userPhoneNumber, userSession.business_phone_number_id, messageData, userSession.accessToken, userSession.tenant)
+  //         await delay(2000)
+  //       }
+  //       else if(message_text.includes("Chelsea")){
+  //         userSession.team = "Chelsea"
+  //         const messageData = {
+  //           type: "video",
+  //           video: {
+  //             id: 590294387312252,
+  //             caption: "Check out Chelsea FC Academy Video"
+  //           }
+  //         }
+  //         await sendMessage(userSession.userPhoneNumber, userSession.business_phone_number_id, messageData, userSession.accessToken, userSession.tenant)
+  //         await delay(2000)
+  //       }
+  //       else if(message_text.includes("Liverpool")){
+  //         userSession.team = "Liverpool"
+  //         const messageData = {
+  //           type: "video",
+  //           video: {
+  //             id: 655481787019980,
+  //             caption: "Check out Liverpool FC Academy Video"
+  //           }
+  //         }
+  //         await sendMessage(userSession.userPhoneNumber, userSession.business_phone_number_id, messageData, userSession.accessToken, userSession.tenant)
+  //         await delay(2000)
+  //       }
+  //     }
+  //     userSession.isInit = false
+  //   }
+  //   const selectionID = message?.interactive?.button_reply?.id
+  //   if(selectionID && ["Chelsea", "Liverpool", "Juventus"].includes(selectionID)){
+  //     let messageData;
+  //     switch(selectionID){
+  //       case "Juventus":
+  //         messageData = {
+  //           type: "video",
+  //           video: {
+  //             id: 615632651212317,
+  //             caption: "Check out Juventus FC Academy Video"
+  //           }
+  //         }
+  //         console.log("Message Data: ", messageData)
+  //         await sendMessage(userSession.userPhoneNumber, userSession.business_phone_number_id, messageData, userSession.accessToken, userSession.tenant)
+  //         return sendTemplateMessage("juventuscarousel", userSession)
+  //       case  "Chelsea":
+  //         messageData = {
+  //           type: "video",
+  //           video: {
+  //             id: 590294387312252,
+  //             caption: "Check out Chelsea FC Academy Video"
+  //           }
+  //         }
+  //         await sendMessage(userSession.userPhoneNumber, userSession.business_phone_number_id, messageData, userSession.accessToken, userSession.tenant)
+  //         return sendTemplateMessage("chelseacarousel", userSession)
 
-        case "Liverpool":
-          messageData = {
-            type: "video",
-            video: {
-              id: 655481787019980,
-              caption: "Check out Liverpool FC Academy Video"
-            }
-          }
-          await sendMessage(userSession.userPhoneNumber, userSession.business_phone_number_id, messageData, userSession.accessToken, userSession.tenant)
-          return sendTemplateMessage("liverpoolcarousel", userSession)
-        default:
-          console.log("Unknown case: ", selectionID)
+  //       case "Liverpool":
+  //         messageData = {
+  //           type: "video",
+  //           video: {
+  //             id: 655481787019980,
+  //             caption: "Check out Liverpool FC Academy Video"
+  //           }
+  //         }
+  //         await sendMessage(userSession.userPhoneNumber, userSession.business_phone_number_id, messageData, userSession.accessToken, userSession.tenant)
+  //         return sendTemplateMessage("liverpoolcarousel", userSession)
+  //       default:
+  //         console.log("Unknown case: ", selectionID)
 
-      }
-      userSession.isInit = true
-    }
-  }
+  //     }
+  //     userSession.isInit = true
+  //   }
+  // }
 
   const agents = userSession.agents
   if(agents){
@@ -195,37 +197,35 @@ export async function userWebhook(req) {
     return promptWebhook(req, userSession)
   }
 
-  if(userSession.tenant == "qqeeusz"){
-    if(userPhoneNumber in nurenConsumerMap) return businessWebhook(req)
-    if(message_text == "Start Talking"){
-      const userSelectionId = message?.interactive?.button_reply?.id
-      const buyer = userSelectionId.split('_')[1]
-      nurenConsumerMap[userPhoneNumber] = buyer
+  // if(userSession.tenant == "qqeeusz"){
+  //   if(userPhoneNumber in nurenConsumerMap) return businessWebhook(req)
+  //   if(message_text == "Start Talking"){
+  //     const userSelectionId = message?.interactive?.button_reply?.id
+  //     const buyer = userSelectionId.split('_')[1]
+  //     nurenConsumerMap[userPhoneNumber] = buyer
 
-      const welcomeMessageForConsumer = `${userName} is here to chat with you!\nType your queries or just say hello! Lets get this conversation going.`
+  //     const welcomeMessageForConsumer = `${userName} is here to chat with you!\nType your queries or just say hello! Lets get this conversation going.`
       
-      sendMessage(userPhoneNumber, userSession.business_phone_number_id, {type: "text", text: {body: "You're now connected! Expect responses from the user soon. 📩"}})
-      return sendMessage(buyer, userSession.business_phone_number_id, {type: "text", text: {body: welcomeMessageForConsumer}}, userSession.accessToken, userSession.tenant)
-    }
-    if(message_text != "/realtor" && userSession.currNode == userSession.startNode) return
-  }
+  //     sendMessage(userPhoneNumber, userSession.business_phone_number_id, {type: "text", text: {body: "You're now connected! Expect responses from the user soon. 📩"}})
+  //     return sendMessage(buyer, userSession.business_phone_number_id, {type: "text", text: {body: welcomeMessageForConsumer}}, userSession.accessToken, userSession.tenant)
+  //   }
+  //   if(message_text != "/realtor" && userSession.currNode == userSession.startNode) return
+  // }
+  // if(userSession.tenant == "qqeeusz" && message?.interactive?.nfm_reply){
+  //   const nfm_reply = message?.interactive?.nfm_reply
+  //   let responses = nfm_reply?.response_json
+  //   responses = JSON.parse(responses)
+  //   const property_id = responses?.id
+  //   const owner = property_id.split('_')[1]
+  //   userSession.type = "one2one"
+  //   userSession["talking_to"] = owner
+  //   const key = userPhoneNumber + business_phone_number_id
+  //   userSessions.set(key, userSession);
+  //   // nurenConsumerMap[owner] = userPhoneNumber
+  //   return sendWelcomeMessageforRealtor(userSession, owner)
+  // }
+  // if(userSession.tenant == "qqeeusz" && message_text != "/realtor" && userSession.currNode == userSession.startNode) return
 
-  if(userSession.tenant == "qqeeusz" && message?.interactive?.nfm_reply){
-    const nfm_reply = message?.interactive?.nfm_reply
-    let responses = nfm_reply?.response_json
-    responses = JSON.parse(responses)
-    const property_id = responses?.id
-    const owner = property_id.split('_')[1]
-    userSession.type = "one2one"
-    userSession["talking_to"] = owner
-    const key = userPhoneNumber + business_phone_number_id
-    userSessions.set(key, userSession);
-    // nurenConsumerMap[owner] = userPhoneNumber
-    return sendWelcomeMessageforRealtor(userSession, owner)
-  }
-  if(userSession.tenant == "qqeeusz" && message_text != "/realtor" && userSession.currNode == userSession.startNode) return
-
-  updateLastSeen("replied", timestamp, userSession.userPhoneNumber, userSession.business_phone_number_id)
   if(userSession.tenant == 'leqcjsk'){
     if(userSession?.isRRPEligible == undefined) userSession = await checkRRPEligibility(userSession)
     if(userSession?.isRRPEligible && message?.type == "order") return processOrderForDrishtee(userSession, products)
@@ -239,6 +239,59 @@ export async function userWebhook(req) {
       return sendMessage(userSession.userPhoneNumber, userSession.business_phone_number_id, messageData, userSession.accessToken, userSession.tenant)
     }
   }
+
+  if(userSession.tenant == 'aayamhx'){
+    const url = "https://nurenaiautomatic-b7hmdnb4fzbpbtbh.canadacentral-01.azurewebsites.net/webhook-test/NurenAi/Rental"
+    let product_list = []
+    if(message_type == "audio"){
+      const mediaID = message_text
+      let response = await axios.get(`https://graph.facebook.com/v18.0/${mediaID}`, {headers: {'Authorization': `Bearer ${userSession.accessToken}`}})
+      const mediaURL = response.data.url
+      response = await axios.get(mediaURL, {headers: {'Authorization': `Bearer ${userSession.accessToken}`}, responseType: 'arraybuffer'}) 
+      const audioFile = response.data
+      const formData = new FormData();
+      formData.append('data', audioFile, 'audio.mp4');
+      formData.append('phone', userPhoneNumber)
+      const n8n_response = await axios.post(
+        url,
+        formData,
+        {
+          headers: { ...formData.getHeaders() },
+          httpsAgent: agent,
+        }
+      );
+      console.log(n8n_response.data)
+      product_list.push(...n8n_response.data.map(property => property.id))
+
+    }
+    if(message_type == "text"){
+      const n8n_response = await axios.post(
+        url, {text: message_text}
+      );
+      product_list.push(...n8n_response.data.map(property => property.id))
+    }
+    if(Array.isArray(product_list) && product_list.length>0){
+      const product_body = `Explore our exclusive collection of premium properties and find the perfect home or investment opportunity. Browse now and discover unbeatable deals on stunning real estate!`;
+      const header = "Properties"
+      const catalog_id = 1134019438184024
+      const footer = null
+      const section_title = "Properties"
+      const chunkSize = 30;
+      for (let i = 0; i < product_list.length; i += chunkSize) {
+        const chunk = product_list.slice(i, i + chunkSize);
+        await sendProductMessage(userSession, chunk, catalog_id, header, product_body, footer, section_title, userSession.tenant);
+      }
+    }
+    else{
+      const messageData = {
+        type: "text",
+        text: { body: fallback_message }
+      }
+      return sendMessage(userSession.userPhoneNumber, userSession.business_phone_number_id, messageData, userSession.accessToken ,userSession.tenant);
+    }
+    return
+  }
+  if(userSession?.flowData && userSession?.flowData.length == 0) return 
   if (!userSession.multilingual){
     if (!userSession.AIMode) {
       handleInput(userSession, message_text)

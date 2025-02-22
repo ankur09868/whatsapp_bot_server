@@ -3,8 +3,9 @@ import {sendMessage} from "./send-message.js"
 import axios from "axios";
 import { replacePlaceholders } from "./helpers/misc.js"
 import { getMediaID } from "./helpers/handle-media.js"
-import { handleTextOrdersForDrishtee, handleAudioOrdersForDrishtee } from "./webhooks/userWebhook.js";
+import { handleTextOrdersForDrishtee, handleAudioOrdersForDrishtee, agent } from "./webhooks/userWebhook.js";
 import { realtorWebhook } from "./webhooks/realtorWebhook.js";
+import FormData from 'form-data';
 
 
 export const fastURL = "https://fastapione-gue2c5ecc9c4b8hy.centralindia-01.azurewebsites.net"
@@ -438,8 +439,14 @@ export async function sendNodeMessage(userPhoneNumber, business_phone_number_id)
                         }
                     }
                 }
-                sendMessage(userSession.userPhoneNumber, userSession.business_phone_number_id, messageData, userSession.accessToken, userSession.tenant)
-                break;
+                await sendMessage(userSession.userPhoneNumber, userSession.business_phone_number_id, messageData, userSession.accessToken, userSession.tenant)
+                if(['aayamhx', 'qqeeusz'].includes(userSession.tenant)){
+                    userSession.currNode = nextNode[0] !==undefined ? nextNode[0] : null;
+                    if(userSession.currNode!=null) {
+                        sendNodeMessage(userPhoneNumber,business_phone_number_id)
+                    }
+                }
+                break; 
 
             case "AI":
                 console.log("AI Node")
@@ -647,7 +654,8 @@ export async function setTemplateData(templateName, userSession){
     }
 
     if (!graphResponse?.data || graphResponse.data.length === 0) {
-      throw new Error("Template not found.");
+      console.error("Template not found.");
+      return
     }
 
     const templateData = graphResponse.data[0];
@@ -1000,12 +1008,111 @@ export async function handleCustomNode(customCode, userSession) {
         await handleTextOrdersForDrishtee(message, userSession)
     }
     else if(customCode == 2){
-        console.log("Custom code 2 ")
         const mediaID = userSession?.api?.POST?.audio_product
         await handleAudioOrdersForDrishtee(mediaID, userSession)
     }
     else if (customCode == 3) {
-        return realtorWebhook(userSession)
+        async function sendDefaultProperty(userSession) {
+            const product_body = "We couldn't find the exact property you were looking for, but we have something just as exciting for you! 🌟 Take a look at this stunning corporate office— perfect in location, features, and value. It’s a fantastic opportunity you won’t want to miss! Let us know if you’d like more details or a visit. 🏡✨"
+            const catalog_id = 1134019438184024
+            const footer = null
+            const property = "OFF001"
+            const productMessageData = {
+                type: "interactive",
+                interactive: {
+                    type: "product",
+                    action: {
+                        catalog_id: catalog_id,
+                        product_retailer_id: property
+                    }
+                }
+            }
+            if(product_body) productMessageData.interactive['body'] = {text: product_body}
+            if(footer) productMessageData.interactive['footer'] = {text: footer}
+            await sendMessage(userSession.userPhoneNumber, userSession.business_phone_number_id, productMessageData, userSession.accessToken, userSession.tenant)
+        }
+
+        async function sendProperty(property_list, userSession) {
+            if(Array.isArray(property_list) && property_list.length>0){
+                const product_body = `Explore our exclusive collection of premium properties and find the perfect home or investment opportunity. Browse now and discover unbeatable deals on stunning real estate!`;
+                const catalog_id = 1134019438184024
+                const footer = null
+                for (let i = 0; i < property_list.length; i += 1) {
+                    const property = property_list[i]
+                    const productMessageData = {
+                        type: "interactive",
+                        interactive: {
+                            type: "product",
+                            action: {
+                                catalog_id: catalog_id,
+                                product_retailer_id: property
+                            }
+                        }
+                    }
+                    if(product_body) productMessageData.interactive['body'] = {text: product_body}
+                    if(footer) productMessageData.interactive['footer'] = {text: footer}
+                    await sendMessage(userSession.userPhoneNumber, userSession.business_phone_number_id, productMessageData, userSession.accessToken, userSession.tenant)
+                }
+            }
+            else{
+                const messageData = {
+                    type: "text",
+                    text: { body:  "Sorry we dont have any properties matching your specifications"}
+                }
+                return sendMessage(userSession.userPhoneNumber, userSession.business_phone_number_id, messageData, userSession.accessToken ,userSession.tenant);
+            }
+        }
+        console.log("DATA COLLECTED: ", userSession.api.POST)
+        const data_collected = userSession.api.POST
+        if(['qqeeusz', 'aayamhx'].includes(userSession.tenant)){
+        //   const url = "https://nurenaiautomatic-b7hmdnb4fzbpbtbh.canadacentral-01.azurewebsites.net/webhook-test/NurenAi/Rental"
+          const url = "https://nurenaiautomatic-b7hmdnb4fzbpbtbh.canadacentral-01.azurewebsites.net/webhook/nurenai"
+          let product_list = []
+          if(data_collected?.voice_note){
+            try{
+                const mediaID = data_collected.voice_note
+                console.log("media id: ", mediaID)
+                let response = await axios.get(`https://graph.facebook.com/v18.0/${mediaID}`, {headers: {'Authorization': `Bearer ${userSession.accessToken}`}})
+
+                const mediaURL = response.data.url
+                console.log("Media URL: ", mediaURL)
+                response = await axios.get(mediaURL, {headers: {'Authorization': `Bearer ${userSession.accessToken}`}, responseType: 'arraybuffer'}) 
+                const audioFile = response.data
+                const formData = new FormData();
+                formData.append('inputData', audioFile, 'audio.mp4');
+                formData.append('phone', userSession.userPhoneNumber)
+                formData.append('name', userSession.userName)
+                formData.append('bpid', userSession.business_phone_number_id),
+                formData.append('access_token', userSession.accessToken)
+                const n8n_response = await axios.post(
+                url,
+                formData,
+                {
+                    headers: { ...formData.getHeaders() },
+                    httpsAgent: agent,
+                }
+                );
+                const mediaId = n8n_response.data[0].mediaId
+                const propertyId = n8n_response.data[0].propertyId
+                console.log("Propertyid: ", propertyId)
+                await sendMessage(userSession.userPhoneNumber, userSession.business_phone_number_id, {type: "audio", audio: {id: mediaId}})
+                if(Array.isArray(propertyId)) product_list.push(...propertyId)
+                else product_list.push(propertyId)
+                console.log("Product List: ", product_list)
+                if ( product_list.length < 1 || product_list[0] == "") await sendDefaultProperty(userSession)
+                else await sendProperty(product_list, userSession)
+            }catch (error){
+                console.error("Error occured in custom node 3: ", error)
+            }
+          }else if(data_collected?.property_type){
+            data_collected['bpid'] = userSession.business_phone_number_id
+            data_collected['access_token'] = userSession.accessToken
+            const n8n_response = await axios.post(
+              url, data_collected
+            );
+            product_list.push(...n8n_response.data.map(property => property.id))
+            await sendProperty(product_list, userSession)
+          }
+        }
     }
-    
 }

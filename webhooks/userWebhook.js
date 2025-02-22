@@ -17,7 +17,7 @@ import { promptWebhook } from "./customCommandsWebhooks.js";
 import { realtorWebhook, sendWelcomeMessageforRealtor } from "./realtorWebhook.js";
 import { handleCustomNode } from "../snm.js"
 
-const agent = new https.Agent({
+export const agent = new https.Agent({
   rejectUnauthorized: false, // Disable SSL certificate verification //VERY VERY IMPORTANT SECURITY
 });
 const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -32,7 +32,7 @@ export async function userWebhook(req) {
   const userName = contact?.profile?.name || null
   const products = message?.order?.product_items
   
-  const message_type = message?.type
+  let message_type = message?.type
   const message_text = message?.text?.body || 
                       (message?.interactive ? (message?.interactive?.button_reply?.title || 
                       message?.interactive?.list_reply?.title) : null) || 
@@ -240,64 +240,226 @@ export async function userWebhook(req) {
     }
   }
 
-  if(userSession.tenant == 'aayamhx'){
-    const url = "https://nurenaiautomatic-b7hmdnb4fzbpbtbh.canadacentral-01.azurewebsites.net/webhook-test/NurenAi/Rental"
-    let product_list = []
-    if(message_type == "audio"){
-      const mediaID = message_text
-      let response = await axios.get(`https://graph.facebook.com/v18.0/${mediaID}`, {headers: {'Authorization': `Bearer ${userSession.accessToken}`}})
-      const mediaURL = response.data.url
-      response = await axios.get(mediaURL, {headers: {'Authorization': `Bearer ${userSession.accessToken}`}, responseType: 'arraybuffer'}) 
-      const audioFile = response.data
-      const formData = new FormData();
-      formData.append('data', audioFile, 'audio.mp4');
-      formData.append('phone', userPhoneNumber)
-      const n8n_response = await axios.post(
-        url,
-        formData,
-        {
-          headers: { ...formData.getHeaders() },
-          httpsAgent: agent,
-        }
-      );
-      console.log(n8n_response.data)
-      product_list.push(...n8n_response.data.map(property => property.id))
+  // if(userSession.tenant == 'qqeeusz'){
+  //   const url = "https://nurenaiautomatic-b7hmdnb4fzbpbtbh.canadacentral-01.azurewebsites.net/webhook-test/NurenAi/Rental"
+  //   let product_list = []
+  //   if(message_type == "audio"){
+  //     const mediaID = message_text
+  //     let response = await axios.get(`https://graph.facebook.com/v18.0/${mediaID}`, {headers: {'Authorization': `Bearer ${userSession.accessToken}`}})
+  //     const mediaURL = response.data.url
+  //     response = await axios.get(mediaURL, {headers: {'Authorization': `Bearer ${userSession.accessToken}`}, responseType: 'arraybuffer'}) 
+  //     const audioFile = response.data
+  //     const formData = new FormData();
+  //     formData.append('data', audioFile, 'audio.mp4');
+  //     formData.append('phone', userPhoneNumber)
+  //     const n8n_response = await axios.post(
+  //       url,
+  //       formData,
+  //       {
+  //         headers: { ...formData.getHeaders() },
+  //         httpsAgent: agent,
+  //       }
+  //     );
+  //     console.log(n8n_response.data)
+  //     product_list.push(...n8n_response.data.map(property => property.id))
 
+  //   }
+  //   if(message_type == "text"){
+  //     const n8n_response = await axios.post(
+  //       url, {text: message_text}
+  //     );
+  //     product_list.push(...n8n_response.data.map(property => property.id))
+  //   }
+  //   if(Array.isArray(product_list) && product_list.length>0){
+  //     const product_body = `Explore our exclusive collection of premium properties and find the perfect home or investment opportunity. Browse now and discover unbeatable deals on stunning real estate!`;
+  //     const header = "Properties"
+  //     const catalog_id = 1134019438184024
+  //     const footer = null
+  //     const section_title = "Properties"
+  //     const chunkSize = 30;
+  //     for (let i = 0; i < product_list.length; i += chunkSize) {
+  //       const chunk = product_list.slice(i, i + chunkSize);
+  //       await sendProductMessage(userSession, chunk, catalog_id, header, product_body, footer, section_title, userSession.tenant);
+  //     }
+  //   }
+  //   else{
+  //     const messageData = {
+  //       type: "text",
+  //       text: { body: fallback_message }
+  //     }
+  //     return sendMessage(userSession.userPhoneNumber, userSession.business_phone_number_id, messageData, userSession.accessToken ,userSession.tenant);
+  //   }
+  //   return
+  // }
+
+  if(['aayamhx', 'qqeeusz'].includes(userSession.tenant)){
+    console.log("Reacted to msg: ", JSON.stringify(message, null, 4))
+    const repliedToProduct = message?.context?.referred_product
+    if(repliedToProduct !== undefined){
+      const productId = repliedToProduct?.product_retailer_id
+      const catalog_id = repliedToProduct?.catalog_id
+      const spreadsheet_id = "1Q91AKG7kLwmhp_tXH5S10T3DeIHs4H7SXDinoEGXf28"
+
+      const auth = new GoogleAuth({
+        credentials: JSON.parse(Buffer.from(process.env.GOOGLE_SERVICE_ACCOUNT_BASE64, 'base64').toString('utf-8')),
+        scopes: 'https://www.googleapis.com/auth/spreadsheets',
+      });
+    
+      const range = 'Sheet1!A:N';
+    
+      const service = google.sheets({ version: 'v4', auth });
+      console.log()
+      let rows;
+      try {
+        const result = await service.spreadsheets.values.get({
+          spreadsheetId: spreadsheet_id,
+          range,
+        });
+        console.log("Result: ", result)
+        rows = result?.data?.values || [];
+      } catch (error) {
+        console.error('Error retrieving data:', error.message);
+        throw error;
+      }
+      console.log(JSON.stringify(rows[0], null, 5))
+      const productData = rows.find(row => row[0] === productId); // Assuming column A contains the product ID
+      const introductory_msg = productData[13]
+      await sendMessage(userSession.userPhoneNumber, userSession.business_phone_number_id, {type: "text", text: {body: introductory_msg}}, userSession.accessToken, userSession.tenant)
+      const buttonMessageData = {
+        type: "interactive",
+        interactive: {
+          type: "button",
+          body: {
+            text: "How would you like to proceed?"
+          },
+          action: {
+            buttons: [
+              {
+                type: "reply",
+                reply: {
+                  id: `schedule-a-visiting_${productId}`,
+                  title: "Schedule a Visiting"
+                }
+              },
+              {
+                type: "reply",
+                reply: {
+                  id: `talk-to-agent_919548265904_${productId}`,
+                  title: "Talk to an agent"
+                }
+              }
+            ]
+          }
+        }
+      }
+      return sendMessage(userSession.userPhoneNumber, userSession.business_phone_number_id, buttonMessageData, userSession.accessToken, userSession.tenant)
     }
-    if(message_type == "text"){
-      const n8n_response = await axios.post(
-        url, {text: message_text}
-      );
-      product_list.push(...n8n_response.data.map(property => property.id))
-    }
-    if(Array.isArray(product_list) && product_list.length>0){
-      const product_body = `Explore our exclusive collection of premium properties and find the perfect home or investment opportunity. Browse now and discover unbeatable deals on stunning real estate!`;
-      const header = "Properties"
-      const catalog_id = 1134019438184024
-      const footer = null
-      const section_title = "Properties"
-      const chunkSize = 30;
-      for (let i = 0; i < product_list.length; i += chunkSize) {
-        const chunk = product_list.slice(i, i + chunkSize);
-        await sendProductMessage(userSession, chunk, catalog_id, header, product_body, footer, section_title, userSession.tenant);
+
+    let userSelectionID = message?.interactive?.button_reply?.id || message?.interactive?.list_reply?.id;
+    if (typeof userSelectionID === "string" && ["schedule", "talk"].includes(userSelectionID.split('-')[0])) {
+      if(userSelectionID.split('-')[0] == "talk"){
+        const agent = userSelectionID.split('_')[1]
+        const property_id = userSelectionID.split('_')[2]
+        const messageData = {
+          type: "text",
+          text: {body: `Call ${agent} to talk to an agent`}
+        }
+        return sendMessage(userSession.userPhoneNumber, userSession.business_phone_number_id, messageData, userSession.accessToken, userSession.tenant)
+      }
+      else if(userSelectionID.split('-')[0] == "schedule"){
+        const productId = userSelectionID.split('_')[1]
+        console.log("Property di tonbe sent in flow: ", productId)
+        const messageData = {
+          type: "interactive",
+          interactive: {
+            type: "flow",
+            body: {text: "Fill out your details to schedule a visit!"},
+            action: {
+              name: "flow",
+              parameters: {
+                flow_message_version: "3",
+                flow_name: "schedule_visit",
+                flow_cta: "Schedule",
+                flow_action_payload: {
+                  screen: "screen_wjwdoc",
+                  data: {
+                    property_id: productId
+                  }
+                }
+              }
+            }
+          }
+        }
+        return sendMessage(userSession.userPhoneNumber, userSession.business_phone_number_id, messageData, userSession.accessToken, userSession.tenant)
       }
     }
-    else{
-      const messageData = {
-        type: "text",
-        text: { body: fallback_message }
+
+    const interactive_type = message?.interactive?.type
+    if(interactive_type && interactive_type == "nfm_reply"){
+      console.log("NfmReply: ", message?.interactive?.nfm_reply)
+      let nfm_response = message?.interactive?.nfm_reply?.response_json
+      const responseJson = JSON.parse(nfm_response)
+      const spreadsheet_id = "1AOnCe81gPpjFX7f_vva3KwGBaoq0H8wUAIwZr1avEWg";
+      const auth = new GoogleAuth({
+        credentials: JSON.parse(Buffer.from(process.env.GOOGLE_SERVICE_ACCOUNT_BASE64, 'base64').toString('utf-8')),
+        scopes: 'https://www.googleapis.com/auth/spreadsheets',
+      });
+
+      const service = google.sheets({ version: 'v4', auth });
+      const range = 'Sheet1!A:E';
+      const values = [
+        responseJson.date || "",
+        responseJson.name || "",
+        responseJson.email || "",
+        responseJson.time_slot[0] || "",
+        responseJson.property_id || "" 
+    ];
+      console.log("Values: ", values)
+      try {
+        const response = await service.spreadsheets.values.append({
+          spreadsheetId: spreadsheet_id,
+          range,
+          valueInputOption: 'RAW', 
+          insertDataOption: 'INSERT_ROWS', 
+          requestBody: {
+            values: [values],
+          },
+        });
+
+        console.log('Data appended successfully:', response.data);
+      } catch (error) {
+        console.error('Error appending data:', error.message);
       }
-      return sendMessage(userSession.userPhoneNumber, userSession.business_phone_number_id, messageData, userSession.accessToken ,userSession.tenant);
+      sendMessage(userSession.userPhoneNumber, userSession.business_phone_number_id, {type: "text", text: {body: "Thank you!\n\n Your response has been received. We will get back to you soon."}}, userSession.accessToken, userSession.tenant)
+      return
     }
-    return
+    
+    if(userSession?.isInit == undefined) userSession.isInit = userSession.startNode == userSession.currNode
+    if(userSession?.isInit){
+      if(message_type == "text"){
+        const firstMessage = "_Hi there! 👋 Welcome to *VillaVista*._"
+        await sendMessage(userSession.userPhoneNumber, userSession.business_phone_number_id, {type: "text", text: {body: firstMessage}}, userSession.accessToken, userSession.tenant)
+        await sendTemplateMessage("realestatecarousel", userSession)
+        return
+      }
+      else if(message_type == "button"){
+        const secondMessage = `Sure thing! Let's look into more of ${message_text}`
+        await sendMessage(userSession.userPhoneNumber, userSession.business_phone_number_id, {type: "text", text: {body: secondMessage}}, userSession.accessToken, userSession.tenant)
+        const audioInstruction = "Prefer talking over typing? Just send a voice note with your budget, property type, and location, and we’ll find the best options for you!"        
+        // await sendMessage(userSession.userPhoneNumber, userSession.business_phone_number_id, {type: "text", text: {body: audioInstruction}}, userSession.accessToken, userSession.tenant)
+        userSession.isInit = false
+        message_type = "text"
+      }
+    }
   }
+
   if(userSession?.flowData && userSession?.flowData.length == 0) return 
   if (!userSession.multilingual){
     if (!userSession.AIMode) {
       handleInput(userSession, message_text)
-      if (message?.type === "interactive") {
+      if (message_type === "interactive") {
           let userSelectionID = message?.interactive?.button_reply?.id || message?.interactive?.list_reply?.id;
-          if (userSelectionID.split('_')[0] == 'drishtee') handleCatalogManagement(userSelectionID, userSession)
+          if (typeof userSelectionID == "string" && userSelectionID.split('_')[0] == 'drishtee') handleCatalogManagement(userSelectionID, userSession)
           else if(userSelectionID.includes('confirm') || userSelectionID.includes('cancel')) handleOrderManagement(userSession, userSelectionID)
           else{
             try {
@@ -315,7 +477,7 @@ export async function userWebhook(req) {
             }
           }
       }
-      else if (message?.type === "text" || message?.type == "image") {
+      else if (message_type === "text" || message_type == "image") {
         const flow = userSession.flowData
         const type = flow[userSession.currNode]?.type
         if (userSession.currNode != userSession.startNode){
@@ -939,7 +1101,7 @@ async function generateBill(products, userSession) {
     scopes: 'https://www.googleapis.com/auth/spreadsheets',
   });
 
-  const range = 'Sheet1!A:D'; // Range for columns A to D
+  const range = 'Sheet1!A:D';
 
   const service = google.sheets({ version: 'v4', auth });
 

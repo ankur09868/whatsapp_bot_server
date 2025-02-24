@@ -7,7 +7,7 @@ import crypto from "crypto";
 import dotenv from "dotenv"
 import { createServer } from "http";
 import { Server } from "socket.io";
-
+import { sendMessage } from "./send-message.js";
 import { decryptRequest, encryptResponse, FlowEndpointException } from "./flowsAPI/encryption.js";
 import { getNextScreen } from "./webhooks/realtorWebhook.js"
 import { getMediaID } from "./helpers/handle-media.js";
@@ -125,27 +125,62 @@ app.post("/send-message", async (req, res) => {
 
       const messageHandlers = {
         text: () => sendTextMessage(formattedPhoneNumber, business_phone_number_id, message, access_token, tenant_id),
-        image: () => {
-          const { imageId, caption } = additionalData;
-          console.log(`image ID: ${imageId}, caption: ${caption}`);
-          return sendImageMessage(formattedPhoneNumber, business_phone_number_id, imageId, caption, access_token, tenant_id);
+        media: async () => {
+          try {
+            const { mediaId, caption } = additionalData;
+            console.log(`Media ID: ${mediaId}, caption: ${caption}`);
+      
+            const mediaResponse = await axios.get(`https://graph.facebook.com/v22.0/${mediaId}/`, {
+              headers: { 'Authorization': `Bearer ${access_token}` }
+            });
+      
+            const mime = mediaResponse?.data?.mime_type;
+            let messageData;
+      
+            switch (mime) {
+              case "application/pdf":
+                messageData = { type: "document", document: { id: mediaId } };
+                if (caption) messageData.document.caption = caption;
+                break;
+      
+              case "image/jpeg":
+              case "image/png":
+              case "image/gif":
+                messageData = { type: "image", image: { id: mediaId } };
+                if (caption) messageData.image.caption = caption;
+                break;
+      
+              case "video/mp4":
+              case "video/quicktime":
+                messageData = { type: "video", video: { id: mediaId } };
+                if (caption) messageData.video.caption = caption;
+                break;
+      
+              case "audio/mpeg":
+              case "audio/ogg":
+              case "audio/wav":
+                messageData = { type: "audio", audio: { id: mediaId } };
+                break;
+      
+              default:
+                console.warn(`Unsupported MIME type: ${mime}`);
+                return;
+            }
+      
+            return sendMessage(formattedPhoneNumber, business_phone_number_id, messageData, access_token, tenant_id);
+          } catch (error) {
+            console.error("Error handling media:", error);
+          }
         },
-        audio: () => {
-          const { audioID } = additionalData;
-          return sendAudioMessage(formattedPhoneNumber, business_phone_number_id, audioID, access_token, tenant_id);
-        },
-        video: () => {
-          const { videoID } = additionalData;
-          return sendVideoMessage(formattedPhoneNumber, business_phone_number_id, videoID, access_token, tenant_id);
-        },
-        location: () => sendLocationMessage(formattedPhoneNumber, business_phone_number_id, additionalData, access_token, tenant_id)
       };
+      
 
       if (!messageHandlers[messageType]) {
         throw new Error("Invalid message type");
       }
 
       const response = await messageHandlers[messageType]();
+
       const messageID = response.data?.messages[0]?.id;
 
       return { phoneNumber: formattedPhoneNumber, messageID, success: true };

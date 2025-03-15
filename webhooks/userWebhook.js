@@ -708,7 +708,7 @@ async function processOrderForDrishtee(userSession, products) {
   const messageData = {
     type: "image",
     image: {
-      id: 481154868087797,
+      id: 688420953831199,
       caption: captionLanguage?.[`${userSession.language}`]
     }
   }

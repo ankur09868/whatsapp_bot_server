@@ -626,7 +626,7 @@ async function checkRRPEligibility(userSession) {
     console.log("Checking for phone: ", phone);
 
     const response = await axios.post(
-      'https://testexpenses.drishtee.in/rrp/nuren/checkRRp',
+      'https://masterappapi.drishtee.in/rrp/nuren/checkRRP',
       { 'rrp_phone_no': phone},
       { headers: { 'Content-Type': 'application/json' } }
     );
@@ -672,7 +672,7 @@ async function processOrderForDrishtee(userSession, products) {
   // sendTextMessage(userSession.userPhoneNumber, userSession.business_phone_number_id, responseMessage, userSession.accessToken, userSession.tenant)
   console.log("Products: ", products)
   const phone = userSession.userPhoneNumber.slice(2)
-  const url = "https://testexpenses.drishtee.in/rrp/nuren/savePreOrder"
+  const url = "https://masterappapi.drishtee.in/rrp/nuren/savePreOrder"
   const headers = {'Content-Type': 'application/json'}
   const data = {
     rrp_phone_no: phone,

@@ -1068,7 +1068,7 @@ export async function handleCustomNode(customCode, userSession) {
         //   const url = "https://nurenaiautomatic-b7hmdnb4fzbpbtbh.canadacentral-01.azurewebsites.net/webhook-test/NurenAi/Rental"
           const url = "https://nurenaiautomatic-b7hmdnb4fzbpbtbh.canadacentral-01.azurewebsites.net/webhook/nurenai"
           let product_list = []
-          if(data_collected?.voice_note){
+         if(data_collected?.voice_note){
             try{
                 const mediaID = data_collected.voice_note
                 console.log("media id: ", mediaID)

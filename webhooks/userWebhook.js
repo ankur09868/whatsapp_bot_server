@@ -491,12 +491,52 @@ export async function userWebhook(req) {
           }
         }
       }
-      else if (message?.type == "button"){
-        const userSelectionText = message?.button?.text
-        console.log("User Selection Text: ", userSelectionText)
-        if (DRISHTEE_PRODUCT_CAROUSEL_IDS.includes(userSelectionText)) await handleCatalogManagement(userSelectionText, userSession)
+      else if (message?.type == "button") {
+        const userSelectionText = message?.button?.text;
+        console.log("Button Message ID:", message.id);
+        console.log("User Selection Text:", userSelectionText);
+        
+        // Safely access context ID with optional chaining to prevent errors
+        const contextId = message?.context?.id;
+        console.log("Message context ID:", contextId);
+        
+        // Fixed string comparison with proper quotes and equality operators
+        if (userSession.tenant == 'drgcndb') {
+            if (userSelectionText == "Yes, this is my order") {
+                // Construct the URL with contextId as a parameter
+                const url = `https://nurenaiautomatic-b7hmdnb4fzbpbtbh.canadacentral-01.azurewebsites.net/webhook/testing?shipment=true&contextid=${encodeURIComponent(contextId)}`;
+                console.log("Making GET request to:", url);
+                
+                // Make GET request using axios or fetch
+                try {
+                    // Using axios
+                    const response = await axios.get(url);
+                    console.log("Callback response:", response.status);
+                } catch (error) {
+                    console.error("Error calling callback URL:", error.message);
+                }
+            } else if (userSelectionText == "No, this is not my order") {
+                // Construct the URL with contextId as a parameter
+                const url = `https://nurenaiautomatic-b7hmdnb4fzbpbtbh.canadacentral-01.azurewebsites.net/webhook/testing?shipment=false&contextid=${encodeURIComponent(contextId)}`;
+                console.log("Making GET request to:", url);
+                
+                // Make GET request
+                try {
+                    // Using axios
+                    const response = await axios.get(url);
+                    console.log("Callback response:", response.status);
+                } catch (error) {
+                    console.error("Error calling callback URL:", error.message);
+                }
+            }
+        }
+        
+        if (DRISHTEE_PRODUCT_CAROUSEL_IDS.includes(userSelectionText)) {
+            await handleCatalogManagement(userSelectionText, userSession);
+        }
+        
         userSession.currNode = userSession.nextNode[0];
-      }
+    }
       else if(message?.type == "audio"){
         // if(userSession.tenant == 'leqcjsk') await handleAudioOrdersForDrishtee(message, userSession)
         userSession.currNode = userSession.nextNode[0];

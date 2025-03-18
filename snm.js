@@ -1073,7 +1073,7 @@ export async function handleCustomNode(customCode, userSession) {
                 const mediaID = data_collected.voice_note
                 console.log("media id: ", mediaID)
                 let response = await axios.get(`https://graph.facebook.com/v18.0/${mediaID}`, {headers: {'Authorization': `Bearer ${userSession.accessToken}`}})
-
+        
                 const mediaURL = response.data.url
                 console.log("Media URL: ", mediaURL)
                 response = await axios.get(mediaURL, {headers: {'Authorization': `Bearer ${userSession.accessToken}`}, responseType: 'arraybuffer'}) 
@@ -1085,12 +1085,12 @@ export async function handleCustomNode(customCode, userSession) {
                 formData.append('bpid', userSession.business_phone_number_id),
                 formData.append('access_token', userSession.accessToken)
                 const n8n_response = await axios.post(
-                url,
-                formData,
-                {
-                    headers: { ...formData.getHeaders() },
-                    httpsAgent: agent,
-                }
+                    url,
+                    formData,
+                    {
+                        headers: { ...formData.getHeaders() },
+                        httpsAgent: agent,
+                    }
                 );
                 const mediaId = n8n_response.data[0].mediaId
                 const propertyId = n8n_response.data[0].propertyId
@@ -1103,16 +1103,73 @@ export async function handleCustomNode(customCode, userSession) {
                 else await sendProperty(product_list, userSession)
             }catch (error){
                 console.error("Error occured in custom node 3: ", error)
+                await sendDefaultProperty(userSession)
             }
-          }else if(data_collected?.property_type){
-            data_collected['bpid'] = userSession.business_phone_number_id
-            data_collected['access_token'] = userSession.accessToken
-            const n8n_response = await axios.post(
-              url, data_collected
-            );
-            product_list.push(...n8n_response.data.map(property => property.id))
-            await sendProperty(product_list, userSession)
-          }
+        } else if(data_collected?.property_type){
+            try {
+                console.log("Processing property type search")
+                
+                // Create FormData object
+                const formData = new FormData();
+                
+                // Add all data_collected properties to FormData
+                Object.keys(data_collected).forEach(key => {
+                    formData.append(key, data_collected[key]);
+                });
+                
+                // Add additional required fields
+                formData.append('bpid', userSession.business_phone_number_id);
+                formData.append('access_token', userSession.accessToken);
+                formData.append('phone', userSession.userPhoneNumber);
+                formData.append('name', userSession.userName);
+                
+                console.log("Sending request to API with property type data")
+                
+                const n8n_response = await axios.post(
+                    url,
+                    formData,
+                    {
+                        headers: { 
+                            ...formData.getHeaders(),
+                            'Authorization': `Bearer ${userSession.accessToken}`
+                        },
+                        httpsAgent: agent,
+                    }
+                );
+                
+                console.log("API response received:", n8n_response.data)
+                
+                // Process response exactly like the voice_note branch
+                if (n8n_response.data && n8n_response.data.length > 0) {
+                    const propertyId = n8n_response.data[0].propertyId
+                    console.log("Propertyid: ", propertyId)
+                    
+                    // If there's a mediaId in the response, send it (like in voice_note branch)
+                    if (n8n_response.data[0].mediaId) {
+                        await sendMessage(userSession.userPhoneNumber, userSession.business_phone_number_id, 
+                            {type: "audio", audio: {id: n8n_response.data[0].mediaId}})
+                    }
+                    
+                    // Process property IDs the same way as voice_note branch
+                    if(Array.isArray(propertyId)) product_list.push(...propertyId)
+                    else product_list.push(propertyId)
+                    
+                    console.log("Product List: ", product_list)
+                    if (product_list.length < 1 || product_list[0] == "") await sendDefaultProperty(userSession)
+                    else await sendProperty(product_list, userSession)
+                } else {
+                    console.log("No properties found, sending default")
+                    await sendDefaultProperty(userSession)
+                }
+            } catch (error) {
+                console.error("Error occurred in property type branch:", error.response?.data || error.message)
+                if (error.response) {
+                    console.error("Response status:", error.response.status)
+                    console.error("Response data:", error.response.data)
+                }
+                await sendDefaultProperty(userSession)
+            }
+        }
         }
     }
 }

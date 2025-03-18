@@ -105,7 +105,10 @@ messageQueue.process('template', numberOfWorkers, async(job) => {
     console.log("Rcvd message queue data in template worker: ", job.data);
 
     const messageID = await sendMessage(messageData, contact, templateData.bpid, templateData.access_token, templateData.tenant_id);
-
+    
+    // Store the messageID in the job's result
+    job.data.messageID = messageID;
+    
     const data = {
       message_id: messageID,
       status: "sent",
@@ -116,9 +119,12 @@ messageQueue.process('template', numberOfWorkers, async(job) => {
       tenant_id: templateData.tenant_id
     };
     const res = await axios.post(`${djangoURL}/individual_message_statistics/`, data, { headers: { 'bpid': templateData.bpid } });
+    
+    return { messageID, contact }; // Return result for job
 
   } catch (err) {
     console.error("Error occurred in messageQueue(template): ", err);
+    throw err; // Rethrow to mark job as failed
   }
 });
 

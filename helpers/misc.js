@@ -203,6 +203,7 @@ try {
     // console.log("Sending request with data:", data);
 
     // Send POST request with JSON payload
+    console.log(message_id,"message id")
     console.log("Sending req to set status")
     const response = await axios.post(`${djangoURL}/set-status/`, data, {
     headers: { 

@@ -436,13 +436,15 @@ async function sendTemplate(templateData, access_token, tenant_id, account_id, b
     messageCache.set(cacheKey, templateDetails);
   }
 
-  const contacts = templateData.phone
-
+  const contacts = templateData.phone;
   console.log("Contacts to send template: ", contacts);
+  
+  // Array to store job IDs
+  const jobIds = [];
 
   for (let contact of contacts) {
     const messageData = await setTemplate(templateDetails, contact, bpid, access_token, tenant_id, null);
-    const templateData = {
+    const jobTemplateData = {
       name: templateName,
       access_token,
       tenant_id,
@@ -450,12 +452,15 @@ async function sendTemplate(templateData, access_token, tenant_id, account_id, b
       bpid
     };
     console.log("Sending data in template worker");
-    messageQueue.add('template', { messageData, contact, templateData }, { attempts: 3, backoff: 5000 });
+    const job = await messageQueue.add('template', { messageData, contact, templateData: jobTemplateData }, { attempts: 3, backoff: 5000 });
+    jobIds.push(job.id);
   }
 
   console.log("Contacts: ", contacts);
   const data = { name: templateName, sent: contacts.length, type: "template" };
   axios.post(`${djangoURL}/message-stat/`, data, { headers: { 'X-Tenant-Id': tenant_id } });
+  
+  return jobIds;
 }
 
 async function sendTemplateToGroup(groupData, access_token, tenant_id, account_id, bpid) {
@@ -528,34 +533,34 @@ app.post("/send-template", async (req, res) => {
     const { access_token, tenant_id, business_account_id: account_id } = whatsappData;
 
     const handleType = {
-      campaign: () => {
+      campaign: async () => {
         const campaignData = req.body?.campaign;
         if (!campaignData) {
           return res.status(400).send({ status: 400, message: "Campaign data not found in request" });
         }
-        sendCampaign(campaignData, access_token, tenant_id, account_id, bpid);
-        return res.sendStatus(200);
+        const jobIds = await sendCampaign(campaignData, access_token, tenant_id, account_id, bpid);
+        return res.status(200).send({ status: 200, message: "Campaign scheduled", jobIds });
       },
-      template: () => {
+      template: async () => {
         const templateData = req.body?.template;
         if (!templateData) {
           return res.status(400).send({ status: 400, message: "Template data not found in request" });
         }
-        sendTemplate(templateData, access_token, tenant_id, account_id, bpid);
-        return res.sendStatus(200);
+        const jobIds = await sendTemplate(templateData, access_token, tenant_id, account_id, bpid);
+        return res.status(200).send({ status: 200, message: "Template send scheduled", jobIds });
       },
-      group: () => {
+      group: async () => {
         const groupData = req.body?.group;
         if (!groupData) {
           return res.status(400).send({ status: 400, message: "Group data not found in request" });
         }
-        sendTemplateToGroup(groupData, access_token, tenant_id, account_id, bpid);
-        return res.sendStatus(200);
+        const jobIds = await sendTemplateToGroup(groupData, access_token, tenant_id, account_id, bpid);
+        return res.status(200).send({ status: 200, message: "Group template send scheduled", jobIds });
       }
     };
 
     if (handleType[type]) {
-      return handleType[type]();
+      return await handleType[type]();
     } else {
       return res.status(400).send({ status: 400, message: "Invalid type specified in request" });
     }
@@ -612,6 +617,7 @@ async function convertToValidDateFormat(dateString) {
 }
 
 app.post("/webhook", async (req, res) => {
+  console.log(req.body,"yahan request hai");
   try {
     res.sendStatus(200)
     const business_phone_number_id = req.body.entry?.[0].changes?.[0].value?.metadata?.phone_number_id;
@@ -758,7 +764,43 @@ setInterval(clearInactiveSessions, 60 * 60 * 1000);
 
 const { APP_SECRET, PASSPHRASE } = process.env
 const PRIVATE_KEY = process.env.PRIVATE_KEY.replace(/\\n/g, '\n')
-
+app.get("/job-status/:jobId", async (req, res) => {
+  try {
+    const jobId = req.params.jobId;
+    const job = await messageQueue.getJob(jobId);
+    
+    if (!job) {
+      return res.status(404).send({ status: 404, message: "Job not found" });
+    }
+    
+    const state = await job.getState();
+    const result = job.returnvalue;
+    const error = job.failedReason;
+    
+    // Get message ID from either result or job data
+    let messageID = null;
+    if (result && result.messageID) {
+      messageID = result.messageID;
+    } else if (job.data && job.data.messageID) {
+      messageID = job.data.messageID;
+    }
+    
+    return res.status(200).send({
+      status: 200,
+      jobId,
+      state,
+      messageID,
+      contact: job.data.contact,
+      templateName: job.data.templateData?.name,
+      error: error || null,
+      completed: state === 'completed'
+    });
+    
+  } catch (error) {
+    console.error("Error in /job-status:", error.message);
+    res.status(500).send({ status: 500, message: "Internal server error" });
+  }
+});
 app.post("/data", async (req, res) => {
   if (!PRIVATE_KEY) {
     throw new Error(
